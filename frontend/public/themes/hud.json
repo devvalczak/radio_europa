@@ -1,0 +1,6 @@
+{
+  "bg": "#050a14", "panel": "#0a1424", "panel2": "#0f1d33", "border": "#14506b",
+  "text": "#cdf3ff", "muted": "#6aa7bd", "accent": "#38e1ff", "accentContrast": "#02121a",
+  "danger": "#ff5470", "ok": "#3dffb0", "radius": "4px", "glow": "0 0 12px rgba(56,225,255,.35)",
+  "font": "'SF Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace"
+}

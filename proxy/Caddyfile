@@ -1,0 +1,24 @@
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy core:8000
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}

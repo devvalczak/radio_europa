@@ -1,0 +1,5 @@
+[
+  { "id": "default", "name": "Domyślny (ciemny)", "file": "default.json" },
+  { "id": "light", "name": "Jasny", "file": "light.json" },
+  { "id": "hud", "name": "HUD (Iron Man)", "file": "hud.json" }
+]

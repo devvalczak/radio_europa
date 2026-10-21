@@ -1,0 +1,37 @@
+const pl = {
+  appName: "Jarvis",
+  dashboard: "Pulpit",
+  settings: "Ustawienia",
+  logout: "Wyloguj",
+  login: "Zaloguj",
+  username: "Użytkownik",
+  password: "Hasło",
+  totp: "Kod 2FA",
+  setupTitle: "Pierwsza konfiguracja",
+  setupToken: "Token konfiguracji (JARVIS_SETUP_TOKEN)",
+  setupHint: "Hasło: minimum 12 znaków.",
+  create: "Utwórz konto",
+  theme: "Motyw",
+  notifications: "Powiadomienia push",
+  enablePush: "Włącz powiadomienia na tym urządzeniu",
+  testPush: "Wyślij testowe",
+  twofa: "Weryfikacja dwuetapowa (TOTP)",
+  loading: "Ładowanie…",
+  noModules: "Brak modułów.",
+  save: "Zapisz",
+  cancel: "Anuluj",
+  delete: "Usuń",
+  errors: {
+    invalid_credentials: "Nieprawidłowy login lub hasło.",
+    totp_required: "Podaj kod 2FA.",
+    invalid_totp: "Nieprawidłowy kod 2FA.",
+    too_many_attempts: "Za dużo prób. Spróbuj za 15 minut.",
+    bad_setup_token: "Zły token konfiguracji.",
+    already_configured: "Konto już istnieje.",
+    not_authenticated: "Sesja wygasła.",
+    push_not_configured: "Serwer nie ma kluczy VAPID.",
+  } as Record<string, string>,
+};
+
+export const t = pl;
+export const errorText = (detail: string) => pl.errors[detail] ?? `Błąd: ${detail}`;

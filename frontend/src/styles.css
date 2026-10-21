@@ -1,0 +1,64 @@
+:root {
+  --bg: #0f1320; --panel: #171c2e; --panel-2: #1f2540; --border: #2b3356; --text: #e8ebf7;
+  --muted: #8d96b8; --accent: #6c8cff; --accent-contrast: #0b1020; --danger: #ff6b7a; --ok: #4ade80;
+  --radius: 12px; --glow: none; --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; }
+h1 { margin: 0 0 16px; font-size: 22px; }
+h2 { margin: 0; font-size: 16px; }
+a { color: var(--accent); text-decoration: none; }
+.muted { color: var(--muted); }
+.error { color: var(--danger); margin: 0; }
+.center { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--glow); }
+.stack { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.login { width: min(380px, 100%); display: flex; flex-direction: column; gap: 12px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+input, select, textarea, button {
+  font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px); padding: 8px 10px;
+}
+textarea { resize: vertical; width: 100%; }
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); font-weight: 600; }
+button.danger { color: var(--danger); }
+.secret { word-break: break-all; padding: 8px; background: var(--panel-2); border-radius: 8px; }
+
+.shell { display: grid; grid-template-columns: 200px 1fr; min-height: 100dvh; }
+.shell nav { background: var(--panel); border-right: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.shell nav a { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 8px; color: var(--text); }
+.shell nav a.on { background: var(--panel-2); color: var(--accent); box-shadow: var(--glow); }
+.shell nav b { font-weight: 500; }
+.shell main { padding: 20px; min-width: 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.widget header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.list li { display: flex; justify-content: space-between; gap: 8px; }
+.tag { font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--border); cursor: pointer; }
+
+.split { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+.items { display: flex; flex-direction: column; gap: 6px; max-height: 70dvh; overflow: auto; }
+.item { text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.item.on { border-color: var(--accent); box-shadow: var(--glow); }
+.md :first-child { margin-top: 0; }
+.md pre { overflow: auto; background: var(--panel-2); padding: 8px; border-radius: 8px; }
+
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal .dow { text-align: center; color: var(--muted); font-size: 12px; }
+.cal button { min-height: 56px; text-align: left; padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.cal button.out { opacity: .45; }
+.cal button.today { border-color: var(--accent); }
+.cal button.sel { background: var(--panel-2); box-shadow: var(--glow); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; margin-right: 2px; }
+
+@media (max-width: 720px) {
+  .shell { grid-template-columns: 1fr; padding-bottom: 64px; }
+  .shell nav { position: fixed; bottom: 0; left: 0; right: 0; flex-direction: row; justify-content: space-around; border-right: 0; border-top: 1px solid var(--border); padding: 6px 6px max(6px, env(safe-area-inset-bottom)); z-index: 5; }
+  .shell nav a { flex-direction: column; gap: 0; padding: 6px 8px; font-size: 11px; }
+  .shell main { padding: 14px; }
+  .split { grid-template-columns: 1fr; }
+}

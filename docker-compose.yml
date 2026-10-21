@@ -1,0 +1,48 @@
+name: jarvis
+
+services:
+  core:
+    build:
+      context: .
+      dockerfile: core/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    expose: ["8000"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [core, frontend]
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      # local access only; the internet reaches us through the Cloudflare tunnel
+      - "127.0.0.1:${JARVIS_PORT:-8080}:80"
+
+  # Named tunnel (permanent, own domain): `make up-tunnel`. Needs CLOUDFLARE_TUNNEL_TOKEN in .env (cloudflared exits with an error without it).
+  # In the Cloudflare dashboard set the public hostname's service to http://proxy:80.
+  cloudflared:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on: [proxy]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+
+  # Temporary random https://*.trycloudflare.com URL, no account needed: `make up-quick`, then `make quick-url`.
+  cloudflared-quick:
+    profiles: ["quick"]
+    image: cloudflare/cloudflared:latest
+    restart: "no"
+    depends_on: [proxy]
+    command: tunnel --no-autoupdate --url http://proxy:80

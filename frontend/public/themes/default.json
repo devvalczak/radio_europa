@@ -1,0 +1,6 @@
+{
+  "bg": "#0f1320", "panel": "#171c2e", "panel2": "#1f2540", "border": "#2b3356",
+  "text": "#e8ebf7", "muted": "#8d96b8", "accent": "#6c8cff", "accentContrast": "#0b1020",
+  "danger": "#ff6b7a", "ok": "#4ade80", "radius": "12px", "glow": "none",
+  "font": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+}
