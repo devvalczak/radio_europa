@@ -10,6 +10,7 @@ export default defineConfig({
     // module code lives outside this folder (../modules), so pin shared deps here
     alias: {
       "@jarvis/sdk": path.resolve(__dirname, "src/sdk.ts"),
+      "@jarvis/ui": path.resolve(__dirname, "src/ui/index.tsx"),
       "react/jsx-runtime": nm("react/jsx-runtime"),
       "react/jsx-dev-runtime": nm("react/jsx-dev-runtime"),
       "react-dom": nm("react-dom"),

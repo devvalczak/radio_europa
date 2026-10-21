@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { errorText, t } from "./i18n";
 import { enablePush, pushSupported } from "./push";
+import type { ModuleInfo } from "./Shell";
 import { applyTheme, currentTheme, listThemes, ThemeInfo } from "./theme";
 
-export function Settings({ status, onChange }: { status: AuthStatus; onChange: () => void }) {
+export function Settings({ status, onChange, modules }: { status: AuthStatus; onChange: () => void; modules: ModuleInfo[] }) {
   const [themes, setThemes] = useState<ThemeInfo[]>([]);
   const [theme, setTheme] = useState(currentTheme());
   const [msg, setMsg] = useState("");
@@ -88,6 +89,17 @@ export function Settings({ status, onChange }: { status: AuthStatus; onChange: (
           </button>
         )}
       </section>
+
+      {modules.some((m) => m.status === "error") && (
+        <section className="card stack">
+          <h2>{t.brokenModules}</h2>
+          {modules.filter((m) => m.status === "error").map((m) => (
+            <p key={m.id}>
+              <b>{m.id}</b> <span className="error">{m.error}</span>
+            </p>
+          ))}
+        </section>
+      )}
 
       {msg && <p className="muted">{msg}</p>}
       <button

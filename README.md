@@ -11,9 +11,9 @@ Internet → Cloudflare (Access) → Tunnel (cloudflared) → Caddy ─┬─ / 
 ```
 
 - `core/` – FastAPI: auth (argon2, sesja w ciasteczku, TOTP), rejestr modułów, push (VAPID), scheduler.
-- `modules/<id>/` – wtyczka: `manifest.json` + `backend/` (router FastAPI, modele) + `frontend/index.tsx` (strona i widget).
-  Backend montuje ją pod `/api/m/<id>`; frontend dodaje ją do menu i pulpitu. Nowy moduł = nowy katalog.
-  Moduł może wystawić `collect_reminders(db, now)` — scheduler co 30 s wysyła zwrócone przypomnienia jako push.
+- `modules/<id>/` – wtyczka według kontraktu v1 (manifest, ikona, teksty, backend, strona). Pełny opis: [docs/MODULE_CONTRACT.md](docs/MODULE_CONTRACT.md).
+  Nowy moduł: `make new-module name=pogoda`. Moduły rozmawiają przez hub (akcje, zdarzenia, audyt), a widgety
+  są deklaratywne i układane przez użytkownika na pulpicie.
 - `frontend/` – Vite + React + TypeScript. Motywy: `frontend/public/themes/*.json` + wpis w `index.json`.
 
 ## Uruchomienie lokalne
@@ -59,7 +59,8 @@ cd frontend && npm ci && npm run build                    # typecheck + build
 
 ## Stan i znane ograniczenia
 
-- Tabele tworzone przez `create_all` — brak migracji (Alembic dojdzie przed pierwszą zmianą schematu).
+- Migracje (Alembic) są jedną historią w `core/`; po zmianie modeli: `make migration m="opis"`. Baza z etapu 1 jest aktualizowana automatycznie.
+- Moduły działają w procesie core'a — uprawnienia z manifestu są deklaracją, nie izolacją. Tryb z osobnym kontenerem jest poza zakresem.
 - Limiter prób logowania jest w pamięci procesu (reset po restarcie).
-- Interfejs po polsku; teksty powłoki w `frontend/src/i18n.ts`, moduły mają je na razie wpisane na stałe.
+- Interfejs po polsku; teksty powłoki w `frontend/src/i18n.ts`, teksty modułów w `modules/<id>/locales/pl.json`.
 - Kolejne etapy: pogoda i newsy (RSS + streszczenia AI), Google/IMAP, warstwa AI, agent hosta (terminal, zadania na komputerze).

@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -11,14 +15,32 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vite/client"],
+    "types": [
+      "vite/client"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@jarvis/sdk": ["src/sdk.ts"],
-      "react": ["node_modules/@types/react"],
-      "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime"],
-      "react-markdown": ["node_modules/react-markdown"]
-    }
+      "@jarvis/sdk": [
+        "src/sdk.ts"
+      ],
+      "react": [
+        "node_modules/@types/react"
+      ],
+      "react/jsx-runtime": [
+        "node_modules/@types/react/jsx-runtime"
+      ],
+      "react-markdown": [
+        "node_modules/react-markdown"
+      ],
+      "@jarvis/ui": [
+        "src/ui/index.tsx"
+      ]
+    },
+    "resolveJsonModule": true
   },
-  "include": ["src", "../modules/*/frontend"]
+  "include": [
+    "src",
+    "../modules/*/frontend",
+    "../modules/*/locales"
+  ]
 }

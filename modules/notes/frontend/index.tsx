@@ -1,6 +1,8 @@
-import { ApiError, moduleApi, ModuleDef } from "@jarvis/sdk";
+import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
+import { Button, Card, ErrorText, Muted, PageTitle, Row, Tag } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import Markdown from "react-markdown";
+import pl from "../locales/pl.json";
 
 interface Note {
   id: number;
@@ -8,22 +10,23 @@ interface Note {
   content: string;
   tags: string[];
   pinned: boolean;
-  updated_at: string;
 }
 
+const t = createT(pl);
 const api = moduleApi("notes");
+const blank = { title: "", content: "", tags: "", pinned: false };
 
 function Page() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
   const [sel, setSel] = useState<Note | null>(null);
-  const [draft, setDraft] = useState({ title: "", content: "", tags: "", pinned: false });
+  const [draft, setDraft] = useState(blank);
   const [preview, setPreview] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
-    api.get<Note[]>("", { q, tag }).then(setNotes).catch(() => setError("Nie udało się wczytać notatek."));
+    api.get<Note[]>("", { q, tag }).then(setNotes).catch(() => setError(t("loadFailed")));
   }, [q, tag]);
 
   useEffect(() => {
@@ -34,23 +37,22 @@ function Page() {
   const open = (n: Note | null) => {
     setSel(n);
     setPreview(false);
-    setDraft(n ? { title: n.title, content: n.content, tags: n.tags.join(", "), pinned: n.pinned } : { title: "", content: "", tags: "", pinned: false });
+    setDraft(n ? { title: n.title, content: n.content, tags: n.tags.join(", "), pinned: n.pinned } : blank);
   };
 
   async function save() {
     const body = { ...draft, tags: draft.tags.split(",") };
     try {
-      const saved = sel ? await api.put<Note>(`/${sel.id}`, body) : await api.post<Note>("", body);
-      setSel(saved);
+      setSel(sel ? await api.put<Note>(`/${sel.id}`, body) : await api.post<Note>("", body));
       setError("");
       load();
     } catch (e) {
-      setError(e instanceof ApiError ? `Błąd: ${e.detail}` : "Nie udało się zapisać.");
+      setError(e instanceof ApiError ? `${t("saveFailed")} (${e.detail})` : t("saveFailed"));
     }
   }
 
   async function remove() {
-    if (!sel || !window.confirm("Usunąć notatkę?")) return;
+    if (!sel || !window.confirm(t("confirmDelete"))) return;
     await api.del(`/${sel.id}`);
     open(null);
     load();
@@ -60,66 +62,48 @@ function Page() {
 
   return (
     <>
-      <h1>Notatki</h1>
+      <PageTitle>{t("title")}</PageTitle>
       <div className="split">
         <div className="stack">
-          <div className="row">
-            <input style={{ flex: 1 }} placeholder="Szukaj…" value={q} onChange={(e) => setQ(e.target.value)} />
-            <button className="primary" onClick={() => open(null)}>+</button>
-          </div>
-          <div className="row">
-            {tag && <span className="tag" onClick={() => setTag("")}>#{tag} ✕</span>}
-            {!tag && allTags.map((x) => <span key={x} className="tag" onClick={() => setTag(x)}>#{x}</span>)}
-          </div>
+          <Row>
+            <input style={{ flex: 1 }} placeholder={t("search")} value={q} onChange={(e) => setQ(e.target.value)} />
+            <Button variant="primary" onClick={() => open(null)}>+</Button>
+          </Row>
+          <Row>
+            {tag ? <Tag onClick={() => setTag("")}>#{tag} ✕</Tag> : allTags.map((x) => <Tag key={x} onClick={() => setTag(x)}>#{x}</Tag>)}
+          </Row>
           <div className="items">
             {notes.map((n) => (
-              <button key={n.id} className={`item ${sel?.id === n.id ? "on" : ""}`} onClick={() => open(n)}>
-                <b>{n.pinned ? "📌 " : ""}{n.title || "(bez tytułu)"}</b>
+              <Button key={n.id} className={`item ${sel?.id === n.id ? "on" : ""}`} onClick={() => open(n)}>
+                <b>{n.pinned ? "📌 " : ""}{n.title || t("noTitle")}</b>
                 <span className="muted">{n.content.slice(0, 60)}</span>
-              </button>
+              </Button>
             ))}
-            {notes.length === 0 && <p className="muted">Brak notatek.</p>}
+            {notes.length === 0 && <Muted>{t("none")}</Muted>}
           </div>
         </div>
 
-        <div className="card stack">
-          <input placeholder="Tytuł" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+        <Card>
+          <input placeholder={t("titlePh")} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
           {preview ? (
-            <div className="md"><Markdown>{draft.content || "*Pusto*"}</Markdown></div>
+            <div className="md"><Markdown>{draft.content || t("empty")}</Markdown></div>
           ) : (
-            <textarea rows={14} placeholder="Treść (Markdown)" value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
+            <textarea rows={14} placeholder={t("contentPh")} value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
           )}
-          <input placeholder="tagi, oddzielone przecinkami" value={draft.tags} onChange={(e) => setDraft({ ...draft, tags: e.target.value })} />
-          <div className="row">
+          <input placeholder={t("tagsPh")} value={draft.tags} onChange={(e) => setDraft({ ...draft, tags: e.target.value })} />
+          <Row>
             <label style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={draft.pinned} onChange={(e) => setDraft({ ...draft, pinned: e.target.checked })} /> Przypięta
+              <input type="checkbox" checked={draft.pinned} onChange={(e) => setDraft({ ...draft, pinned: e.target.checked })} /> {t("pinned")}
             </label>
-            <button onClick={() => setPreview(!preview)}>{preview ? "Edytuj" : "Podgląd"}</button>
-            <button className="primary" onClick={save}>Zapisz</button>
-            {sel && <button className="danger" onClick={remove}>Usuń</button>}
-          </div>
-          {error && <p className="error">{error}</p>}
-        </div>
+            <Button onClick={() => setPreview(!preview)}>{preview ? t("edit") : t("preview")}</Button>
+            <Button variant="primary" onClick={save}>{t("save")}</Button>
+            {sel && <Button variant="danger" onClick={remove}>{t("delete")}</Button>}
+          </Row>
+          <ErrorText>{error}</ErrorText>
+        </Card>
       </div>
     </>
   );
 }
 
-function Widget() {
-  const [notes, setNotes] = useState<Note[]>([]);
-  useEffect(() => {
-    api.get<Note[]>().then((n) => setNotes(n.slice(0, 5))).catch(() => undefined);
-  }, []);
-  if (notes.length === 0) return <p className="muted">Brak notatek.</p>;
-  return (
-    <ul className="list">
-      {notes.map((n) => (
-        <li key={n.id}>
-          <a href="#/notes">{n.pinned ? "📌 " : ""}{n.title || "(bez tytułu)"}</a>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export default { id: "notes", Page, Widget } satisfies ModuleDef;
+export default { id: "notes", Page } satisfies ModuleDef;

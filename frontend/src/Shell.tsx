@@ -1,18 +1,21 @@
 import { api, ModuleDef } from "@jarvis/sdk";
+import { ModuleIcon } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
+import { Dashboard } from "./Dashboard";
 import { t } from "./i18n";
 import { frontendModules } from "./registry";
 import { Settings } from "./Settings";
 
-interface Manifest {
+export interface ModuleInfo {
   id: string;
   name: string;
-  icon: string;
-  description: string;
+  version?: string;
+  description?: string;
+  status: "ok" | "error";
+  error: string;
+  has_icon?: boolean;
 }
-
-const ICONS: Record<string, string> = { note: "📝", calendar: "📅" };
 
 const useRoute = () => {
   const read = () => window.location.hash.replace(/^#\/?/, "") || "dashboard";
@@ -27,17 +30,17 @@ const useRoute = () => {
 
 export function Shell({ status, onChange }: { status: AuthStatus; onChange: () => void }) {
   const route = useRoute();
-  const [manifests, setManifests] = useState<Manifest[]>([]);
+  const [modules, setModules] = useState<ModuleInfo[]>([]);
 
   useEffect(() => {
-    api<Manifest[]>("/modules").then(setManifests).catch(() => setManifests([]));
+    api<ModuleInfo[]>("/modules").then(setModules).catch(() => setModules([]));
   }, []);
 
-  // only modules enabled by the backend AND bundled in the frontend
-  const mods = manifests
+  // enabled by the backend AND bundled in the frontend
+  const mods = modules
+    .filter((m) => m.status === "ok")
     .map((m) => ({ m, def: frontendModules[m.id] as ModuleDef | undefined }))
-    .filter((x): x is { m: Manifest; def: ModuleDef } => !!x.def);
-
+    .filter((x): x is { m: ModuleInfo; def: ModuleDef } => !!x.def);
   const active = mods.find((x) => x.m.id === route);
 
   return (
@@ -49,7 +52,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
         </a>
         {mods.map(({ m }) => (
           <a key={m.id} href={`#/${m.id}`} className={route === m.id ? "on" : ""}>
-            <span>{ICONS[m.icon] ?? "▣"}</span>
+            <ModuleIcon id={m.has_icon ? m.id : ""} />
             <b>{m.name}</b>
           </a>
         ))}
@@ -60,25 +63,11 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       </nav>
       <main>
         {route === "settings" ? (
-          <Settings status={status} onChange={onChange} />
+          <Settings status={status} onChange={onChange} modules={modules} />
         ) : active ? (
           <active.def.Page />
         ) : (
-          <>
-            <h1>{t.dashboard}</h1>
-            {mods.length === 0 && <p className="muted">{t.noModules}</p>}
-            <div className="grid">
-              {mods.map(({ m, def }) => (
-                <section key={m.id} className="card widget">
-                  <header>
-                    <h2>{m.name}</h2>
-                    <a href={`#/${m.id}`}>→</a>
-                  </header>
-                  {def.Widget ? <def.Widget /> : <p className="muted">{m.description}</p>}
-                </section>
-              ))}
-            </div>
-          </>
+          <Dashboard />
         )}
       </main>
     </div>

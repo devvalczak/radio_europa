@@ -1,0 +1,18 @@
+{
+  "title": "Notatki",
+  "search": "Szukaj…",
+  "noTitle": "(bez tytułu)",
+  "none": "Brak notatek.",
+  "titlePh": "Tytuł",
+  "contentPh": "Treść (Markdown)",
+  "tagsPh": "tagi, oddzielone przecinkami",
+  "empty": "*Pusto*",
+  "pinned": "Przypięta",
+  "edit": "Edytuj",
+  "preview": "Podgląd",
+  "save": "Zapisz",
+  "delete": "Usuń",
+  "confirmDelete": "Usunąć notatkę?",
+  "loadFailed": "Nie udało się wczytać notatek.",
+  "saveFailed": "Nie udało się zapisać."
+}

@@ -1,5 +1,7 @@
-import { ApiError, moduleApi, ModuleDef } from "@jarvis/sdk";
+import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
+import { Button, Card, ErrorText, Field, Muted, PageTitle, Row } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
+import pl from "../locales/pl.json";
 
 interface CalEvent {
   id: number;
@@ -11,9 +13,10 @@ interface CalEvent {
   remind_minutes: number | null;
 }
 
+const t = createT(pl);
 const api = moduleApi("calendar");
-const DOW = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
-const REMINDERS: [string, number | null][] = [["Brak", null], ["W chwili startu", 0], ["10 min wcześniej", 10], ["30 min wcześniej", 30], ["1 h wcześniej", 60], ["1 dzień wcześniej", 1440]];
+const DOW = t("dow").split(",");
+const REMINDERS: (number | null)[] = [null, 0, 10, 30, 60, 1440];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -46,7 +49,7 @@ function Page() {
     api
       .get<CalEvent[]>("", { from: grid[0].toISOString(), to: new Date(grid[41].getTime() + 86_400_000).toISOString() })
       .then(setEvents)
-      .catch(() => setError("Nie udało się wczytać wydarzeń."));
+      .catch(() => setError(t("loadFailed")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchor.getFullYear(), anchor.getMonth()]);
 
@@ -87,12 +90,12 @@ function Page() {
       setError("");
       load();
     } catch (e) {
-      setError(e instanceof ApiError && e.detail ? "Sprawdź dane wydarzenia (np. koniec nie może być przed startem)." : "Nie udało się zapisać.");
+      setError(e instanceof ApiError && e.status === 422 ? t("invalid") : t("saveFailed"));
     }
   }
 
   async function remove() {
-    if (!draft?.id || !window.confirm("Usunąć wydarzenie?")) return;
+    if (!draft?.id || !window.confirm(t("confirmDelete"))) return;
     await api.del(`/${draft.id}`);
     setDraft(null);
     load();
@@ -103,14 +106,14 @@ function Page() {
 
   return (
     <>
-      <h1>Kalendarz</h1>
+      <PageTitle>{t("title")}</PageTitle>
       <div className="split" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(260px, 1fr)" }}>
-        <div className="card stack">
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <button onClick={() => shift(-1)}>←</button>
+        <Card>
+          <Row between>
+            <Button onClick={() => shift(-1)}>←</Button>
             <b>{anchor.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</b>
-            <button onClick={() => shift(1)}>→</button>
-          </div>
+            <Button onClick={() => shift(1)}>→</Button>
+          </Row>
           <div className="cal">
             {DOW.map((d) => <div key={d} className="dow">{d}</div>)}
             {grid.map((d) => {
@@ -118,77 +121,56 @@ function Page() {
               const n = byDay.get(k)?.length ?? 0;
               const cls = [d.getMonth() !== anchor.getMonth() && "out", k === todayKey && "today", k === dayKey(day) && "sel"].filter(Boolean).join(" ");
               return (
-                <button key={k} className={cls} onClick={() => setDay(d)}>
+                <Button key={k} className={cls} onClick={() => setDay(d)}>
                   <span>{d.getDate()}</span>
                   {n > 0 && <span className="muted"><span className="dot" />{n}</span>}
-                </button>
+                </Button>
               );
             })}
           </div>
-        </div>
+        </Card>
 
-        <div className="card stack">
-          <div className="row" style={{ justifyContent: "space-between" }}>
+        <Card>
+          <Row between>
             <b>{day.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}</b>
-            <button className="primary" onClick={() => setDraft(emptyDraft(day))}>+ Dodaj</button>
-          </div>
-          {dayEvents.length === 0 && <p className="muted">Brak wydarzeń.</p>}
+            <Button variant="primary" onClick={() => setDraft(emptyDraft(day))}>{t("add")}</Button>
+          </Row>
+          {dayEvents.length === 0 && <Muted>{t("none")}</Muted>}
           {dayEvents.map((e) => (
-            <button key={e.id} className="item" onClick={() => edit(e)}>
+            <Button key={e.id} className="item" onClick={() => edit(e)}>
               <b>{e.title}</b>
-              <span className="muted">{e.all_day ? "cały dzień" : fmtTime(e.start)}{e.remind_minutes !== null ? " 🔔" : ""}</span>
-            </button>
+              <span className="muted">{e.all_day ? t("allDay") : fmtTime(e.start)}{e.remind_minutes !== null ? " 🔔" : ""}</span>
+            </Button>
           ))}
-        </div>
+        </Card>
       </div>
 
       {draft && (
-        <div className="card stack" style={{ marginTop: 16 }}>
-          <h2>{draft.id ? "Edytuj wydarzenie" : "Nowe wydarzenie"}</h2>
-          <input placeholder="Tytuł" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
-          <div className="row">
-            <label>Start<input type="datetime-local" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} /></label>
-            <label>Koniec<input type="datetime-local" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} /></label>
-            <label>Przypomnienie
+        <Card title={draft.id ? t("editEvent") : t("newEvent")} className="form">
+          <input placeholder={t("titlePh")} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+          <Row>
+            <Field label={t("start")}><input type="datetime-local" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} /></Field>
+            <Field label={t("end")}><input type="datetime-local" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} /></Field>
+            <Field label={t("reminder")}>
               <select value={draft.remind} onChange={(e) => setDraft({ ...draft, remind: e.target.value })}>
-                {REMINDERS.map(([label, v]) => <option key={label} value={v === null ? "" : String(v)}>{label}</option>)}
+                {REMINDERS.map((v) => <option key={v ?? "none"} value={v === null ? "" : String(v)}>{t(`remind.${v ?? "none"}`)}</option>)}
               </select>
-            </label>
-          </div>
+            </Field>
+          </Row>
           <label style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <input type="checkbox" checked={draft.all_day} onChange={(e) => setDraft({ ...draft, all_day: e.target.checked })} /> Cały dzień
+            <input type="checkbox" checked={draft.all_day} onChange={(e) => setDraft({ ...draft, all_day: e.target.checked })} /> {t("allDayCheck")}
           </label>
-          <textarea rows={3} placeholder="Opis" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-          <div className="row">
-            <button className="primary" disabled={!draft.title.trim() || !draft.start} onClick={save}>Zapisz</button>
-            <button onClick={() => setDraft(null)}>Anuluj</button>
-            {draft.id > 0 && <button className="danger" onClick={remove}>Usuń</button>}
-          </div>
-        </div>
+          <textarea rows={3} placeholder={t("descPh")} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+          <Row>
+            <Button variant="primary" disabled={!draft.title.trim() || !draft.start} onClick={save}>{t("save")}</Button>
+            <Button onClick={() => setDraft(null)}>{t("cancel")}</Button>
+            {draft.id > 0 && <Button variant="danger" onClick={remove}>{t("delete")}</Button>}
+          </Row>
+        </Card>
       )}
-      {error && <p className="error">{error}</p>}
+      <ErrorText>{error}</ErrorText>
     </>
   );
 }
 
-function Widget() {
-  const [events, setEvents] = useState<CalEvent[]>([]);
-  useEffect(() => {
-    const from = new Date();
-    const to = new Date(from.getTime() + 7 * 86_400_000);
-    api.get<CalEvent[]>("", { from: from.toISOString(), to: to.toISOString() }).then((e) => setEvents(e.slice(0, 5))).catch(() => undefined);
-  }, []);
-  if (events.length === 0) return <p className="muted">Nic w najbliższych 7 dniach.</p>;
-  return (
-    <ul className="list">
-      {events.map((e) => (
-        <li key={e.id}>
-          <span>{e.title}</span>
-          <span className="muted">{new Date(e.start).toLocaleDateString("pl-PL", { day: "numeric", month: "short" })} {e.all_day ? "" : fmtTime(e.start)}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export default { id: "calendar", Page, Widget } satisfies ModuleDef;
+export default { id: "calendar", Page } satisfies ModuleDef;

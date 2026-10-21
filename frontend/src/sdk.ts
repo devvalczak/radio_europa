@@ -1,11 +1,21 @@
 import type { ComponentType } from "react";
 
-/** What a frontend module (modules/<id>/frontend/index.tsx) must export as default. */
+/**
+ * What a frontend module (modules/<id>/frontend/index.tsx) exports as default.
+ * Widgets are normally declarative (the backend returns blocks); `widgets` is the escape
+ * hatch: a React component here replaces the block rendering of the widget with that id.
+ */
 export interface ModuleDef {
   id: string;
   Page: ComponentType;
-  Widget?: ComponentType;
+  widgets?: Record<string, ComponentType>;
 }
+
+/** Tiny translator over a module's locales/pl.json: t("key", { n: 3 }) replaces {n}. */
+export const createT =
+  (dict: Record<string, string>) =>
+  (key: string, vars: Record<string, string | number> = {}): string =>
+    (dict[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
 
 export class ApiError extends Error {
   constructor(

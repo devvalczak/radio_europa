@@ -38,3 +38,7 @@ migration: ## new migration from model changes: make migration m="add thing"
 	  JARVIS_MODULES_DIR=$$PWD/../modules PYTHONPATH=$$PWD:$$PWD/.. \
 	  sh -c 'alembic upgrade head && alembic revision --autogenerate -m "$(m)"'
 	@rm -f .mig.db
+
+new-module: ## scaffold a module: make new-module name=pogoda
+	@test -n "$(name)" || (echo "usage: make new-module name=<id>" && exit 1)
+	python3 scripts/new_module.py $(name)
