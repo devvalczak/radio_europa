@@ -9,7 +9,8 @@ def iso(dt):
 
 def test_modules_are_discovered(authed):
     ids = [m["id"] for m in authed.get("/api/modules").json()]
-    assert ids == ["calendar", "notes"]
+    assert {"calendar", "notes"} <= set(ids)  # other modules may exist; each must load cleanly
+    assert all(m["status"] == "ok" for m in authed.get("/api/modules").json())
 
 
 def test_notes_crud_search_and_tags(authed):

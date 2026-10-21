@@ -51,7 +51,7 @@ def test_action_calls_need_csrf_header(authed):
 
 def test_widget_catalog_and_data(authed):
     catalog = {(w["module"], w["widget"]): w for w in authed.get("/api/hub/widgets").json()}
-    assert set(catalog) == {("calendar", "upcoming"), ("calendar", "next"), ("notes", "recent")}
+    assert {("calendar", "upcoming"), ("calendar", "next"), ("notes", "recent")} <= set(catalog)
 
     empty = authed.get("/api/hub/widgets/notes/recent").json()["blocks"]
     assert empty == [{"type": "list", "items": [], "empty": "Brak notatek."}]
@@ -70,8 +70,9 @@ def test_widget_catalog_and_data(authed):
 def test_layout_defaults_save_and_repair(authed):
     first = authed.get("/api/hub/layout").json()
     assert first["saved"] is False
-    assert {(i["module"], i["widget"]) for i in first["items"]} == {
-        ("calendar", "upcoming"), ("calendar", "next"), ("notes", "recent")}
+    defaults = {(i["module"], i["widget"]) for i in first["items"]}
+    assert {("calendar", "upcoming"), ("calendar", "next"), ("notes", "recent")} <= defaults
+    assert all(i["size"] for i in first["items"])
 
     mine = [{"module": "notes", "widget": "recent", "size": "2x2"}, {"module": "calendar", "widget": "next", "size": "1x1"}]
     assert authed.put("/api/hub/layout", json=mine).status_code == 200

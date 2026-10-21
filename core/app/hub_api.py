@@ -14,7 +14,7 @@ from .config import settings
 from .db import get_db
 from .hub import Hub, HubError
 from .models import AuditLog, User, UserLayout
-from .sdk import Ctx
+from .sdk import ActionError, Ctx
 from .widgets import Block
 
 _blocks = TypeAdapter(list[Block])
@@ -69,6 +69,8 @@ def build_router(hub: Hub) -> APIRouter:
             return {"result": hub.call(name, body.input, actor=f"user:{user.username}", confirmed=body.confirmed)}
         except HubError as e:
             raise HTTPException(e.status, {"code": e.code, "detail": e.detail}) from e
+        except ActionError as e:
+            raise HTTPException(e.status, {"code": e.code, "detail": str(e)}) from e
 
     @router.get("/hub/audit")
     def audit(limit: int = 50, db: Session = Depends(get_db)):

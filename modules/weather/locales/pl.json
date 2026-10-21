@@ -1,0 +1,19 @@
+{
+  "title": "Pogoda",
+  "searchPh": "Szukaj miejscowości…",
+  "search": "Szukaj",
+  "searchFailed": "Wyszukiwanie nie powiodło się. Spróbuj ponownie za chwilę.",
+  "noResults": "Nie znaleziono takiej miejscowości.",
+  "add": "Dodaj",
+  "refresh": "Odśwież",
+  "remove": "Usuń",
+  "none": "Brak lokalizacji. Wyszukaj miejscowość powyżej.",
+  "feels": "odczuwalna",
+  "wind": "wiatr",
+  "rain": "opady",
+  "today": "Dziś",
+  "noData": "Brak danych",
+  "updated": "Zaktualizowano",
+  "loadFailed": "Nie udało się wczytać pogody.",
+  "addFailed": "Nie udało się dodać lokalizacji."
+}

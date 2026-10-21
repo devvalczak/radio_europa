@@ -1,0 +1,22 @@
+{
+  "contract": 1,
+  "id": "news",
+  "name": "Newsy",
+  "version": "0.1.0",
+  "description": "Nagłówki z wybranych źródeł RSS i codzienne streszczenie najważniejszych wiadomości przez AI.",
+  "permissions": ["ai.complete"],
+  "widgets": [
+    { "id": "headlines", "title": "Nagłówki", "sizes": ["2x1", "2x2"], "default": "2x2", "refresh": 600 },
+    { "id": "digest", "title": "Najważniejsze wiadomości", "sizes": ["2x1", "2x2"], "default": "2x2", "refresh": 1800 }
+  ],
+  "actions": [
+    { "name": "add_feed", "description": "Dodaje źródło RSS/Atom po adresie URL (sprawdza, że to poprawny kanał)." },
+    { "name": "list_headlines", "description": "Zwraca najnowsze nagłówki ze wszystkich źródeł z ostatnich N godzin." },
+    { "name": "get_digest", "description": "Zwraca ostatnie streszczenie najważniejszych wiadomości (jeśli istnieje)." },
+    { "name": "generate_digest", "description": "Generuje nowe streszczenie wiadomości przez AI (kosztuje wywołanie modelu).", "confirm": true }
+  ],
+  "tasks": [
+    { "id": "refresh", "every": 1800 },
+    { "id": "digest", "every": 21600 }
+  ]
+}

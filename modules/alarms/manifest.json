@@ -1,0 +1,16 @@
+{
+  "contract": 1,
+  "id": "alarms",
+  "name": "Alarmy",
+  "version": "0.1.0",
+  "description": "Alarmy jednorazowe i cykliczne wysyłane jako powiadomienia push.",
+  "permissions": ["push.send"],
+  "widgets": [
+    { "id": "next", "title": "Następny alarm", "sizes": ["1x1", "2x1"], "default": "1x1", "refresh": 300 }
+  ],
+  "actions": [
+    { "name": "create", "description": "Tworzy alarm na godzinę HH:MM w strefie czasowej IANA (np. Europe/Warsaw). Puste 'days' = jednorazowy (następne wystąpienie), w przeciwnym razie dni tygodnia 1=poniedziałek … 7=niedziela." },
+    { "name": "list", "description": "Zwraca wszystkie alarmy wraz z czasem najbliższego uruchomienia." },
+    { "name": "set_enabled", "description": "Włącza lub wyłącza alarm o podanym id." }
+  ]
+}

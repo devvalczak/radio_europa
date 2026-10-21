@@ -13,7 +13,7 @@
     "permissions": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "enum": ["push.send", "hub.call"] }
+      "items": { "enum": ["push.send", "hub.call", "ai.complete"] }
     },
     "widgets": {
       "type": "array",
@@ -45,6 +45,18 @@
           "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
           "description": { "type": "string", "minLength": 1, "maxLength": 300 },
           "confirm": { "type": "boolean" }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "every"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+          "every": { "type": "integer", "minimum": 60, "maximum": 86400 }
         }
       }
     },

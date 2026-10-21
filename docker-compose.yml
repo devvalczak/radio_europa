@@ -7,6 +7,9 @@ services:
       dockerfile: core/Dockerfile
     restart: unless-stopped
     env_file: .env
+    # lets the core reach an Ollama running on the laptop itself (http://host.docker.internal:11434/v1)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/data
     expose: ["8000"]

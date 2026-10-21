@@ -1,0 +1,20 @@
+{
+  "title": "Newsy",
+  "feeds": "Źródła RSS",
+  "feedUrlPh": "https://…/rss",
+  "addFeed": "Dodaj źródło",
+  "noFeeds": "Brak źródeł. Dodaj adres kanału RSS/Atom wybranego portalu.",
+  "remove": "Usuń",
+  "refresh": "Odśwież",
+  "digest": "Najważniejsze wiadomości",
+  "generate": "Wygeneruj streszczenie",
+  "noDigest": "Brak streszczenia.",
+  "aiOff": "Streszczenia AI są wyłączone: ustaw JARVIS_AI_* w pliku .env na serwerze.",
+  "generated": "Wygenerowano",
+  "from": "z",
+  "articles": "Artykuły",
+  "noArticles": "Brak artykułów.",
+  "addFailed": "Nie udało się dodać źródła.",
+  "digestFailed": "Nie udało się wygenerować streszczenia.",
+  "loadFailed": "Nie udało się wczytać danych."
+}

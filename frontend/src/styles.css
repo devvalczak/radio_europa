@@ -83,3 +83,4 @@ progress { width: 100%; accent-color: var(--accent); }
 @media (max-width: 720px) {
   .dash { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; }
 }
+.blocks p { white-space: pre-line; margin: 0; }

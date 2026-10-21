@@ -1,0 +1,19 @@
+{
+  "title": "Alarmy",
+  "new": "Nowy alarm",
+  "label": "Nazwa (opcjonalnie)",
+  "time": "Godzina",
+  "days": "Dni tygodnia (puste = jednorazowy)",
+  "dow": "Pn,Wt,Śr,Cz,Pt,So,Nd",
+  "add": "Dodaj alarm",
+  "none": "Brak alarmów.",
+  "once": "jednorazowy",
+  "everyDay": "codziennie",
+  "next": "następny",
+  "off": "wyłączony",
+  "remove": "Usuń",
+  "confirmDelete": "Usunąć alarm?",
+  "pushNote": "Alarm przychodzi jako powiadomienie push. To nie jest gwarantowany budzik: telefon w trybie oszczędzania baterii lub „Nie przeszkadzać” może je opóźnić albo wyciszyć.",
+  "loadFailed": "Nie udało się wczytać alarmów.",
+  "saveFailed": "Nie udało się zapisać alarmu."
+}

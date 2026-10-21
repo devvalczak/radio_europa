@@ -22,6 +22,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from . import ai as _ai
 from .push import Reminder, send_push
 from .widgets import ButtonsBlock, ButtonSpec, ListBlock, ListItem, ProgressBlock, StatBlock, TextBlock
 
@@ -29,9 +30,17 @@ if TYPE_CHECKING:
     from .hub import Hub
 
 __all__ = [
-    "Module", "Ctx", "Reminder", "ListBlock", "ListItem", "StatBlock", "TextBlock",
+    "Module", "Ctx", "ActionError", "Reminder", "ListBlock", "ListItem", "StatBlock", "TextBlock",
     "ProgressBlock", "ButtonsBlock", "ButtonSpec",
 ]
+
+
+class ActionError(Exception):
+    """A failure the caller should see (bad input, upstream unavailable). Mapped to an HTTP error by the hub API."""
+
+    def __init__(self, message: str, status: int = 400, code: str = "action_failed"):
+        super().__init__(message)
+        self.status, self.code = status, code
 
 
 class Module:
@@ -40,6 +49,7 @@ class Module:
         self.actions: dict[str, tuple[Callable, type[BaseModel] | None]] = {}
         self.widgets: dict[str, Callable] = {}
         self.subscriptions: dict[str, Callable] = {}
+        self.tasks: dict[str, Callable] = {}
         self.reminder_hook: Callable | None = None
 
     def action(self, name: str, input: type[BaseModel] | None = None):
@@ -61,6 +71,16 @@ class Module:
 
         def deco(fn: Callable) -> Callable:
             self.subscriptions[event] = fn
+            return fn
+
+        return deco
+
+    def periodic(self, task_id: str):
+        """Background task `fn(ctx)`, run by the scheduler every `tasks[].every` seconds (declare it in
+        manifest.json). Use it to refresh external data so widgets never wait on the network."""
+
+        def deco(fn: Callable) -> Callable:
+            self.tasks[task_id] = fn
             return fn
 
         return deco
@@ -89,6 +109,15 @@ class Ctx:
 
     def emit(self, event: str, payload: dict[str, Any] | None = None) -> None:
         self.hub.emit(self.module, event, payload or {}, self.db)
+
+    def ai(self, system: str, prompt: str, max_tokens: int = 600) -> str:
+        """Text completion through the configured provider (permission `ai.complete`). Raises AIError."""
+        self._need("ai.complete")
+        return _ai.complete(system, prompt, max_tokens=max_tokens)
+
+    @property
+    def ai_available(self) -> bool:
+        return _ai.configured()
 
     def push(self, reminder: Reminder) -> int:
         self._need("push.send")

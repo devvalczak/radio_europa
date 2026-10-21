@@ -25,6 +25,9 @@ def validate_manifest(data: object, expected_id: str | None = None) -> dict:
     names = [a["name"] for a in manifest.get("actions", [])]
     if len(names) != len(set(names)):
         raise ManifestError("duplicate action names")
+    task_ids = [t["id"] for t in manifest.get("tasks", [])]
+    if len(task_ids) != len(set(task_ids)):
+        raise ManifestError("duplicate task ids")
     for w in manifest.get("widgets", []):
         if w["default"] not in w["sizes"]:
             raise ManifestError(f"widget '{w['id']}': default size must be one of its sizes")

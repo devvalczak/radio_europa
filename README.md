@@ -29,6 +29,15 @@ Przy pierwszym wejściu podaj token z `make init` i wybierz login oraz hasło (m
 Dla zwykłego `http://localhost` ustaw w `.env` `JARVIS_COOKIE_SECURE=false`.
 Dane (SQLite) leżą w `./data` — to je trzeba backupować.
 
+## Moduły (etap 2)
+
+Notatki, Kalendarz, **Pogoda** (Open-Meteo, bez klucza; lokalizację wybierasz wyszukiwarką), **Newsy** (własna lista źródeł RSS/Atom,
+nagłówki + codzienne streszczenie AI) i **Alarmy** (jednorazowe i cykliczne, jako push). Układ pulpitu ustawiasz w „Edytuj układ”.
+
+**AI (opcjonalne):** bez konfiguracji wszystko działa, tylko bez streszczeń. Ustaw w `.env` `JARVIS_AI_PROVIDER`
+(`anthropic` albo `openai` = dowolne API zgodne z OpenAI, w tym lokalna Ollama), `JARVIS_AI_MODEL` i klucz/URL — przykłady w `.env.example`.
+Alarm przychodzi jako powiadomienie push; to nie jest gwarantowany budzik (tryb oszczędzania baterii lub „Nie przeszkadzać” może go opóźnić).
+
 ## Dostęp z internetu (Cloudflare)
 
 1. Załóż darmowe konto na cloudflare.com.

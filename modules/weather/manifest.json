@@ -1,0 +1,16 @@
+{
+  "contract": 1,
+  "id": "weather",
+  "name": "Pogoda",
+  "version": "0.1.0",
+  "description": "Aktualna pogoda i prognoza na 5 dni (Open-Meteo, bez klucza API).",
+  "widgets": [
+    { "id": "current", "title": "Pogoda teraz", "sizes": ["1x1", "2x1"], "default": "1x1", "refresh": 600 },
+    { "id": "forecast", "title": "Prognoza", "sizes": ["2x1", "2x2"], "default": "2x2", "refresh": 1800 }
+  ],
+  "actions": [
+    { "name": "get_weather", "description": "Zwraca aktualną pogodę i prognozę (do 5 dni) dla zapisanej lokalizacji; opcjonalnie podaj fragment nazwy miejscowości, domyślnie pierwsza lokalizacja." },
+    { "name": "add_location", "description": "Dodaje lokalizację pogody wyszukaną po nazwie miejscowości (bierze najlepszy wynik wyszukiwania)." }
+  ],
+  "tasks": [{ "id": "refresh", "every": 900 }]
+}

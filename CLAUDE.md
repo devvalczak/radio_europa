@@ -47,13 +47,24 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 - **Widgety są deklaratywne** (bloki z `app/widgets.py`). Własny komponent React tylko jako wyjątek (`ModuleDef.widgets`).
 - Uprawnienia z manifestu w modułach w procesie to deklaracja, nie izolacja — nie traktuj ich jako granicy bezpieczeństwa.
 
+## Sieć, AI, zadania w tle
+
+- Zewnętrzne adresy tylko przez `app.http.get` (blokada SSRF, limity). Nigdy `httpx` wprost dla URL-i od użytkownika.
+- AI przez `ctx.ai(...)` (uprawnienie `ai.complete`), konfiguracja `JARVIS_AI_*`; bez niej moduły mają działać bez AI.
+  Treść z internetu w promptach jest niezaufana — model bez narzędzi, wynik jako zwykły tekst.
+- Dane zewnętrzne odświeża `@module.periodic` (manifest `tasks`), widgety czytają tylko z bazy. Scheduler ma osobne pętle dla
+  przypomnień/alarmów i dla zadań, żeby wolna sieć nie opóźniała alarmów.
+
 ## Pułapki
 
+- **Open-Meteo jest nieweryfikowane na żywo**: z sandboxa nie ma do niego dostępu, więc parsowanie (`modules/weather/backend/service.py`)
+  opiera się na dokumentacji z pamięci, a testy używają atrapy. Pierwsze uruchomienie na prawdziwej maszynie trzeba sprawdzić ręcznie.
 - Środowisko chmurowe Claude Code nie ma działającego demona Dockera: obrazów nie da się tu zbudować. Weryfikuj przez pytest,
   `npm run build` i uruchomienie `uvicorn` + `vite` lokalnie (PYTHONPATH=core:., JARVIS_MODULES_DIR=$PWD/modules,
   JARVIS_DATABASE_URL=sqlite:///…, JARVIS_COOKIE_SECURE=false). Pierwszy `make up` na prawdziwej maszynie może wykazać błędy Dockerfile.
 - `docker compose` z `${VAR:?}` w serwisie z nieaktywnym profilem i tak wywala się — używaj `${VAR:-}`.
-- Nie używaj `pkill -f <wzorzec>`, jeśli wzorzec występuje w linii poleceń własnej powłoki; zabijaj po porcie/PID.
+- Nie używaj `pkill -f`/`pgrep -f <wzorzec>`, jeśli wzorzec występuje w linii poleceń własnej powłoki (ubija ją, exit 144);
+  użyj sztuczki `pgrep -f '[v]ite'` albo zabijaj po PID/porcie.
 - `ctx.call` wewnątrz akcji używa tej samej sesji DB — commit zostaje po stronie wywołującego. Pisząc do bazy z dwóch sesji
   naraz na SQLite łatwo o „database is locked".
 - Zdarzenia hubu są w pamięci procesu; scheduler działa w jednym procesie (nie skaluj core na wiele workerów bez przeróbki).
@@ -65,6 +76,6 @@ Pull requesta nie twórz bez wyraźnej prośby użytkownika.
 
 ## Plan dalszych prac
 
-Etap 2: pogoda (Open-Meteo), newsy (RSS + streszczenia AI), alarmy. Dalej: integracje Google/IMAP/CalDAV, warstwa AI
+Zrobione: etap 1 (rdzeń, notatki, kalendarz), kontrakt v1, etap 2 (pogoda, newsy ze streszczeniami AI, alarmy). Dalej: integracje Google/IMAP/CalDAV, warstwa AI
 niezależna od dostawcy (akcje hubu jako narzędzia, lokalnie Ollama z małym modelem — laptop ma ≤ 8 GB RAM i brak GPU),
 agent hosta (terminal, zadania na komputerze z potwierdzeniami, nasłuch tylko lokalnie).

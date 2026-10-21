@@ -44,7 +44,9 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const detail = typeof data.detail === "string" ? data.detail : res.statusText;
+    // FastAPI errors: a plain string, or {code, detail} from the hub; expose the string / the code
+    const d = data.detail;
+    const detail = typeof d === "string" ? d : d && typeof d.code === "string" ? d.code : res.statusText;
     if (res.status === 401 && detail === "not_authenticated") window.dispatchEvent(new Event("jarvis:unauth"));
     throw new ApiError(res.status, detail);
   }

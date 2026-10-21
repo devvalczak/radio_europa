@@ -48,6 +48,7 @@ class Hub:
         self.widgets: dict[tuple[str, str], Callable] = {}
         self.subscribers: dict[str, list[tuple[str, Callable]]] = {}
         self.reminder_hooks: list[tuple[str, Callable]] = []
+        self.tasks: list[tuple[str, str, int, Callable]] = []  # (module, task id, every seconds, fn)
 
     # --- registration -------------------------------------------------------------
     def check(self, manifest: dict, module: Module) -> None:
@@ -61,6 +62,9 @@ class Hub:
         declared = set(manifest.get("events", {}).get("subscribes", []))
         if declared != set(module.subscriptions):
             raise ValueError(f"subscriptions differ: manifest={sorted(declared)} code={sorted(module.subscriptions)}")
+        declared = {t["id"] for t in manifest.get("tasks", [])}
+        if declared != set(module.tasks):
+            raise ValueError(f"tasks differ: manifest={sorted(declared)} code={sorted(module.tasks)}")
         perms = manifest.get("permissions", [])
         if module.reminder_hook and "push.send" not in perms:
             raise ValueError("reminders need the 'push.send' permission")
@@ -78,6 +82,8 @@ class Hub:
             self.widgets[(mid, wid)] = fn
         for event, fn in module.subscriptions.items():
             self.subscribers.setdefault(event, []).append((mid, fn))
+        for t in manifest.get("tasks", []):
+            self.tasks.append((mid, t["id"], t["every"], module.tasks[t["id"]]))
         if module.reminder_hook:
             self.reminder_hooks.append((mid, module.reminder_hook))
 
