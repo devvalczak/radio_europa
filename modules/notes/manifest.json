@@ -1,6 +1,14 @@
 {
+  "contract": 1,
   "id": "notes",
   "name": "Notatki",
-  "icon": "note",
-  "description": "Notatki w Markdownie z tagami i wyszukiwaniem."
+  "version": "0.2.0",
+  "description": "Notatki w Markdownie z tagami i wyszukiwaniem.",
+  "widgets": [
+    { "id": "recent", "title": "Ostatnie notatki", "sizes": ["1x1", "2x1", "2x2"], "default": "2x1", "refresh": 120 }
+  ],
+  "actions": [
+    { "name": "create", "description": "Tworzy notatkę (tytuł, treść Markdown, tagi)." },
+    { "name": "search", "description": "Szuka notatek po tekście w tytule lub treści." }
+  ]
 }

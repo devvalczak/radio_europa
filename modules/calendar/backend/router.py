@@ -6,12 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.push import Reminder
-from app.timeutil import iso_z, to_utc_naive
+from app.sdk import Ctx, ListBlock, ListItem, Module, Reminder
+from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from .models import Event
 
 router = APIRouter()
+module = Module(router=router)
 
 MAX_REMIND_MINUTES = 7 * 24 * 60
 STALE_AFTER = timedelta(hours=1)  # don't remind about events that started over an hour ago
@@ -75,13 +76,20 @@ def list_events(
     return [_out(e) for e in db.scalars(stmt).all()]
 
 
-@router.post("", status_code=201)
-def create_event(body: EventIn, db: Session = Depends(get_db)):
+def _create(ctx_db: Session, body: EventIn, emit=None) -> dict:
     event = Event()
     _apply(event, body)
-    db.add(event)
-    db.commit()
-    return _out(event)
+    ctx_db.add(event)
+    ctx_db.commit()
+    out = _out(event)
+    if emit:
+        emit("event_created", {"id": event.id, "title": event.title, "start": out["start"]})
+    return out
+
+
+@router.post("", status_code=201)
+def create_event(body: EventIn, db: Session = Depends(get_db)):
+    return _create(db, body)
 
 
 @router.put("/{event_id}")
@@ -98,6 +106,7 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+@module.reminders
 def collect_reminders(db: Session, now: datetime) -> list[Reminder]:
     """Scheduler hook: return reminders whose time has come and mark them sent."""
     candidates = db.scalars(
@@ -115,3 +124,42 @@ def collect_reminders(db: Session, now: datetime) -> list[Reminder]:
             due.append(Reminder(title=event.title, body=event.description[:140], url="/#/calendar"))
     db.commit()
     return due
+
+
+class ListEventsIn(BaseModel):
+    days: int = Field(default=7, ge=1, le=366)
+
+
+def _upcoming(db: Session, days: int) -> list[Event]:
+    now = utcnow()
+    stmt = (
+        select(Event)
+        .where((Event.end >= now) | ((Event.end.is_(None)) & (Event.start >= now)))
+        .where(Event.start < now + timedelta(days=days))
+        .order_by(Event.start)
+    )
+    return list(db.scalars(stmt).all())
+
+
+@module.action("create_event", input=EventIn)
+def action_create_event(ctx: Ctx, data: EventIn):
+    return _create(ctx.db, data, emit=ctx.emit)
+
+
+@module.action("list_events", input=ListEventsIn)
+def action_list_events(ctx: Ctx, data: ListEventsIn):
+    return [_out(e) for e in _upcoming(ctx.db, data.days)]
+
+
+@module.widget("upcoming")
+def widget_upcoming(ctx: Ctx):
+    events = _upcoming(ctx.db, 7)[:6]
+    return [ListBlock(items=[ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href="#/calendar") for e in events], empty="Nic w najbliższych 7 dniach.")]
+
+
+@module.widget("next")
+def widget_next(ctx: Ctx):
+    events = _upcoming(ctx.db, 30)[:1]
+    if not events:
+        return [ListBlock(items=[], empty="Brak nadchodzących wydarzeń.")]
+    return [ListBlock(items=[ListItem(title=events[0].title, time=iso_z(events[0].start), all_day=events[0].all_day, href="#/calendar")])]

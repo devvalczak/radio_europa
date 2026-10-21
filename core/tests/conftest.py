@@ -33,8 +33,10 @@ PASSWORD = "correct-horse-battery"
 
 @pytest.fixture()
 def client():
+    # start empty; the app's lifespan runs the Alembic migrations (so they are tested too)
     app_db.Base.metadata.drop_all(app_db.engine)
-    app_db.Base.metadata.create_all(app_db.engine)
+    with app_db.engine.begin() as conn:
+        conn.exec_driver_sql("DROP TABLE IF EXISTS alembic_version")
     from app.security import limiter
 
     limiter._fails.clear()

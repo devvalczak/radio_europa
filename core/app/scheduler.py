@@ -3,7 +3,7 @@ import logging
 
 from .config import settings
 from .db import SessionLocal
-from .modules import reminder_hooks
+from .hub import hub
 from .push import send_push
 from .timeutil import utcnow
 
@@ -15,7 +15,7 @@ def tick() -> int:
     count = 0
     now = utcnow()
     with SessionLocal() as db:
-        for hook in reminder_hooks:
+        for _module, hook in hub.reminder_hooks:
             try:
                 for reminder in hook(db, now):
                     send_push(db, reminder)

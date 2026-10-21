@@ -1,12 +1,13 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 
-from . import auth, modules, push, scheduler
-from .auth import require_user
+from . import auth, db, migrate, push, scheduler
 from .config import settings
-from .db import Base, engine
+from .hub import hub
+from .hub_api import build_router
+from .modules import load_modules
 
 
 def create_app() -> FastAPI:
@@ -15,7 +16,7 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        Base.metadata.create_all(engine)
+        migrate.upgrade(db.engine)
         task = asyncio.create_task(scheduler.run())
         yield
         task.cancel()
@@ -26,13 +27,10 @@ def create_app() -> FastAPI:
     def health():
         return {"status": "ok"}
 
-    @app.get("/api/modules", dependencies=[Depends(require_user)])
-    def list_modules():
-        return modules.loaded
-
     app.include_router(auth.router, prefix="/api")
     app.include_router(push.router, prefix="/api")
-    modules.load_modules(app)  # imports module models before create_all runs
+    app.include_router(build_router(hub), prefix="/api")
+    load_modules(app, hub, settings.modules_dir)  # imports module models before migrations run
     return app
 
 

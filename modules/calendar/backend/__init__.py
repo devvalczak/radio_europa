@@ -1,3 +1,3 @@
-from .router import collect_reminders, router
+from .router import collect_reminders, module, router
 
-__all__ = ["router", "collect_reminders"]
+__all__ = ["module", "router", "collect_reminders"]

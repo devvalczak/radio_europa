@@ -4,11 +4,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.sdk import Ctx, ListBlock, ListItem, Module
 from app.timeutil import iso_z
 
 from .models import Note
 
 router = APIRouter()
+module = Module(router=router)
 
 
 class NoteIn(BaseModel):
@@ -65,12 +67,16 @@ def list_notes(q: str | None = None, tag: str | None = None, db: Session = Depen
     return [_out(n) for n in db.scalars(stmt).all()]
 
 
-@router.post("", status_code=201)
-def create_note(body: NoteIn, db: Session = Depends(get_db)):
+def _create(db: Session, body: NoteIn) -> dict:
     note = Note(title=body.title, content=body.content, tags=_clean_tags(body.tags), pinned=body.pinned)
     db.add(note)
     db.commit()
     return _out(note)
+
+
+@router.post("", status_code=201)
+def create_note(body: NoteIn, db: Session = Depends(get_db)):
+    return _create(db, body)
 
 
 @router.get("/{note_id}")
@@ -91,3 +97,32 @@ def update_note(note_id: int, body: NoteIn, db: Session = Depends(get_db)):
 def delete_note(note_id: int, db: Session = Depends(get_db)):
     db.delete(_get(db, note_id))
     db.commit()
+
+
+class SearchIn(BaseModel):
+    q: str = Field(default="", max_length=200)
+
+
+@module.action("create", input=NoteIn)
+def action_create(ctx: Ctx, data: NoteIn):
+    return _create(ctx.db, data)
+
+
+@module.action("search", input=SearchIn)
+def action_search(ctx: Ctx, data: SearchIn):
+    stmt = select(Note).order_by(Note.updated_at.desc()).limit(20)
+    if data.q:
+        like = f"%{data.q}%"
+        stmt = stmt.where(or_(Note.title.ilike(like), Note.content.ilike(like)))
+    return [_out(n) for n in ctx.db.scalars(stmt).all()]
+
+
+@module.widget("recent")
+def widget_recent(ctx: Ctx):
+    notes = ctx.db.scalars(select(Note).order_by(Note.pinned.desc(), Note.updated_at.desc()).limit(6)).all()
+    return [
+        ListBlock(
+            items=[ListItem(title=("📌 " if n.pinned else "") + (n.title or "(bez tytułu)"), subtitle=n.content[:60] or None, href="#/notes") for n in notes],
+            empty="Brak notatek.",
+        )
+    ]

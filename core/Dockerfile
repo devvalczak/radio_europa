@@ -4,6 +4,8 @@ WORKDIR /srv
 COPY core/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY core/app ./app
+COPY core/alembic.ini ./alembic.ini
+COPY core/migrations ./migrations
 COPY modules ./modules
 RUN useradd -r -u 1000 jarvis && mkdir /data && chown jarvis /data
 USER jarvis

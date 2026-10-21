@@ -1,6 +1,17 @@
 {
+  "contract": 1,
   "id": "calendar",
   "name": "Kalendarz",
-  "icon": "calendar",
-  "description": "Wydarzenia i przypomnienia z powiadomieniami push."
+  "version": "0.2.0",
+  "description": "Wydarzenia i przypomnienia z powiadomieniami push.",
+  "permissions": ["push.send"],
+  "widgets": [
+    { "id": "upcoming", "title": "Najbliższe wydarzenia", "sizes": ["2x1", "2x2"], "default": "2x2", "refresh": 300 },
+    { "id": "next", "title": "Następne wydarzenie", "sizes": ["1x1", "2x1"], "default": "1x1", "refresh": 300 }
+  ],
+  "actions": [
+    { "name": "create_event", "description": "Dodaje wydarzenie do kalendarza (start z strefą czasową, opcjonalnie koniec i przypomnienie)." },
+    { "name": "list_events", "description": "Zwraca wydarzenia z najbliższych N dni." }
+  ],
+  "events": { "emits": ["event_created"] }
 }

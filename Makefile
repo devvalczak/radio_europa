@@ -1,5 +1,5 @@
 PYTHON ?= python3
-.PHONY: init up down logs build up-tunnel up-quick quick-url test fmt
+.PHONY: init up down logs build up-tunnel up-quick quick-url test migration new-module
 
 init: ## create .env with fresh secrets (never overwrites an existing .env)
 	@test ! -f .env || (echo ".env already exists, not touching it" && exit 1)
@@ -31,3 +31,10 @@ logs:
 
 test: ## backend tests (needs: pip install -r core/requirements-dev.txt)
 	cd core && python -m pytest -q
+
+migration: ## new migration from model changes: make migration m="add thing"
+	@rm -f .mig.db
+	cd core && JARVIS_SECRET_KEY=$$(printf 'x%.0s' $$(seq 40)) JARVIS_DATABASE_URL=sqlite:///../.mig.db \
+	  JARVIS_MODULES_DIR=$$PWD/../modules PYTHONPATH=$$PWD:$$PWD/.. \
+	  sh -c 'alembic upgrade head && alembic revision --autogenerate -m "$(m)"'
+	@rm -f .mig.db

@@ -1,8 +1,9 @@
 """Plugin discovery.
 
-A module lives in `<modules_dir>/<name>/` with a `manifest.json` and a
-`backend` package exposing `router` (mounted at /api/m/<id>) and, optionally,
-`collect_reminders(db, now) -> list[Reminder]` which the scheduler polls.
+A module is a directory `<modules_dir>/<id>/` with a `manifest.json` (contract v1, see
+contract/manifest.schema.json) and a `backend` package exposing `module = Module(...)`.
+A module that fails validation or import is skipped and reported with status "error";
+it never prevents the core or other modules from starting.
 """
 
 import importlib
@@ -10,33 +11,43 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
-from .config import settings
+from .auth import require_user
+from .contract import validate_manifest
+from .hub import Hub
+from .sdk import Module
 
 log = logging.getLogger("jarvis.modules")
 
-loaded: list[dict] = []
-reminder_hooks: list = []
 
-
-def load_modules(app: FastAPI) -> None:
-    from .auth import require_user
-    from fastapi import Depends
-
-    loaded.clear()
-    reminder_hooks.clear()
-    for manifest_path in sorted(Path(settings.modules_dir).glob("*/manifest.json")):
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        pkg = manifest_path.parent.name
-        backend = importlib.import_module(f"modules.{pkg}.backend")
-        app.include_router(
-            backend.router,
-            prefix=f"/api/m/{manifest['id']}",
-            tags=[manifest["id"]],
-            dependencies=[Depends(require_user)],
-        )
-        if hasattr(backend, "collect_reminders"):
-            reminder_hooks.append(backend.collect_reminders)
-        loaded.append(manifest)
-        log.info("loaded module %s", manifest["id"])
+def load_modules(app: FastAPI, hub: Hub, modules_dir: str, package: str = "modules") -> None:
+    hub.reset()
+    for manifest_path in sorted(Path(modules_dir).glob("*/manifest.json")):
+        directory = manifest_path.parent
+        entry: dict = {"id": directory.name, "name": directory.name, "status": "error", "error": ""}
+        try:
+            manifest = validate_manifest(json.loads(manifest_path.read_text(encoding="utf-8")), directory.name)
+            entry.update(
+                name=manifest["name"],
+                version=manifest["version"],
+                description=manifest.get("description", ""),
+                has_icon=(directory / "icon.svg").is_file(),
+            )
+            backend = importlib.import_module(f"{package}.{directory.name}.backend")
+            module = getattr(backend, "module", None)
+            if not isinstance(module, Module):
+                raise ValueError("backend must expose `module = Module(...)` (from app.sdk)")
+            hub.register(manifest, module)  # runs the manifest/code consistency checks first
+            app.include_router(
+                module.router,
+                prefix=f"/api/m/{manifest['id']}",
+                tags=[manifest["id"]],
+                dependencies=[Depends(require_user)],
+            )
+            entry.update(status="ok", error="")
+            log.info("loaded module %s %s", manifest["id"], manifest["version"])
+        except Exception as exc:  # noqa: BLE001 — one bad module must not stop the rest
+            entry["error"] = f"{type(exc).__name__}: {exc}"[:500]
+            log.error("module %s skipped: %s", directory.name, entry["error"])
+        hub.modules.append(entry)
