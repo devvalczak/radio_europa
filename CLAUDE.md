@@ -55,6 +55,18 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 - Dane zewnętrzne odświeża `@module.periodic` (manifest `tasks`), widgety czytają tylko z bazy. Scheduler ma osobne pętle dla
   przypomnień/alarmów i dla zadań, żeby wolna sieć nie opóźniała alarmów.
 
+## Sekrety i poczta
+
+- Sekrety zapisywane w bazie (hasła skrzynek) szyfruje `app.crypto` (Fernet, `JARVIS_ENCRYPTION_KEY`; lista kluczy po przecinku = rotacja).
+  Istniejący `.env` bez klucza: `make encryption-key`. Utrata klucza = ponowne wpisanie haseł.
+- **Hasła i tokeny nigdy nie przechodzą przez akcje hubu** (trafiłyby do dziennika audytu i do wywołań narzędzi AI): konta tworzy się
+  wyłącznie trasami HTTP modułu. API nigdy nie zwraca sekretów ani ich szyfrogramu.
+- Moduł `mail` jest tylko do odczytu: `EXAMINE` + `BODY.PEEK`, żadnych STORE/EXPUNGE/COPY (pilnuje tego test z atrapą serwera IMAP
+  `core/tests/fake_imap.py`). Treść wiadomości to niezaufany tekst: HTML nigdy nie jest przechowywany ani renderowany.
+  Port IMAP tylko 993/143, TLS z weryfikacją, host publiczny (`JARVIS_ALLOW_PRIVATE_HOSTS=true` dla serwera w LAN).
+- Nieprzetestowane na prawdziwym serwerze: handshake TLS/STARTTLS i konkretni dostawcy (Gmail). Testy używają `imaplib` przeciw
+  atrapie w czystym TCP, a ścieżki TLS tylko przez podstawione klasy.
+
 ## Pułapki
 
 - **EMMA (`modules/shopping/backend/emma.py`) jest nieweryfikowana na żywo**: sandbox nie ma dostępu do emmamarket.pl, selektory
@@ -68,8 +80,9 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
   `npm run build` i uruchomienie `uvicorn` + `vite` lokalnie (PYTHONPATH=core:., JARVIS_MODULES_DIR=$PWD/modules,
   JARVIS_DATABASE_URL=sqlite:///…, JARVIS_COOKIE_SECURE=false). Pierwszy `make up` na prawdziwej maszynie może wykazać błędy Dockerfile.
 - `docker compose` z `${VAR:?}` w serwisie z nieaktywnym profilem i tak wywala się — używaj `${VAR:-}`.
-- Nie używaj `pkill -f`/`pgrep -f <wzorzec>`, jeśli wzorzec występuje w linii poleceń własnej powłoki (ubija ją, exit 144);
-  użyj sztuczki `pgrep -f '[v]ite'` albo zabijaj po PID/porcie.
+- Nie zabijaj procesów przez `pkill -f`/`pgrep -f <wzorzec>`: cała komenda to linia poleceń własnej powłoki, więc wzorzec (nawet
+  w formie `[v]ite`), który pojawia się gdziekolwiek w tej samej komendzie, ubija powłokę (exit 144). Zapisuj PID-y przy starcie
+  albo dopasowuj `argv[1]` procesu z `/proc` (powłoka ma `-c`), albo zabijaj po porcie.
 - `ctx.call` wewnątrz akcji używa tej samej sesji DB — commit zostaje po stronie wywołującego. Pisząc do bazy z dwóch sesji
   naraz na SQLite łatwo o „database is locked".
 - Zdarzenia hubu są w pamięci procesu; scheduler działa w jednym procesie (nie skaluj core na wiele workerów bez przeróbki).
@@ -81,6 +94,6 @@ Pull requesta nie twórz bez wyraźnej prośby użytkownika.
 
 ## Plan dalszych prac
 
-Zrobione: etap 1 (rdzeń, notatki, kalendarz), kontrakt v1, etap 2 (pogoda, newsy ze streszczeniami AI, alarmy). Dalej: integracje Google/IMAP/CalDAV, warstwa AI
+Zrobione: etap 1 (rdzeń, notatki, kalendarz), kontrakt v1, etap 2 (pogoda, newsy ze streszczeniami AI, alarmy), poczta (IMAP, tylko odczyt), zakupy. Dalej: CalDAV/Google Calendar, warstwa AI
 niezależna od dostawcy (akcje hubu jako narzędzia, lokalnie Ollama z małym modelem — laptop ma ≤ 8 GB RAM i brak GPU),
 agent hosta (terminal, zadania na komputerze z potwierdzeniami, nasłuch tylko lokalnie).

@@ -1,0 +1,19 @@
+{
+  "contract": 1,
+  "id": "mail",
+  "name": "Poczta",
+  "version": "0.1.0",
+  "description": "Podgląd skrzynek e-mail przez IMAP (tylko odczyt), licznik nieprzeczytanych, powiadomienia push i streszczenia AI.",
+  "permissions": ["push.send", "ai.complete"],
+  "widgets": [
+    { "id": "unread_count", "title": "Nieprzeczytane", "sizes": ["1x1", "2x1"], "default": "1x1", "refresh": 120 },
+    { "id": "inbox", "title": "Skrzynka", "sizes": ["2x1", "2x2"], "default": "2x2", "refresh": 120 }
+  ],
+  "actions": [
+    { "name": "list_accounts", "description": "Zwraca skonfigurowane skrzynki (bez haseł) z liczbą nieprzeczytanych wiadomości i stanem ostatniej synchronizacji." },
+    { "name": "list_unread", "description": "Zwraca najnowsze nieprzeczytane wiadomości (nadawca, temat, początek treści, data) ze wszystkich lub z wybranej skrzynki." },
+    { "name": "get_message", "description": "Pobiera pełną treść jednej wiadomości jako zwykły tekst (po id skrzynki i uid z listy). Nie oznacza wiadomości jako przeczytanej." },
+    { "name": "summarize_unread", "description": "Streszcza nieprzeczytane wiadomości przez AI i wskazuje najpilniejsze. Wysyła nadawców, tematy i początki treści do skonfigurowanego dostawcy AI.", "confirm": true }
+  ],
+  "tasks": [{ "id": "sync", "every": 300 }]
+}

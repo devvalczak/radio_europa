@@ -13,6 +13,10 @@ os.environ.update(
     JARVIS_MODULES_DIR=str(ROOT / "modules"),
 )
 
+from cryptography.fernet import Fernet  # noqa: E402
+
+os.environ.setdefault("JARVIS_ENCRYPTION_KEY", Fernet.generate_key().decode())
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402

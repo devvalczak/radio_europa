@@ -53,9 +53,17 @@ Podbij `version` przy zmianach. Opisy akcji pisz konkretnie: jaki efekt, jakie a
 - Czas lokalny użytkownika (alarmy, kalendarz): zapisuj strefę IANA i licz przez `zoneinfo`; w bazie naive UTC. Logikę czasu trzymaj w czystych funkcjach i testuj (zmiana czasu!).
 - Nie importuj innych modułów — używaj `ctx.call("modul.akcja", {...})` (wymaga `hub.call`).
 
+## 4a. Sekrety i dane osobowe
+
+Moduł przechowujący hasła/tokeny: szyfruj przez `app.crypto`, nie zwracaj ich w API, **nie twórz akcji hubu przyjmującej sekret**
+(audyt i narzędzia AI), konta dodawaj trasą HTTP. Dane z cudzych systemów (poczta) to niezaufane dane wejściowe: parsuj do zwykłego
+tekstu, nic nie renderuj jako HTML. Preferuj dostęp tylko do odczytu i udowodnij to testem (patrz `core/tests/fake_imap.py`,
+który zapisuje komendy i wykrywa zapisy). Do model AI wysyłaj minimum danych i za zgodą (`confirm: true` + ostrzeżenie w UI).
+
 ## 5. Migracja
 
-Jeśli dodałeś/zmieniłeś modele: `make migration m="<id>: opis"`, przejrzyj wygenerowany plik w `core/migrations/versions/`
+Jeśli dodałeś/zmieniłeś modele: **najpierw `git pull`** (inna sesja mogła dodać migrację o tym samym numerze), zainstaluj zależności
+wszystkich modułów (autogenerate bez nich pominie moduł i wygeneruje `drop_table` jego tabel!), potem `make migration m="<id>: opis"`, przejrzyj wygenerowany plik w `core/migrations/versions/`
 (autogenerate bywa niedokładny) i dołącz go do commita.
 
 ## 6. Frontend (`frontend/index.tsx`, `locales/pl.json`)

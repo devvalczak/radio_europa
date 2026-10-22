@@ -117,3 +117,12 @@ Pole `contract` w manifeście wersjonuje kontrakt. Zmiana niekompatybilna = `con
   Tekst z zewnętrznych stron jest **niezaufany**: model nie dostaje narzędzi, a wynik pokazuj jako zwykły tekst. W prompcie
   systemowym zaznacz, że treść to dane, nie polecenia (patrz `modules/news/backend/service.py`).
 - Wywołania kosztowne (AI) wystawiaj jako akcje z `confirm: true`; zadanie w tle powinno wołać AI tylko, gdy są nowe dane.
+
+## Sekrety w bazie
+
+- Szyfruj je `app.crypto.encrypt/decrypt` (Fernet, `JARVIS_ENCRYPTION_KEY`); trzymaj szyfrogram w kolumnie `*_enc`, nigdy jawny tekst.
+- API i widgety **nie zwracają** sekretów ani szyfrogramów.
+- **Nie rób akcji hubu przyjmującej sekret** (hasło, token): wejście akcji trafia do dziennika audytu i do wywołań narzędzi AI.
+  Konta/poświadczenia dodawaj trasami HTTP modułu, a akcje oferuj tylko do odczytu danych (patrz `modules/mail`).
+- Połączenia do hostów podanych przez użytkownika (IMAP itp.): `app.http.check_host(host, port)` przed otwarciem gniazda oraz
+  lista dozwolonych portów.

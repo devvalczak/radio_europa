@@ -1,5 +1,5 @@
 PYTHON ?= python3
-.PHONY: init up down logs build up-tunnel up-quick quick-url test migration new-module
+.PHONY: encryption-key init up down logs build up-tunnel up-quick quick-url test migration new-module
 
 init: ## create .env with fresh secrets (never overwrites an existing .env)
 	@test ! -f .env || (echo ".env already exists, not touching it" && exit 1)
@@ -42,3 +42,10 @@ migration: ## new migration from model changes: make migration m="add thing"
 new-module: ## scaffold a module: make new-module name=pogoda
 	@test -n "$(name)" || (echo "usage: make new-module name=<id>" && exit 1)
 	python3 scripts/new_module.py $(name)
+
+encryption-key: ## add JARVIS_ENCRYPTION_KEY to an existing .env (needed by the mail module)
+	@test -f .env || (echo "no .env: run make init" && exit 1)
+	@grep -q '^JARVIS_ENCRYPTION_KEY=.\+' .env && echo "already set" || ( \
+	  KEY=$$($(PYTHON) scripts/gen_secrets.py | grep '^JARVIS_ENCRYPTION_KEY=' | cut -d= -f2-) ; \
+	  test -n "$$KEY" || (echo "needs python3 with 'cryptography' installed" && exit 1) ; \
+	  sed -i '/^JARVIS_ENCRYPTION_KEY=/d' .env && echo "JARVIS_ENCRYPTION_KEY=$$KEY" >> .env && echo "key added to .env" )

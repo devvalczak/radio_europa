@@ -3,6 +3,7 @@
 import base64
 import secrets
 
+from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
@@ -17,5 +18,6 @@ private = key.private_numbers().private_value.to_bytes(32, "big")
 
 print(f"JARVIS_SECRET_KEY={secrets.token_urlsafe(48)}")
 print(f"JARVIS_SETUP_TOKEN={secrets.token_urlsafe(24)}")
+print(f"JARVIS_ENCRYPTION_KEY={Fernet.generate_key().decode()}")
 print(f"JARVIS_VAPID_PUBLIC_KEY={b64url(public)}")
 print(f"JARVIS_VAPID_PRIVATE_KEY={b64url(private)}")

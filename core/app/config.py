@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     emma_base_url: str = "https://emmamarket.pl"
     emma_delivery_url: str = ""  # page that shows the nearest delivery slot; empty = emma_base_url
 
+    # Fernet key(s) used to encrypt stored credentials (mail passwords). Comma-separated list = key rotation:
+    # the first key encrypts, all keys decrypt. Generate with scripts/gen_secrets.py.
+    encryption_key: str = ""
+    # Mail servers on private/LAN addresses are refused unless this is true (SSRF guard).
+    allow_private_hosts: bool = False
+
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:admin@example.com"

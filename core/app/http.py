@@ -20,18 +20,23 @@ class FetchError(Exception):
     pass
 
 
-def _check_target(url: str) -> None:
-    parts = urlsplit(url)
-    if parts.scheme not in ("http", "https") or not parts.hostname:
-        raise FetchError("only http(s) URLs are allowed")
+def check_host(host: str, port: int) -> None:
+    """Raise FetchError unless `host` resolves only to publicly routable addresses."""
     try:
-        infos = socket.getaddrinfo(parts.hostname, parts.port or (443 if parts.scheme == "https" else 80), proto=socket.IPPROTO_TCP)
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
     except socket.gaierror as exc:
         raise FetchError("host not found") from exc
     for info in infos:
         ip = ipaddress.ip_address(info[4][0].split("%")[0])
         if not ip.is_global:
             raise FetchError("address is not publicly routable")
+
+
+def _check_target(url: str) -> None:
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise FetchError("only http(s) URLs are allowed")
+    check_host(parts.hostname, parts.port or (443 if parts.scheme == "https" else 80))
 
 
 def get(url: str, *, params: dict | None = None, timeout: float = 10.0, max_bytes: int = 2_000_000) -> httpx.Response:
