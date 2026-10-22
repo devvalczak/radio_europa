@@ -98,6 +98,7 @@ class Ctx:
     db: Session
     module: str
     hub: "Hub"
+    actor: str = ""  # who triggered this call: "user:<name>", "module:<id>" or "" (widgets, background tasks)
 
     def _need(self, permission: str) -> None:
         if permission not in self.hub.manifests[self.module].get("permissions", []):

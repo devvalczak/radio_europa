@@ -100,7 +100,7 @@ class Hub:
             try:
                 if action.confirm and not confirmed:
                     raise HubError(409, "confirmation_required", name)
-                ctx = Ctx(session, action.module, self)
+                ctx = Ctx(session, action.module, self, actor=actor)
                 if action.input_model is not None:
                     try:
                         parsed = action.input_model.model_validate(data or {})

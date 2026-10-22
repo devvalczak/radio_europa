@@ -57,6 +57,11 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 
 ## Pułapki
 
+- **EMMA (`modules/shopping/backend/emma.py`) jest nieweryfikowana na żywo**: sandbox nie ma dostępu do emmamarket.pl, selektory
+  to założenia o standardowym motywie PrestaShop, a testy używają syntetycznego HTML-a. Na prawdziwej maszynie uruchom
+  `PYTHONPATH=core:. python scripts/emma_probe.py mleko`, popraw `parse_search`/`parse_delivery` i zamień zapisane strony na fixture'y testów.
+  Koszyk to lista linków (EMMA nie ma API koszyka), termin dostawy jest heurystyką tekstową.
+
 - **Open-Meteo jest nieweryfikowane na żywo**: z sandboxa nie ma do niego dostępu, więc parsowanie (`modules/weather/backend/service.py`)
   opiera się na dokumentacji z pamięci, a testy używają atrapy. Pierwsze uruchomienie na prawdziwej maszynie trzeba sprawdzić ręcznie.
 - Środowisko chmurowe Claude Code nie ma działającego demona Dockera: obrazów nie da się tu zbudować. Weryfikuj przez pytest,

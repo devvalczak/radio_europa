@@ -136,3 +136,17 @@ def test_push_permission_enforced(client):
     hub, _ = build_hub()
     with pytest.raises(PermissionError):
         hub.call("calc.push_attempt", {}, actor="user:t")
+
+
+def test_ctx_actor_reaches_action(authed):
+    from app.hub import hub
+
+    seen = {}
+    shopping = hub.actions["shopping.list_items"]
+    original = shopping.handler
+    shopping.handler = lambda ctx: seen.setdefault("actor", ctx.actor) and original(ctx)
+    try:
+        authed.post("/api/hub/actions/shopping.list_items", json={"input": {}})
+    finally:
+        shopping.handler = original
+    assert seen["actor"] == "user:owner"

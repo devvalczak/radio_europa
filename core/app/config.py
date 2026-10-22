@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     ai_api_key: str = ""
     ai_base_url: str = ""
 
+    # Shopping module (EMMA online store, scraped; no official API)
+    emma_base_url: str = "https://emmamarket.pl"
+    emma_delivery_url: str = ""  # page that shows the nearest delivery slot; empty = emma_base_url
+
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:admin@example.com"

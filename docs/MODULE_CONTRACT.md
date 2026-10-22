@@ -62,7 +62,7 @@ def refresh(ctx: Ctx): ...                     # tu odświeżaj dane zewnętrzne
 Błąd, który użytkownik ma zobaczyć (zły adres, niedostępne API): `raise ActionError("komunikat po polsku", status, "kod")`.
 Hub zamienia go na odpowiedź HTTP; trasy modułu mogą go przechwycić i zwrócić `HTTPException(status, str(exc))`.
 
-`Ctx` daje: `ctx.db` (sesja SQLAlchemy), `ctx.call("modul.akcja", {...})`, `ctx.emit("zdarzenie", {...})`, `ctx.push(Reminder(...))`, `ctx.ai(system, prompt)` (uprawnienie `ai.complete`, zgłasza `AIError`), `ctx.ai_available`.
+`Ctx` daje: `ctx.db` (sesja SQLAlchemy), `ctx.actor` (kto wywołał akcję: `user:<login>` / `module:<id>`, w widgetach i zadaniach puste), `ctx.call("modul.akcja", {...})`, `ctx.emit("zdarzenie", {...})`, `ctx.push(Reminder(...))`, `ctx.ai(system, prompt)` (uprawnienie `ai.complete`, zgłasza `AIError`), `ctx.ai_available`.
 Przy zagnieżdżonym `ctx.call` używana jest ta sama sesja, więc commit zostaje po stronie wywołującego.
 Błąd subskrybenta zdarzenia jest logowany i nie psuje emitenta.
 
