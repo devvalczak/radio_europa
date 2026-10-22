@@ -59,6 +59,8 @@ def test_parsers():
     assert [p["id"] for p in products] == ["4931", "4932"]
     assert products[0]["price_cents"] == 399 and products[0]["url"].startswith("https://emmamarket.pl/mleko")
     assert products[0]["image_url"] == "https://emmamarket.pl/img/4931.jpg"
+    evil = MILK.replace('src="/img/4931.jpg"', 'src="javascript:alert(1)"')
+    assert emma.parse_search(evil, "https://emmamarket.pl")[0]["image_url"] is None
     assert emma.parse_search("<html>captcha</html>", "https://emmamarket.pl") == []
     assert emma.parse_delivery(DELIVERY).startswith("Najbliższy termin dostawy: jutro")
     assert emma.parse_delivery("<p>nic</p>") is None

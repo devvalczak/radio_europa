@@ -32,6 +32,15 @@ interface Cart {
 const t = createT(pl);
 const api = moduleApi("shopping");
 const money = (c: number | null) => (c === null ? t("noPrice") : `${Math.floor(c / 100)},${String(c % 100).padStart(2, "0")} zł`);
+const Thumb = ({ src, size }: { src: string | null | undefined; size: number }) => {
+  const [broken, setBroken] = useState(false);
+  const box = { width: size, height: size, borderRadius: 8, flex: "none" as const };
+  return src && !broken ? (
+    <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} style={{ ...box, objectFit: "contain", background: "#fff" }} />
+  ) : (
+    <div aria-hidden style={{ ...box, display: "grid", placeItems: "center", background: "var(--card, #1b2033)", opacity: 0.6 }}>🛒</div>
+  );
+};
 const reason = (e: unknown, fallback: string) => (e instanceof ApiError && e.detail.length > 2 ? e.detail : fallback);
 
 function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; setError: (m: string) => void }) {
@@ -58,7 +67,7 @@ function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; s
     <Card>
       <Row between>
         <Row>
-          {item.product?.image_url && <img src={item.product.image_url} alt="" width={48} height={48} style={{ objectFit: "contain" }} />}
+          <Thumb src={item.product?.image_url} size={64} />
           <div style={{ opacity: item.done ? 0.5 : 1 }}>
             <b>{item.product ? <a href={item.product.url} target="_blank" rel="noreferrer">{item.product.name}</a> : item.query}</b>
             <div className="muted">
@@ -87,15 +96,16 @@ function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; s
           {alts === null ? (
             <Button onClick={loadAlts}>{t("loadAlt")}</Button>
           ) : (
-            <select
-              value={item.product?.id ?? ""}
-              onChange={(e) => run(api.put(`/${item.id}`, { product_id: e.target.value }))}
-            >
-              <option value="" disabled>{t("changeProduct")}</option>
+            <div className="items">
               {alts.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} — {money(p.price_cents)}</option>
+                <Button key={p.id} className={`item ${p.id === item.product?.id ? "on" : ""}`} onClick={() => run(api.put(`/${item.id}`, { product_id: p.id }))}>
+                  <Row>
+                    <Thumb src={p.image_url} size={40} />
+                    <span>{p.name}<br /><span className="muted">{money(p.price_cents)}</span></span>
+                  </Row>
+                </Button>
               ))}
-            </select>
+            </div>
           )}
           <Row>
             <Button variant="primary" onClick={() => run(api.put(`/${item.id}`, { query, quantity: qty }))}>{t("save")}</Button>

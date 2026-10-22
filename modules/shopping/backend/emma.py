@@ -45,7 +45,8 @@ def _img(node, base: str) -> str | None:
     if node is None:
         return None
     src = node.get("data-full-size-image-url") or node.get("data-src") or node.get("src")
-    return urljoin(base, src) if src and not src.startswith("data:") else None
+    url = urljoin(base, src) if src else ""
+    return url if url.startswith(("http://", "https://")) else None  # no data:/javascript: URLs
 
 
 def parse_search(html: str, base: str) -> list[dict]:
