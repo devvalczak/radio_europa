@@ -1,26 +1,34 @@
 :root {
+  /* Theme tokens: every value here can be overridden by a theme file in public/themes (see theme.ts).
+     Components must use these variables only — no hard-coded colours, fonts or radii. */
   --bg: #0f1320; --panel: #171c2e; --panel-2: #1f2540; --border: #2b3356; --text: #e8ebf7;
-  --muted: #8d96b8; --accent: #6c8cff; --accent-contrast: #0b1020; --danger: #ff6b7a; --ok: #4ade80;
+  --muted: #8d96b8; --accent: #6c8cff; --accent-contrast: #0b1020; --danger: #ff6b7a; --ok: #4ade80; --warn: #f5b54a;
   --radius: 12px; --glow: none; --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --space: 8px; --border-width: 1px; --shadow: none; --bg-image: none; --focus: var(--accent);
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; }
+body { margin: 0; background: var(--bg) var(--bg-image) fixed; color: var(--text); font-family: var(--font); font-size: 15px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+pre, code, kbd { font-family: var(--font-mono); }
 h1 { margin: 0 0 16px; font-size: 22px; }
 h2 { margin: 0; font-size: 16px; }
 a { color: var(--accent); text-decoration: none; }
 .muted { color: var(--muted); }
 .error { color: var(--danger); margin: 0; }
 .center { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--glow); }
-.stack { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.card { background: var(--panel); border: var(--border-width) solid var(--border); border-radius: var(--radius); padding: calc(var(--space) * 2); box-shadow: var(--shadow), var(--glow); }
+.stack { display: flex; flex-direction: column; gap: calc(var(--space) * 1.25); margin-bottom: calc(var(--space) * 2); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .login { width: min(380px, 100%); display: flex; flex-direction: column; gap: 12px; }
 label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 input, select, textarea, button {
-  font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border);
+  font: inherit; color: var(--text); background: var(--panel-2); border: var(--border-width) solid var(--border);
   border-radius: calc(var(--radius) - 4px); padding: 8px 10px;
 }
 textarea { resize: vertical; width: 100%; }
+::placeholder { color: var(--muted); opacity: 1; }
 button { cursor: pointer; }
 button:hover { border-color: var(--accent); }
 button:disabled { opacity: .5; cursor: not-allowed; }
@@ -29,7 +37,7 @@ button.danger { color: var(--danger); }
 .secret { word-break: break-all; padding: 8px; background: var(--panel-2); border-radius: 8px; }
 
 .shell { display: grid; grid-template-columns: 200px 1fr; min-height: 100dvh; }
-.shell nav { background: var(--panel); border-right: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.shell nav { background: var(--panel); border-right: var(--border-width) solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
 .shell nav a { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 8px; color: var(--text); }
 .shell nav a.on { background: var(--panel-2); color: var(--accent); box-shadow: var(--glow); }
 .shell nav b { font-weight: 500; }
@@ -90,10 +98,28 @@ progress { width: 100%; accent-color: var(--accent); }
 .check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
 .log-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
 .log-list li { padding: 8px 0 8px 10px; border-top: 1px solid var(--border); border-left: 3px solid transparent; min-width: 0; }
-.log-list li.lvl-WARNING { border-left-color: #f5b54a; }
+.log-list li.lvl-WARNING { border-left-color: var(--warn); }
 .log-list li.lvl-ERROR, .log-list li.lvl-CRITICAL { border-left-color: var(--danger); }
 .log-head { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
 .log-head time { color: var(--muted); }
 .log-msg, .log-extra { overflow-wrap: anywhere; }
 .log-extra { font-size: 12px; }
 .log-list pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--panel-2); padding: 8px; border-radius: 8px; }
+
+/* --- @jarvis/ui interactive primitives (Radix) --- */
+.ui-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ui-tab { background: var(--panel-2); }
+.ui-tab[data-state="active"] { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); font-weight: 600; box-shadow: var(--glow); }
+.ui-switch-row { display: flex; align-items: center; gap: 10px; }
+.ui-switch-row label { flex-direction: row; color: var(--text); font-size: 14px; cursor: pointer; }
+.ui-switch { all: unset; flex: none; width: 40px; height: 22px; border-radius: 99px; background: var(--panel-2); border: var(--border-width) solid var(--border); position: relative; cursor: pointer; }
+.ui-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ui-switch[data-state="checked"] { background: var(--accent); border-color: var(--accent); }
+.ui-switch[data-disabled] { opacity: .5; cursor: not-allowed; }
+.ui-switch-thumb { display: block; width: 16px; height: 16px; border-radius: 99px; background: var(--muted); transform: translate(3px, 2px); transition: transform .15s; }
+.ui-switch[data-state="checked"] .ui-switch-thumb { background: var(--accent-contrast); transform: translate(20px, 2px); }
+.ui-overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 70%, transparent); z-index: 20; }
+.ui-dialog { position: fixed; z-index: 21; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px); display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.ui-dialog-body { overflow: auto; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .ui-switch-thumb { transition: none; } }

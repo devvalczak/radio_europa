@@ -1,4 +1,7 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import * as RDialog from "@radix-ui/react-dialog";
+import * as RSwitch from "@radix-ui/react-switch";
+import * as RTabs from "@radix-ui/react-tabs";
+import { useId, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 /** Shared building blocks. Module pages compose these so every app looks the same and follows the theme. */
 
@@ -45,3 +48,56 @@ export const ModuleIcon = ({ id, fallback = "▣" }: { id: string; fallback?: st
   const url = `url(/api/modules/${id}/icon)`;
   return <span className="icon" style={{ maskImage: url, WebkitMaskImage: url }} aria-hidden />;
 };
+
+/* --- Interactive primitives (Radix UI underneath: keyboard + screen-reader behaviour for free).
+   Styling comes only from theme tokens in styles.css (.ui-*), so they work in every theme.
+   Modules use these wrappers; they never import @radix-ui directly. ------------------------------- */
+
+/** Tab strip; render the active panel yourself (`value` tells which). Arrow keys move between tabs. */
+export const Tabs = <T extends string>({ value, onChange, items, label }: {
+  value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[]; label: string;
+}) => (
+  <RTabs.Root value={value} onValueChange={(v) => onChange(v as T)} activationMode="automatic">
+    <RTabs.List className="ui-tabs" aria-label={label}>
+      {items.map((it) => (
+        <RTabs.Trigger key={it.value} value={it.value} className="ui-tab">
+          {it.label}
+        </RTabs.Trigger>
+      ))}
+    </RTabs.List>
+  </RTabs.Root>
+);
+
+/** On/off setting with a visible label (use for persisted settings; checkboxes stay for filters). */
+export const Switch = ({ checked, onChange, label, disabled }: {
+  checked: boolean; onChange: (v: boolean) => void; label: ReactNode; disabled?: boolean;
+}) => {
+  const id = useId();
+  return (
+    <div className="ui-switch-row">
+      <RSwitch.Root id={id} className="ui-switch" checked={checked} onCheckedChange={onChange} disabled={disabled}>
+        <RSwitch.Thumb className="ui-switch-thumb" />
+      </RSwitch.Root>
+      <label htmlFor={id}>{label}</label>
+    </div>
+  );
+};
+
+/** Modal dialog: focus trap, Esc and click outside close it. Pass `open={false}`/unmount to hide. */
+export const Dialog = ({ open, onClose, title, children, actions }: {
+  open: boolean; onClose: () => void; title: ReactNode; children?: ReactNode; actions?: ReactNode;
+}) => (
+  <RDialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+    <RDialog.Portal>
+      <RDialog.Overlay className="ui-overlay" />
+      <RDialog.Content className="ui-dialog card" aria-describedby={undefined}>
+        <header className="row between">
+          <RDialog.Title asChild><h2>{title}</h2></RDialog.Title>
+          <RDialog.Close asChild><button aria-label="Zamknij">✕</button></RDialog.Close>
+        </header>
+        <div className="ui-dialog-body">{children}</div>
+        {actions && <footer className="row">{actions}</footer>}
+      </RDialog.Content>
+    </RDialog.Portal>
+  </RDialog.Root>
+);

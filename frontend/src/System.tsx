@@ -1,5 +1,5 @@
 import { api, ApiError } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Muted, Row } from "@jarvis/ui";
+import { Button, Card, ErrorText, Muted, Row, Tabs } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import { errorText, t } from "./i18n";
 
@@ -138,13 +138,8 @@ export function System() {
   return (
     <>
       <h1>{t.journal}</h1>
-      <div className="tabs row" role="tablist">
-        {(["logs", "audit", "logins"] as Tab[]).map((x) => (
-          <button key={x} role="tab" aria-selected={tab === x} className={tab === x ? "primary" : ""} onClick={() => setTab(x)}>
-            {t.sys.tabs[x]}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onChange={setTab} label={t.journal}
+            items={(["logs", "audit", "logins"] as Tab[]).map((x) => ({ value: x, label: t.sys.tabs[x] }))} />
       {tab === "logs" ? <Logs /> : tab === "audit" ? <Audit /> : <Logins />}
     </>
   );

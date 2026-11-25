@@ -8,7 +8,7 @@ wystawiony przez Cloudflare Tunnel. Interfejs i teksty **po polsku**. Użytkowni
 ```
 core/        FastAPI: auth (argon2, sesja w ciasteczku, TOTP), hub, loader modułów, push, scheduler, Alembic
 modules/     wtyczki według kontraktu v1: notes, calendar, … (każda: manifest.json, icon.svg, locales/, backend/, frontend/)
-frontend/    Vite + React + TS (PWA), @jarvis/sdk, @jarvis/ui, dashboard z widgetami, motywy w public/themes/*.json
+frontend/    Vite + React + TS (PWA), @jarvis/sdk, @jarvis/ui (+ Radix), dashboard z widgetami, motywy w public/themes/*.json
 proxy/       Caddy (/api → core, reszta → frontend), docker-compose.yml, profile cloudflared (tunnel / quick)
 docs/MODULE_CONTRACT.md   pełny opis kontraktu — czytaj przed zmianą czegokolwiek w modułach lub hubie
 ```
@@ -44,6 +44,12 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
   Akcje niszczące/nieodwracalne oznaczaj `confirm: true`.
 - **Frontend modułów:** używaj `@jarvis/ui` i `@jarvis/sdk`, teksty z `locales/pl.json` przez `createT`. Moduł może importować
   tylko to, co frontend ma w `package.json` i aliasach (`vite.config.ts` + `tsconfig.json` paths) — nową zależność dodaj w obu.
+- **Każdy nowy lub zmieniany moduł (i każdy ekran rdzenia) budujemy i sprawdzamy we WSZYSTKICH motywach zainstalowanych
+  w aplikacji** (`frontend/public/themes/index.json` — dziś 9: ciemne, jasne, monospace, wysoki kontrast) oraz na telefonie.
+  Tylko tokeny motywu (`var(--…)`), zero zakodowanych kolorów/fontów; interaktywne elementy z `@jarvis/ui` (Radix pod spodem:
+  `Tabs`, `Switch`, `Dialog`), moduły nie importują `@radix-ui/*`. Szczegóły, walidator kontrastu i zrzuty
+  (`frontend/scripts/theme-shots.mjs`): **skill `jarvis-design`**. Plugin Claude Code `frontend-design` (jeśli włączony)
+  służy do pomysłów, ale reguły `jarvis-design` mają pierwszeństwo. Nowy motyw musi przejść `npm run check:themes` (część buildu).
 - **Widgety są deklaratywne** (bloki z `app/widgets.py`). Własny komponent React tylko jako wyjątek (`ModuleDef.widgets`).
 - Uprawnienia z manifestu w modułach w procesie to deklaracja, nie izolacja — nie traktuj ich jako granicy bezpieczeństwa.
 
@@ -110,7 +116,7 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 ## Stan i plan
 
 Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), logi aplikacji + Dziennik (logi, audyt,
-historia logowań, retencja 90 dni), AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
+historia logowań, retencja 90 dni), 9 motywów z walidatorem kontrastu, Radix w @jarvis/ui, AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
 streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping). ~195 testów backendu.
 
 Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (Gemini na żywo, gdy będzie klucz; dalszy plan).

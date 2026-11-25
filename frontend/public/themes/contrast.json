@@ -1,0 +1,23 @@
+{
+  "radius": "4px",
+  "glow": "none",
+  "font": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  "fontMono": "'JetBrains Mono', 'Cascadia Mono', 'SF Mono', Consolas, ui-monospace, monospace",
+  "space": "8px",
+  "borderWidth": "2px",
+  "shadow": "none",
+  "bgImage": "none",
+  "colorScheme": "dark",
+  "bg": "#000000",
+  "panel": "#000000",
+  "panel2": "#141414",
+  "border": "#ffffff",
+  "text": "#ffffff",
+  "muted": "#e6e6e6",
+  "accent": "#ffd400",
+  "accentContrast": "#000000",
+  "danger": "#ff8080",
+  "ok": "#5cff8a",
+  "warn": "#ffd400",
+  "focus": "#00e5ff"
+}

@@ -5,10 +5,12 @@ export interface ThemeInfo {
 }
 
 const KEY = "jarvis.theme";
-const VARS: Record<string, string> = {
+/** Theme token -> CSS variable. Required tokens are checked by scripts/check-themes.mjs (part of `npm run build`). */
+export const VARS: Record<string, string> = {
   bg: "--bg", panel: "--panel", panel2: "--panel-2", border: "--border", text: "--text",
   muted: "--muted", accent: "--accent", accentContrast: "--accent-contrast", danger: "--danger",
-  ok: "--ok", radius: "--radius", glow: "--glow", font: "--font",
+  ok: "--ok", warn: "--warn", radius: "--radius", glow: "--glow", font: "--font", fontMono: "--font-mono",
+  space: "--space", borderWidth: "--border-width", shadow: "--shadow", bgImage: "--bg-image", focus: "--focus",
 };
 
 export const listThemes = (): Promise<ThemeInfo[]> => fetch("/themes/index.json").then((r) => r.json());
@@ -21,13 +23,20 @@ export const currentTheme = () => {
   }
 };
 
-/** Themes are plain JSON token files in /themes; add a file + an index.json entry to add one. */
+/** Themes are plain JSON token files in /themes; add a file + an index.json entry to add one.
+ *  Tokens a theme leaves out fall back to the defaults in styles.css (:root). */
 export async function applyTheme(id: string): Promise<void> {
   const themes = await listThemes();
   const info = themes.find((x) => x.id === id) ?? themes[0];
   const tokens: Record<string, string> = await fetch(`/themes/${info.file}`).then((r) => r.json());
   const root = document.documentElement;
-  for (const [k, cssVar] of Object.entries(VARS)) if (tokens[k]) root.style.setProperty(cssVar, tokens[k]);
+  for (const [k, cssVar] of Object.entries(VARS)) {
+    if (tokens[k]) root.style.setProperty(cssVar, tokens[k]);
+    else root.style.removeProperty(cssVar);
+  }
+  root.style.colorScheme = tokens.colorScheme === "light" ? "light" : "dark"; // native controls, scrollbars
+  root.dataset.theme = info.id;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", tokens.bg ?? "#0f1320");
   try {
     localStorage.setItem(KEY, info.id);
   } catch {

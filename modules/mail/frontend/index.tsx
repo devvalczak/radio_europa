@@ -1,5 +1,5 @@
 import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Field, Muted, PageTitle, Row, Tag } from "@jarvis/ui";
+import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Row, Switch, Tag } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -214,9 +214,7 @@ function Page() {
           <Muted>{t("aiNotConfigured")}</Muted>
         ) : aiCfg ? (
           <>
-            <label className="check">
-              <input type="checkbox" checked={aiCfg.allow_ai} onChange={(e) => toggleAi(e.target.checked)} /> {t("aiConsent")}
-            </label>
+            <Switch checked={aiCfg.allow_ai} onChange={toggleAi} label={t("aiConsent")} />
             <small className="muted block">{t("aiConsentTo")}: {aiCfg.ai.provider} · {aiCfg.ai.model} ({aiCfg.ai.host})</small>
             <small className="muted block">{t("aiConsentHint")}</small>
             {!aiCfg.allow_ai && <Muted>{t("aiConsentNeeded")}</Muted>}
@@ -251,19 +249,19 @@ function Page() {
       </Card>
 
       {open && (
-        <Card title={open.msg.subject || t("noSubject")} actions={<Button onClick={() => setOpen(null)}>{t("close")}</Button>}>
-          <small className="muted">{t("from")}: {open.msg.from_name} &lt;{open.msg.from_addr}&gt;</small>
+        <Dialog open onClose={() => setOpen(null)} title={open.msg.subject || t("noSubject")}>
+          <small className="muted block">{t("from")}: {open.msg.from_name} &lt;{open.msg.from_addr}&gt;</small>
           {!open.body && !open.error && <Muted>{t("loading")}</Muted>}
           <ErrorText>{open.error}</ErrorText>
           {open.body && (
             <>
               <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, fontFamily: "inherit" }}>{open.body.text}</pre>
-              {open.body.attachments.length > 0 && <small className="muted">{t("attachments")}: {open.body.attachments.join(", ")}</small>}
-              {open.body.truncated && <small className="muted">{t("truncated")}</small>}
-              <small className="muted">{t("textOnly")}</small>
+              {open.body.attachments.length > 0 && <small className="muted block">{t("attachments")}: {open.body.attachments.join(", ")}</small>}
+              {open.body.truncated && <small className="muted block">{t("truncated")}</small>}
+              <small className="muted block">{t("textOnly")}</small>
             </>
           )}
-        </Card>
+        </Dialog>
       )}
     </>
   );

@@ -69,7 +69,9 @@ wszystkich modułów (autogenerate bez nich pominie moduł i wygeneruje `drop_ta
 ## 6. Frontend (`frontend/index.tsx`, `locales/pl.json`)
 
 - `export default { id: "<id>", Page } satisfies ModuleDef;` Strona składa się z `@jarvis/ui` (`Card`, `Button`, `Field`, `Row`,
-  `PageTitle`, `Muted`, `ErrorText`, `Tag`) i `moduleApi("<id>")` z `@jarvis/sdk`; teksty przez `createT(pl)`.
+  `PageTitle`, `Muted`, `ErrorText`, `Tag`, `Tabs`, `Switch`, `Dialog`) i `moduleApi("<id>")` z `@jarvis/sdk`; teksty przez `createT(pl)`.
+- **Wygląd według skilla `jarvis-design`:** tylko tokeny motywu (`var(--…)`), żadnych zakodowanych kolorów; strona ma działać
+  we wszystkich motywach z `frontend/public/themes/index.json` (jasnych, ciemnych, monospace, wysokim kontraście) i na telefonie.
 - Wszystkie widoczne teksty w `locales/pl.json` (po polsku), nie w JSX.
 - Nowa biblioteka npm: dodaj do `frontend/package.json` **oraz** alias w `frontend/vite.config.ts` i ścieżkę w `tsconfig.json`
   (moduły leżą poza `frontend/`, więc nie widzą jego `node_modules` bez aliasu). Unikaj nowych zależności, jeśli się da.
@@ -95,7 +97,8 @@ cd frontend && npm run build           # typecheck + build (łapie błędy stron
 
 Dla zmian widocznych w UI uruchom `uvicorn` (PYTHONPATH=core:., JARVIS_MODULES_DIR=$PWD/modules, JARVIS_DATABASE_URL=sqlite:///…,
 JARVIS_COOKIE_SECURE=false, JARVIS_SECRET_KEY/JARVIS_SETUP_TOKEN ustawione) i `npm run dev` w `frontend/`, sprawdź w przeglądarce:
-moduł w menu z ikoną, widgety w „Edytuj układ → Dodaj widget", stronę modułu, stan pusty i błąd. Jeśli czegoś nie dało się
+moduł w menu z ikoną, widgety w „Edytuj układ → Dodaj widget", stronę modułu, stan pusty i błąd — **w każdym zainstalowanym
+motywie** (`node frontend/scripts/theme-shots.mjs`, patrz skill `jarvis-design` krok 5) i obejrzyj zrzuty. Jeśli czegoś nie dało się
 uruchomić (np. Docker), napisz to wprost w podsumowaniu, zamiast twierdzić, że działa.
 
 ## Typowe błędy

@@ -1,5 +1,47 @@
 [
-  { "id": "default", "name": "Domyślny (ciemny)", "file": "default.json" },
-  { "id": "light", "name": "Jasny", "file": "light.json" },
-  { "id": "hud", "name": "HUD (Iron Man)", "file": "hud.json" }
+  {
+    "id": "default",
+    "name": "Domyślny (ciemny)",
+    "file": "default.json"
+  },
+  {
+    "id": "light",
+    "name": "Jasny",
+    "file": "light.json"
+  },
+  {
+    "id": "hud",
+    "name": "HUD (Iron Man)",
+    "file": "hud.json"
+  },
+  {
+    "id": "nord",
+    "name": "Nord (chłodny)",
+    "file": "nord.json"
+  },
+  {
+    "id": "solarized-dark",
+    "name": "Solarized ciemny",
+    "file": "solarized-dark.json"
+  },
+  {
+    "id": "solarized-light",
+    "name": "Solarized jasny",
+    "file": "solarized-light.json"
+  },
+  {
+    "id": "contrast",
+    "name": "Wysoki kontrast",
+    "file": "contrast.json"
+  },
+  {
+    "id": "terminal",
+    "name": "Retro terminal",
+    "file": "terminal.json"
+  },
+  {
+    "id": "cyberpunk",
+    "name": "Cyberpunk",
+    "file": "cyberpunk.json"
+  }
 ]

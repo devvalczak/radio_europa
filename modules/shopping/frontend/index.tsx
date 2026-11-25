@@ -36,9 +36,9 @@ const Thumb = ({ src, size }: { src: string | null | undefined; size: number }) 
   const [broken, setBroken] = useState(false);
   const box = { width: size, height: size, borderRadius: 8, flex: "none" as const };
   return src && !broken ? (
-    <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} style={{ ...box, objectFit: "contain", background: "#fff" }} />
+    <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} style={{ ...box, objectFit: "contain", background: "#fff" /* product packshots are on white: fixed on purpose, in every theme */ }} />
   ) : (
-    <div aria-hidden style={{ ...box, display: "grid", placeItems: "center", background: "var(--card, #1b2033)", opacity: 0.6 }}>🛒</div>
+    <div aria-hidden style={{ ...box, display: "grid", placeItems: "center", background: "var(--panel-2)", opacity: 0.6 }}>🛒</div>
   );
 };
 const reason = (e: unknown, fallback: string) => (e instanceof ApiError && e.detail.length > 2 ? e.detail : fallback);
