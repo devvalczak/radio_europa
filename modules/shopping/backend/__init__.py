@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_user
 from app.db import get_db
 from app.models import User
-from app.sdk import ActionError, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
 from app.timeutil import iso_z
 
 from . import emma, service
@@ -239,12 +239,15 @@ def summary_widget(ctx: Ctx):
 
 
 @module.widget("list")
-def list_widget(ctx: Ctx):
-    items = [i for i in _items(ctx.db) if not i.done][:8]
+def list_widget(ctx: Ctx, opts: WidgetOpts):
+    every = _items(ctx.db)
+    items = (every if opts.view == "all" else [i for i in every if not i.done])[:opts.limit(3, 4, 8)]
+    if not items:
+        text = "Wszystko kupione." if every and opts.view != "all" else "Lista zakupów jest pusta."
+        return [TextBlock(text=text), ButtonsBlock(buttons=[ButtonSpec(label="Dodaj produkt", quick="shopping.add", primary=True)])]
     return [ListBlock(
-        empty="Lista zakupów jest pusta.",
         items=[ListItem(
-            title=i.product_name or i.query,
+            title=("✓ " if i.done else "") + (i.product_name or i.query),
             subtitle=" · ".join(x for x in (service.money(i.price_cents) if i.price_cents is not None else "brak ceny",
                                            f"dodał: {i.added_by}" if i.added_by else "") if x),
             badge=f"×{i.quantity}", href="#/shopping") for i in items])]

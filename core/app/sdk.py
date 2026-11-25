@@ -31,8 +31,34 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Module", "Ctx", "ActionError", "Reminder", "ListBlock", "ListItem", "StatBlock", "TextBlock",
-    "ProgressBlock", "ButtonsBlock", "ButtonSpec",
+    "ProgressBlock", "ButtonsBlock", "ButtonSpec", "WidgetOpts",
 ]
+
+# Fields a quick-action form fills in by itself (the shell sends the browser's values), so a quick action
+# may leave them out of `fields` even when the action requires them.
+AUTO_FIELDS = {"tz"}
+
+
+@dataclass(frozen=True)
+class WidgetOpts:
+    """What the dashboard asks a widget for: tile size ("1x1" | "2x1" | "2x2") and the chosen view
+    (one of manifest `widgets[].views[].id`, or None when the widget declares no views).
+    A widget handler may take it as a second argument: `def widget(ctx, opts: WidgetOpts)`."""
+
+    size: str
+    view: str | None = None
+
+    @property
+    def small(self) -> bool:
+        return self.size == "1x1"
+
+    @property
+    def large(self) -> bool:
+        return self.size == "2x2"
+
+    def limit(self, small: int, wide: int, large: int) -> int:
+        """How many list rows fit: pick per size."""
+        return {"1x1": small, "2x1": wide}.get(self.size, large)
 
 
 class ActionError(Exception):

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app import http
 from app.db import get_db
-from app.sdk import ActionError, ButtonsBlock, ButtonSpec, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
 
 from . import service
 from .models import WeatherLocation
@@ -141,14 +141,14 @@ def widget_current(ctx: Ctx):
 
 
 @module.widget("forecast")
-def widget_forecast(ctx: Ctx):
+def widget_forecast(ctx: Ctx, opts: WidgetOpts):
     v = _primary(ctx)
     if v is None:
         return _empty()
     if not v["daily"]:
         return [TextBlock(text=f"{v['name']}: brak danych prognozy.")]
     items = []
-    for i, d in enumerate(v["daily"]):
+    for i, d in enumerate(v["daily"][:opts.limit(3, 3, 7)]):
         items.append(ListItem(
             title="Dziś" if i == 0 else d["weekday"],
             subtitle=f"{d['emoji']} {d['description']}" + (f" · opady {d['pop']}%" if d["pop"] else ""),

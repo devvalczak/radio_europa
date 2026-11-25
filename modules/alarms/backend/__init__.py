@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.sdk import ActionError, Ctx, ListBlock, ListItem, Module, Reminder
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
 from app.timeutil import iso_z, utcnow
 
 from . import schedule
@@ -23,7 +23,7 @@ module = Module(router=router)
 
 class AlarmIn(BaseModel):
     label: str = Field(default="", max_length=100)
-    time: str = Field(description="HH:MM, 24h, in the zone given by tz")
+    time: str = Field(description="HH:MM, 24h, in the zone given by tz", json_schema_extra={"format": "time"})
     days: list[int] = Field(default_factory=list, max_length=7)
     tz: str = Field(max_length=64)
     enabled: bool = True
@@ -157,11 +157,14 @@ def action_set_enabled(ctx: Ctx, data: SetEnabledIn):
 
 
 @module.widget("next")
-def widget_next(ctx: Ctx):
+def widget_next(ctx: Ctx, opts: WidgetOpts):
     now = utcnow()
     upcoming = [(a, schedule.next_fire(a.time, a.days, a.tz, now)) for a in ctx.db.scalars(select(Alarm).where(Alarm.enabled.is_(True))).all()]
-    upcoming = [(a, t) for a, t in upcoming if t]
+    upcoming = sorted([(a, t) for a, t in upcoming if t], key=lambda x: x[1])
     if not upcoming:
-        return [ListBlock(items=[], empty="Brak aktywnych alarmów.")]
-    alarm, when = min(upcoming, key=lambda x: x[1])
-    return [ListBlock(items=[ListItem(title=alarm.label or "Alarm", time=iso_z(when), href="#/alarms")])]
+        return [TextBlock(text="Brak włączonych alarmów."),
+                ButtonsBlock(buttons=[ButtonSpec(label="Ustaw alarm", quick="alarms.new", primary=True)])]
+    return [ListBlock(items=[
+        ListItem(title=a.label or "Alarm", subtitle=None if opts.small else ("codziennie" if len(a.days) == 7 else "cyklicznie" if a.days else "jednorazowo"),
+                 time=iso_z(when), href="#/alarms")
+        for a, when in upcoming[:opts.limit(1, 3, 3)]])]

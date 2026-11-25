@@ -54,7 +54,8 @@ def test_widget_catalog_and_data(authed):
     assert {("calendar", "upcoming"), ("calendar", "next"), ("notes", "recent")} <= set(catalog)
 
     empty = authed.get("/api/hub/widgets/notes/recent").json()["blocks"]
-    assert empty == [{"type": "list", "items": [], "empty": "Brak notatek."}]
+    assert empty[0]["type"] == "text" and empty[0]["text"].startswith("Brak notatek.")
+    assert empty[1]["buttons"] == [{"label": "Nowa notatka", "quick": "notes.new", "primary": True}]  # call to action
 
     authed.post("/api/m/notes", json={"title": "Pierwsza", "content": "treść", "pinned": True})
     items = authed.get("/api/hub/widgets/notes/recent").json()["blocks"][0]["items"]
@@ -74,7 +75,8 @@ def test_layout_defaults_save_and_repair(authed):
     assert {("calendar", "upcoming"), ("calendar", "next"), ("notes", "recent")} <= defaults
     assert all(i["size"] for i in first["items"])
 
-    mine = [{"module": "notes", "widget": "recent", "size": "2x2"}, {"module": "calendar", "widget": "next", "size": "1x1"}]
+    mine = [{"module": "notes", "widget": "recent", "size": "2x2", "view": "pinned"},
+            {"module": "calendar", "widget": "next", "size": "1x1", "view": None}]
     assert authed.put("/api/hub/layout", json=mine).status_code == 200
     saved = authed.get("/api/hub/layout").json()
     assert saved == {"items": mine, "saved": True}  # order and sizes kept, others not auto-added

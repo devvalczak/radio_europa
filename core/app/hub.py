@@ -1,5 +1,6 @@
 """The hub: registry of modules, actions, widgets and events, plus the audit log."""
 
+import inspect
 import json
 import logging
 from collections.abc import Callable
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .db import SessionLocal
 from .models import AuditLog
-from .sdk import Ctx, Module
+from .sdk import AUTO_FIELDS, Ctx, Module, WidgetOpts
 
 log = logging.getLogger("jarvis.hub")
 
@@ -65,6 +66,26 @@ class Hub:
         declared = {t["id"] for t in manifest.get("tasks", [])}
         if declared != set(module.tasks):
             raise ValueError(f"tasks differ: manifest={sorted(declared)} code={sorted(module.tasks)}")
+        actions = {a["name"]: a for a in manifest.get("actions", [])}
+        for q in manifest.get("quick", []):
+            if q["action"] not in actions:
+                raise ValueError(f"quick '{q['id']}': unknown action '{q['action']}'")
+            if actions[q["action"]].get("confirm"):
+                raise ValueError(f"quick '{q['id']}': action needs confirmation, not allowed as a quick action")
+            model = module.actions[q["action"]][1]
+            known = set(model.model_fields) if model else set()
+            if unknown := set(q["fields"]) - known:
+                raise ValueError(f"quick '{q['id']}': fields not in the action input: {sorted(unknown)}")
+            required = {n for n, f in (model.model_fields.items() if model else []) if f.is_required()}
+            if missing := required - set(q["fields"]) - AUTO_FIELDS:
+                raise ValueError(f"quick '{q['id']}': required fields missing from the form: {sorted(missing)}")
+        if len({q["id"] for q in manifest.get("quick", [])}) != len(manifest.get("quick", [])):
+            raise ValueError("quick ids must be unique")
+        for w in manifest.get("widgets", []):
+            if w["default"] not in w["sizes"]:
+                raise ValueError(f"widget '{w['id']}': default size {w['default']} is not in sizes")
+            if len({v["id"] for v in w.get("views", [])}) != len(w.get("views", [])):
+                raise ValueError(f"widget '{w['id']}': view ids must be unique")
         perms = manifest.get("permissions", [])
         if module.reminder_hook and "push.send" not in perms:
             raise ValueError("reminders need the 'push.send' permission")
@@ -86,6 +107,25 @@ class Hub:
             self.tasks.append((mid, t["id"], t["every"], module.tasks[t["id"]]))
         if module.reminder_hook:
             self.reminder_hooks.append((mid, module.reminder_hook))
+
+    # --- widgets --------------------------------------------------------------------
+    def widget_spec(self, module: str, widget: str) -> dict | None:
+        return next((w for w in self.manifests.get(module, {}).get("widgets", []) if w["id"] == widget), None)
+
+    def render_widget(self, ctx: Ctx, widget: str, size: str | None = None, view: str | None = None) -> Any:
+        """Calls the handler; size/view fall back to the manifest defaults. Raises HubError on bad input."""
+        spec = self.widget_spec(ctx.module, widget)
+        fn = self.widgets.get((ctx.module, widget))
+        if spec is None or fn is None:
+            raise HubError(404, "unknown_widget")
+        size = size or spec["default"]
+        if size not in spec["sizes"]:
+            raise HubError(422, "invalid_size", size)
+        views = [v["id"] for v in spec.get("views", [])]
+        if view and view not in views:
+            raise HubError(422, "invalid_view", view)
+        opts = WidgetOpts(size=size, view=view or (views[0] if views else None))
+        return fn(ctx, opts) if _takes_opts(fn) else fn(ctx)
 
     # --- actions --------------------------------------------------------------------
     def call(self, name: str, data: dict | None, *, actor: str, db: Session | None = None, confirmed: bool = False) -> Any:
@@ -139,6 +179,13 @@ class Hub:
                 fn(Ctx(db, sub_module, self), payload)
             except Exception:
                 log.exception("subscriber %s failed on %s.%s", sub_module, module, event)
+
+
+def _takes_opts(fn: Callable) -> bool:
+    try:
+        return len(inspect.signature(fn).parameters) >= 2
+    except (TypeError, ValueError):
+        return False
 
 
 hub = Hub()

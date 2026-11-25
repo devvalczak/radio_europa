@@ -4,7 +4,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.sdk import Ctx, ListBlock, ListItem, Module
+from app.sdk import ButtonsBlock, ButtonSpec, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts
 from app.timeutil import iso_z
 
 from .models import Note
@@ -117,12 +117,20 @@ def action_search(ctx: Ctx, data: SearchIn):
     return [_out(n) for n in ctx.db.scalars(stmt).all()]
 
 
+NEW_NOTE = ButtonsBlock(buttons=[ButtonSpec(label="Nowa notatka", quick="notes.new", primary=True)])
+
+
 @module.widget("recent")
-def widget_recent(ctx: Ctx):
-    notes = ctx.db.scalars(select(Note).order_by(Note.pinned.desc(), Note.updated_at.desc()).limit(6)).all()
-    return [
-        ListBlock(
-            items=[ListItem(title=("📌 " if n.pinned else "") + (n.title or "(bez tytułu)"), subtitle=n.content[:60] or None, href="#/notes") for n in notes],
-            empty="Brak notatek.",
-        )
-    ]
+def widget_recent(ctx: Ctx, opts: WidgetOpts):
+    stmt = select(Note).order_by(Note.pinned.desc(), Note.updated_at.desc())
+    if opts.view == "pinned":
+        stmt = select(Note).where(Note.pinned.is_(True)).order_by(Note.updated_at.desc())
+    notes = ctx.db.scalars(stmt.limit(opts.limit(2, 3, 7))).all()
+    if not notes:
+        if opts.view == "pinned":
+            return [TextBlock(text="Brak przypiętych notatek. Przypnij ważną notatkę w module Notatki.")]
+        return [TextBlock(text="Brak notatek. Zapisz pierwszą myśl — wystarczy tytuł."), NEW_NOTE]
+    return [ListBlock(items=[
+        ListItem(title=("📌 " if n.pinned and opts.view != "pinned" else "") + (n.title or "(bez tytułu)"),
+                 subtitle=None if opts.small else (n.content[:80] or None), time=iso_z(n.updated_at), href="#/notes")
+        for n in notes])]

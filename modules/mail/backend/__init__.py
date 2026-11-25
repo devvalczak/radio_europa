@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app import crypto
 from app.db import get_db
 from app.hub import hub
-from app.sdk import ActionError, ButtonsBlock, ButtonSpec, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
 from app.timeutil import iso_z
 
 from . import imap, service
@@ -235,13 +235,17 @@ def widget_unread_count(ctx: Ctx):
 
 
 @module.widget("inbox")
-def widget_inbox(ctx: Ctx):
-    rows = ctx.db.execute(
-        select(MailMessage).where(MailMessage.seen.is_(False)).order_by(MailMessage.received.desc()).limit(8)
-    ).scalars().all()
+def widget_inbox(ctx: Ctx, opts: WidgetOpts):
+    if not ctx.db.scalar(select(func.count()).select_from(MailAccount)):
+        return [TextBlock(text="Brak skrzynek."), ButtonsBlock(buttons=[ButtonSpec(label="Dodaj skrzynkę", href="#/mail")])]
+    stmt = select(MailMessage).order_by(MailMessage.received.desc()).limit(opts.limit(3, 3, 8))
+    if opts.view != "recent":
+        stmt = stmt.where(MailMessage.seen.is_(False))
+    rows = ctx.db.execute(stmt).scalars().all()
     return [ListBlock(
-        items=[ListItem(title=m.subject or "(bez tematu)", subtitle=m.from_name or m.from_addr, time=iso_z(m.received), href="#/mail") for m in rows],
-        empty="Brak nieprzeczytanych wiadomości.",
+        items=[ListItem(title=("● " if opts.view == "recent" and not m.seen else "") + (m.subject or "(bez tematu)"), subtitle=m.from_name or m.from_addr,
+                        time=iso_z(m.received), href="#/mail") for m in rows],
+        empty="Brak nieprzeczytanych wiadomości." if opts.view != "recent" else "Brak wiadomości.",
     )]
 
 

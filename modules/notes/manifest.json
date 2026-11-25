@@ -5,10 +5,49 @@
   "version": "0.2.0",
   "description": "Notatki w Markdownie z tagami i wyszukiwaniem.",
   "widgets": [
-    { "id": "recent", "title": "Ostatnie notatki", "sizes": ["1x1", "2x1", "2x2"], "default": "2x1", "refresh": 120 }
+    {
+      "id": "recent",
+      "title": "Ostatnie notatki",
+      "sizes": [
+        "1x1",
+        "2x1",
+        "2x2"
+      ],
+      "default": "2x1",
+      "refresh": 120,
+      "description": "Ostatnio zmieniane albo przypięte notatki; kliknięcie otwiera moduł.",
+      "views": [
+        {
+          "id": "recent",
+          "title": "Ostatnie"
+        },
+        {
+          "id": "pinned",
+          "title": "Przypięte"
+        }
+      ]
+    }
   ],
   "actions": [
-    { "name": "create", "description": "Tworzy notatkę (tytuł, treść Markdown, tagi)." },
-    { "name": "search", "description": "Szuka notatek po tekście w tytule lub treści." }
+    {
+      "name": "create",
+      "description": "Tworzy notatkę (tytuł, treść Markdown, tagi)."
+    },
+    {
+      "name": "search",
+      "description": "Szuka notatek po tekście w tytule lub treści."
+    }
+  ],
+  "quick": [
+    {
+      "id": "new",
+      "title": "Notatka",
+      "action": "create",
+      "fields": [
+        "title",
+        "content"
+      ],
+      "success": "Dodano notatkę"
+    }
   ]
 }

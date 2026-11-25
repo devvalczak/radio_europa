@@ -54,6 +54,8 @@ class ButtonSpec(BaseModel):
     href: str | None = None
     action: str | None = None  # "<module>.<action>", run through the hub
     input: dict | None = None
+    quick: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")  # "<module>.<quick id>": opens its form
+    primary: bool = False
     _href = field_validator("href")(_safe_href)
 
 

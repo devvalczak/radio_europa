@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.sdk import Ctx, ListBlock, ListItem, Module, Reminder
+from app.sdk import ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from .models import Event
@@ -151,15 +151,25 @@ def action_list_events(ctx: Ctx, data: ListEventsIn):
     return [_out(e) for e in _upcoming(ctx.db, data.days)]
 
 
+ADD_EVENT = ButtonsBlock(buttons=[ButtonSpec(label="Dodaj wydarzenie", quick="calendar.new", primary=True)])
+PERIODS = {"day": (1, "24 godzinach"), "week": (7, "7 dniach"), "month": (30, "30 dniach")}
+
+
 @module.widget("upcoming")
-def widget_upcoming(ctx: Ctx):
-    events = _upcoming(ctx.db, 7)[:6]
-    return [ListBlock(items=[ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href="#/calendar") for e in events], empty="Nic w najbliższych 7 dniach.")]
+def widget_upcoming(ctx: Ctx, opts: WidgetOpts):
+    days, label = PERIODS.get(opts.view or "week", PERIODS["week"])
+    events = _upcoming(ctx.db, days)
+    if not events:
+        return [TextBlock(text=f"Nic zaplanowanego w najbliższych {label}."), ADD_EVENT]
+    shown = events[:opts.limit(2, 3, 7)]
+    items = [ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href="#/calendar") for e in shown]
+    more = len(events) - len(shown)
+    return [ListBlock(items=items)] + ([TextBlock(text=f"…i {more} więcej")] if more > 0 else [])
 
 
 @module.widget("next")
 def widget_next(ctx: Ctx):
     events = _upcoming(ctx.db, 30)[:1]
     if not events:
-        return [ListBlock(items=[], empty="Brak nadchodzących wydarzeń.")]
+        return [TextBlock(text="Brak wydarzeń w ciągu 30 dni."), ADD_EVENT]
     return [ListBlock(items=[ListItem(title=events[0].title, time=iso_z(events[0].start), all_day=events[0].all_day, href="#/calendar")])]

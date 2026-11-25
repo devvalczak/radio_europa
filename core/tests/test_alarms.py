@@ -130,7 +130,8 @@ def test_disabled_alarms_stay_silent_and_reenabling_rearms(authed):
 
 
 def test_actions_and_widget(authed):
-    assert authed.get("/api/hub/widgets/alarms/next").json()["blocks"][0]["empty"] == "Brak aktywnych alarmów."
+    empty = authed.get("/api/hub/widgets/alarms/next").json()["blocks"]
+    assert empty[0]["text"] == "Brak włączonych alarmów." and empty[1]["buttons"][0]["quick"] == "alarms.new"
     created = authed.post("/api/hub/actions/alarms.create", json={"input": payload(label="Siłownia", time="18:30")}).json()["result"]
     authed.post("/api/hub/actions/alarms.create", json={"input": payload(label="Rano", time="06:00")})
     listed = authed.post("/api/hub/actions/alarms.list", json={}).json()["result"]

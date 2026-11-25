@@ -306,7 +306,7 @@ def test_html_message_is_returned_as_inert_text(authed, server):
 def test_widgets_read_only_the_database(authed, monkeypatch):
     empty = authed.get("/api/hub/widgets/mail/unread_count").json()["blocks"]
     assert empty[0]["text"] == "Brak skrzynek." and empty[1]["buttons"][0]["href"] == "#/mail"
-    assert authed.get("/api/hub/widgets/mail/inbox").json()["blocks"][0]["empty"] == "Brak nieprzeczytanych wiadomości."
+    assert authed.get("/api/hub/widgets/mail/inbox").json()["blocks"][0]["text"] == "Brak skrzynek."
 
     add(authed)
     monkeypatch.setattr(imap, "connect", lambda *a, **k: (_ for _ in ()).throw(AssertionError("widgets must not touch the network")))

@@ -5,17 +5,86 @@
   "version": "0.1.0",
   "description": "Planer zakupów: produkty dopasowywane w sklepie EMMA (Opole), ceny, termin dostawy i lista do koszyka.",
   "widgets": [
-    { "id": "summary", "title": "Zakupy – podsumowanie", "sizes": ["1x1", "2x1"], "default": "1x1", "refresh": 300 },
-    { "id": "list", "title": "Lista zakupów", "sizes": ["2x1", "2x2"], "default": "2x2", "refresh": 120 }
+    {
+      "id": "summary",
+      "title": "Zakupy – podsumowanie",
+      "sizes": [
+        "1x1",
+        "2x1"
+      ],
+      "default": "1x1",
+      "refresh": 300,
+      "description": "Liczba pozycji, suma i najbliższy termin dostawy."
+    },
+    {
+      "id": "list",
+      "title": "Lista zakupów",
+      "sizes": [
+        "2x1",
+        "2x2"
+      ],
+      "default": "2x2",
+      "refresh": 120,
+      "description": "Pozycje listy zakupów z ceną i ilością.",
+      "views": [
+        {
+          "id": "todo",
+          "title": "Do kupienia"
+        },
+        {
+          "id": "all",
+          "title": "Wszystko"
+        }
+      ]
+    }
   ],
   "actions": [
-    { "name": "add_item", "description": "Dodaje produkt do listy zakupów (fraza, np. „mleko 3,2%”, i ilość); automatycznie szuka go w sklepie EMMA i zapisuje, kto go dodał." },
-    { "name": "list_items", "description": "Zwraca listę zakupów z produktami, cenami i podsumowaniem (suma, najbliższy termin dostawy)." },
-    { "name": "update_item", "description": "Zmienia pozycję listy po id: frazę (ponowne dopasowanie), ilość, status kupione (done) albo wybrany produkt (product_id z wyników wyszukiwania)." },
-    { "name": "remove_item", "description": "Usuwa pozycję z listy zakupów po id.", "confirm": true },
-    { "name": "search_products", "description": "Szuka produktów w sklepie EMMA po frazie (z cache) i zwraca nazwy, ceny i linki." },
-    { "name": "build_cart", "description": "Generuje koszyk z otwartych pozycji: produkty z linkami do EMMA, ilościami, sumą i terminem dostawy; pozycje bez dopasowania są osobno." },
-    { "name": "refresh_prices", "description": "Odświeża ceny, dopasowania i termin dostawy ze sklepu EMMA." }
+    {
+      "name": "add_item",
+      "description": "Dodaje produkt do listy zakupów (fraza, np. „mleko 3,2%”, i ilość); automatycznie szuka go w sklepie EMMA i zapisuje, kto go dodał."
+    },
+    {
+      "name": "list_items",
+      "description": "Zwraca listę zakupów z produktami, cenami i podsumowaniem (suma, najbliższy termin dostawy)."
+    },
+    {
+      "name": "update_item",
+      "description": "Zmienia pozycję listy po id: frazę (ponowne dopasowanie), ilość, status kupione (done) albo wybrany produkt (product_id z wyników wyszukiwania)."
+    },
+    {
+      "name": "remove_item",
+      "description": "Usuwa pozycję z listy zakupów po id.",
+      "confirm": true
+    },
+    {
+      "name": "search_products",
+      "description": "Szuka produktów w sklepie EMMA po frazie (z cache) i zwraca nazwy, ceny i linki."
+    },
+    {
+      "name": "build_cart",
+      "description": "Generuje koszyk z otwartych pozycji: produkty z linkami do EMMA, ilościami, sumą i terminem dostawy; pozycje bez dopasowania są osobno."
+    },
+    {
+      "name": "refresh_prices",
+      "description": "Odświeża ceny, dopasowania i termin dostawy ze sklepu EMMA."
+    }
   ],
-  "tasks": [{ "id": "refresh", "every": 3600 }]
+  "tasks": [
+    {
+      "id": "refresh",
+      "every": 3600
+    }
+  ],
+  "quick": [
+    {
+      "id": "add",
+      "title": "Zakupy",
+      "action": "add_item",
+      "fields": [
+        "query",
+        "quantity"
+      ],
+      "success": "Dodano do listy zakupów"
+    }
+  ]
 }

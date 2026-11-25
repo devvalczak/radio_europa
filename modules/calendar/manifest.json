@@ -4,14 +4,73 @@
   "name": "Kalendarz",
   "version": "0.2.0",
   "description": "Wydarzenia i przypomnienia z powiadomieniami push.",
-  "permissions": ["push.send"],
+  "permissions": [
+    "push.send"
+  ],
   "widgets": [
-    { "id": "upcoming", "title": "Najbliższe wydarzenia", "sizes": ["2x1", "2x2"], "default": "2x2", "refresh": 300 },
-    { "id": "next", "title": "Następne wydarzenie", "sizes": ["1x1", "2x1"], "default": "1x1", "refresh": 300 }
+    {
+      "id": "upcoming",
+      "title": "Najbliższe wydarzenia",
+      "sizes": [
+        "2x1",
+        "2x2"
+      ],
+      "default": "2x2",
+      "refresh": 300,
+      "description": "Wydarzenia w wybranym okresie, od najbliższego.",
+      "views": [
+        {
+          "id": "week",
+          "title": "7 dni"
+        },
+        {
+          "id": "day",
+          "title": "24 godziny"
+        },
+        {
+          "id": "month",
+          "title": "30 dni"
+        }
+      ]
+    },
+    {
+      "id": "next",
+      "title": "Następne wydarzenie",
+      "sizes": [
+        "1x1",
+        "2x1"
+      ],
+      "default": "1x1",
+      "refresh": 300,
+      "description": "Najbliższe wydarzenie w ciągu 30 dni."
+    }
   ],
   "actions": [
-    { "name": "create_event", "description": "Dodaje wydarzenie do kalendarza (start z strefą czasową, opcjonalnie koniec i przypomnienie)." },
-    { "name": "list_events", "description": "Zwraca wydarzenia z najbliższych N dni." }
+    {
+      "name": "create_event",
+      "description": "Dodaje wydarzenie do kalendarza (start z strefą czasową, opcjonalnie koniec i przypomnienie)."
+    },
+    {
+      "name": "list_events",
+      "description": "Zwraca wydarzenia z najbliższych N dni."
+    }
   ],
-  "events": { "emits": ["event_created"] }
+  "events": {
+    "emits": [
+      "event_created"
+    ]
+  },
+  "quick": [
+    {
+      "id": "new",
+      "title": "Wydarzenie",
+      "action": "create_event",
+      "fields": [
+        "title",
+        "start",
+        "all_day"
+      ],
+      "success": "Dodano wydarzenie"
+    }
+  ]
 }

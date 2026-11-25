@@ -15,7 +15,8 @@ from .db import get_db
 from .hub import Hub, HubError
 from .logs import redact_text
 from .models import AuditLog, User, UserLayout
-from .sdk import ActionError, Ctx
+from .sdk import AUTO_FIELDS, ActionError, Ctx
+from .timeutil import utcnow
 from .widgets import Block
 
 _blocks = TypeAdapter(list[Block])
@@ -30,6 +31,7 @@ class LayoutItem(BaseModel):
     module: str
     widget: str
     size: str
+    view: str | None = None
 
 
 def build_router(hub: Hub) -> APIRouter:
@@ -42,7 +44,25 @@ def build_router(hub: Hub) -> APIRouter:
                 continue
             for w in hub.manifests[m["id"]].get("widgets", []):
                 out.append({"module": m["id"], "module_name": m["name"], "widget": w["id"], "title": w["title"],
+                            "description": w.get("description", ""), "views": w.get("views", []),
                             "sizes": w["sizes"], "default": w["default"], "refresh": w.get("refresh", 0)})
+        return out
+
+    def quick_actions() -> list[dict]:
+        out = []
+        for m in hub.modules:
+            if m["status"] != "ok":
+                continue
+            for q in hub.manifests[m["id"]].get("quick", []):
+                action = hub.actions[f"{m['id']}.{q['action']}"]
+                schema = action.input_model.model_json_schema() if action.input_model else {"properties": {}}
+                props, required = schema.get("properties", {}), set(schema.get("required", []))
+                out.append({
+                    "id": f"{m['id']}.{q['id']}", "module": m["id"], "module_name": m["name"], "title": q["title"],
+                    "action": action.full_name, "success": q.get("success", ""),
+                    "fields": [{"name": f, "required": f in required, **props.get(f, {})} for f in q["fields"]],
+                    "auto": sorted(AUTO_FIELDS & set(props)),
+                })
         return out
 
     @router.get("/modules")
@@ -92,17 +112,26 @@ def build_router(hub: Hub) -> APIRouter:
         return catalog()
 
     @router.get("/hub/widgets/{module_id}/{widget_id}")
-    def widget_data(module_id: str, widget_id: str, db: Session = Depends(get_db)):
-        fn = hub.widgets.get((module_id, widget_id))
-        if fn is None:
-            raise HTTPException(404, "unknown_widget")
+    def widget_data(module_id: str, widget_id: str, size: str | None = None, view: str | None = None,
+                    db: Session = Depends(get_db)):
         try:
-            return {"blocks": [b.model_dump(exclude_none=True) for b in _blocks.validate_python(fn(Ctx(db, module_id, hub)))]}
+            raw = hub.render_widget(Ctx(db, module_id, hub), widget_id, size, view)
+        except HubError as e:
+            raise HTTPException(e.status, e.code) from e
+        try:
+            blocks = [b.model_dump(exclude_none=True) for b in _blocks.validate_python(raw)]
         except ValidationError as e:
             raise HTTPException(500, "widget_returned_invalid_blocks") from e
+        return {"blocks": blocks, "updated_at": utcnow().isoformat() + "Z"}
+
+    @router.get("/hub/quick")
+    def quick():
+        """Quick actions (manifest `quick`): small forms on the dashboard, run as normal hub actions."""
+        return quick_actions()
 
     def default_layout() -> list[dict]:
-        return [{"module": w["module"], "widget": w["widget"], "size": w["default"]} for w in catalog()]
+        return [{"module": w["module"], "widget": w["widget"], "size": w["default"],
+                 "view": w["views"][0]["id"] if w["views"] else None} for w in catalog()]
 
     @router.get("/hub/layout")
     def get_layout(user: User = Depends(require_user), db: Session = Depends(get_db)):
@@ -113,9 +142,20 @@ def build_router(hub: Hub) -> APIRouter:
         items = []
         for it in json.loads(row.data):
             w = known.get((it["module"], it["widget"]))
-            if w:  # drop widgets of modules that disappeared; repair sizes the manifest no longer allows
-                items.append({**it, "size": it["size"] if it["size"] in w["sizes"] else w["default"]})
+            if w:  # drop widgets of modules that disappeared; repair sizes/views the manifest no longer allows
+                views = [v["id"] for v in w["views"]]
+                items.append({**it, "size": it["size"] if it["size"] in w["sizes"] else w["default"],
+                              "view": it.get("view") if it.get("view") in views else (views[0] if views else None)})
         return {"items": items, "saved": True}
+
+    @router.delete("/hub/layout")
+    def reset_layout(user: User = Depends(require_user), db: Session = Depends(get_db)):
+        """Back to the default layout (every widget, default sizes)."""
+        row = db.get(UserLayout, user.id)
+        if row is not None:
+            db.delete(row)
+            db.commit()
+        return {"items": default_layout(), "saved": False}
 
     @router.put("/hub/layout")
     def put_layout(items: list[LayoutItem], user: User = Depends(require_user), db: Session = Depends(get_db)):
@@ -125,6 +165,8 @@ def build_router(hub: Hub) -> APIRouter:
             w = known.get((it.module, it.widget))
             if w is None or it.size not in w["sizes"]:
                 raise HTTPException(422, f"invalid_layout_item:{it.module}.{it.widget}:{it.size}")
+            if it.view is not None and it.view not in [v["id"] for v in w["views"]]:
+                raise HTTPException(422, f"invalid_view:{it.module}.{it.widget}:{it.view}")
             if (it.module, it.widget) in seen:
                 raise HTTPException(422, "duplicate_widget")
             seen.add((it.module, it.widget))

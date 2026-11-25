@@ -172,7 +172,7 @@ def test_hub_actions(authed, shop):
 
 def test_widgets_read_only_from_db(authed, shop):
     empty = authed.get("/api/hub/widgets/shopping/list").json()["blocks"]
-    assert empty[0]["empty"]
+    assert empty[0]["text"] == "Lista zakupów jest pusta." and empty[1]["buttons"][0]["quick"] == "shopping.add"
     add(authed, "mleko", 2)
     n = len(shop)
     summ = authed.get("/api/hub/widgets/shopping/summary").json()["blocks"]

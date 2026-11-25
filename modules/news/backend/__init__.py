@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app import http
 from app.db import get_db
 from app.hub import hub
-from app.sdk import ActionError, Ctx, ListBlock, ListItem, Module, TextBlock
+from app.sdk import ActionError, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts
 from app.timeutil import iso_z
 
 from . import service
@@ -133,8 +133,8 @@ def action_generate_digest(ctx: Ctx):
 
 # --- widgets (database only) -------------------------------------------------------------------
 @module.widget("headlines")
-def widget_headlines(ctx: Ctx):
-    rows = service.recent_articles(ctx.db, 48, 8)
+def widget_headlines(ctx: Ctx, opts: WidgetOpts):
+    rows = service.recent_articles(ctx.db, 48, opts.limit(3, 3, 8))
     return [ListBlock(
         items=[ListItem(title=a.title, badge=src[:18], href=a.link if a.link and a.link.startswith("https://") else None, time=iso_z(a.published)) for a, src in rows],
         empty="Brak nagłówków. Dodaj źródła RSS w module Newsy.",
