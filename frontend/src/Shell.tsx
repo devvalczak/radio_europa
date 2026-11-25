@@ -3,6 +3,7 @@ import { Dialog, ErrorBoundary, Kbd, ModuleIcon, Toaster } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { Dashboard } from "./Dashboard";
+import { Debug } from "./Debug";
 import { installErrorReporting } from "./errorReport";
 import { t } from "./i18n";
 import { frontendModules } from "./registry";
@@ -43,6 +44,7 @@ const Brand = ({ sub }: { sub?: string }) => (
 );
 
 const CORE = [
+  { id: "debug", glyph: "◇", label: () => t.debug.title },
   { id: "system", glyph: "☰", label: () => t.journal },
   { id: "settings", glyph: "⚙", label: () => t.settings },
 ];
@@ -119,6 +121,8 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
           <Settings status={status} onChange={onChange} modules={modules} />
         ) : route === "system" ? (
           <System />
+        ) : route === "debug" ? (
+          <Debug />
         ) : active ? (
           <active.def.Page />
         ) : (

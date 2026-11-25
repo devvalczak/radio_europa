@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app import http
 from app.db import get_db
 from app.hub import hub
-from app.sdk import ActionError, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts
+from app.sdk import ActionError, Check, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts
 from app.timeutil import iso_z
 
 from . import service
@@ -174,3 +174,39 @@ def digest_task(ctx: Ctx):
     except ActionError as exc:
         # rate limit or AI hiccup: skip this cycle, the next scheduled run retries (no retry loop)
         logging.getLogger("jarvis.news").warning("digest skipped: %s (%s)", exc.code, exc)
+
+
+# --- Diagnostyka ----------------------------------------------------------------------------------------------
+@module.diagnostic("feeds", "Kanały RSS")
+def diag_feeds(ctx: Ctx) -> list[Check]:
+    from app.timeutil import utcnow
+
+    feeds = ctx.db.scalars(select(Feed).order_by(Feed.id)).all()
+    if not feeds:
+        return [Check("skip", "Brak kanałów")]
+    out = []
+    for f in feeds:
+        name = f.title or f.url[:60]
+        if f.last_error:
+            out.append(Check("error", f.last_error, "Sprawdź adres kanału albo usuń go w module Newsy.", name))
+        elif f.last_fetched is None:
+            out.append(Check("warn", "Jeszcze nie pobrany", title=name))
+        else:
+            hours = (utcnow() - f.last_fetched).total_seconds() / 3600
+            out.append(Check("ok" if hours < 3 else "warn", f"Pobrany {round(hours, 1)} h temu", title=name))
+    return out
+
+
+@module.diagnostic("fetch", "Pobranie kanałów RSS (na żywo)", slow=True)
+def diag_fetch(ctx: Ctx) -> list[Check]:
+    feeds = ctx.db.scalars(select(Feed).order_by(Feed.id).limit(8)).all()
+    if not feeds:
+        return [Check("skip", "Brak kanałów")]
+    out = []
+    for f in feeds:
+        try:
+            _title, entries = service.parse_feed(http.get(f.url).content)
+            out.append(Check("ok" if entries else "warn", f"{len(entries)} wpisów", title=f.title or f.url[:60]))
+        except (http.FetchError, ValueError) as exc:
+            out.append(Check("error", str(exc)[:200], title=f.title or f.url[:60]))
+    return out

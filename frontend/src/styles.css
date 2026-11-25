@@ -506,3 +506,23 @@ button.theme-card:focus-visible { outline: 2px solid var(--focus); outline-offse
 .feed-url { margin: 0; }
 .feed-url input { font-family: var(--font-mono); font-size: 13px; }
 .feed-steps { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+
+/* --- Diagnostyka ------------------------------------------------------------------------------- */
+.diag-summary { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: -6px 0 16px; font-size: 14px; }
+.diag-summary span { display: inline-flex; align-items: center; gap: 6px; }
+.diag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 16px; align-items: start; }
+.diag-group { margin: 0; }
+.diag-check { padding: 10px 0; border-top: var(--border-width) solid var(--line); }
+.diag-check:first-of-type { border-top: 0; padding-top: 0; }
+.diag-head { display: flex; align-items: center; gap: 10px; }
+.diag-head button.diag-run { min-height: 30px; padding: 0 10px; font-size: 13px; }
+.diag-results { list-style: none; margin: 6px 0 0 30px; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.diag-results li { display: flex; gap: 8px; align-items: flex-start; overflow-wrap: anywhere; }
+.diag-group > .diag-results { margin-left: 0; }
+.diag-hint { color: var(--muted); margin-top: 2px; }
+.diag-results li.st-error .diag-hint, .diag-results li.st-warn .diag-hint { color: var(--text); }
+.diag-badge { flex: none; width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center;
+  font: 700 11px/1 var(--font); background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); }
+.diag-badge.st-ok { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.diag-badge.st-warn { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+.diag-badge.st-error { background: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--danger); }

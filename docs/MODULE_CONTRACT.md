@@ -67,6 +67,15 @@ Hub zamienia go na odpowiedź HTTP; trasy modułu mogą go przechwycić i zwróc
 Przy zagnieżdżonym `ctx.call` używana jest ta sama sesja, więc commit zostaje po stronie wywołującego.
 Błąd subskrybenta zdarzenia jest logowany i nie psuje emitenta.
 
+## Diagnostyka
+
+`@module.diagnostic("id", "Tytuł", slow=False)` dodaje test do strony **Diagnostyka**: `fn(ctx) -> Check | list[Check]`,
+gdzie `Check(status, detail, hint="", title="")`, `status` ∈ `ok | warn | error | skip`. `detail` mówi, co stwierdzono,
+`hint` — co użytkownik ma zrobić (po polsku, konkretnie). Lista = jeden wiersz na element (np. skrzynkę). Testy szybkie
+(tylko baza/konfiguracja) uruchamiają się przy otwarciu strony; `slow=True` (sieć, zewnętrzne API) tylko po kliknięciu.
+Wyjątek w teście zamienia się w wynik `error`. Nie zwracaj sekretów (tylko „ustawiony / brak”). Nie ma tego w manifeście:
+diagnostyka nie jest dostępna dla AI ani hubu. Każdy moduł z zewnętrzną usługą ma mieć test „zapisane dane” i test „na żywo”.
+
 ## Trasy publiczne (wyjątek)
 
 Domyślnie każda trasa modułu wymaga zalogowania. Gdy zewnętrzny klient nie umie się logować (np. kalendarz w telefonie),

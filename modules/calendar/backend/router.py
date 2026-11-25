@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.sdk import ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
+from app.sdk import ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from . import ical
@@ -272,3 +272,45 @@ def widget_next(ctx: Ctx):
     if not events:
         return [TextBlock(text="Brak wydarzeń w ciągu 30 dni."), ADD_EVENT]
     return [ListBlock(items=[ListItem(title=events[0].title, time=iso_z(events[0].start), all_day=events[0].all_day, href="#/calendar")])]
+
+
+# --- Diagnostyka ----------------------------------------------------------------------------------------------
+def _ago(dt: datetime | None) -> str:
+    if dt is None:
+        return "nigdy"
+    h = int((utcnow() - dt).total_seconds() // 3600)
+    return "w ostatniej godzinie" if h < 1 else f"{h} h temu" if h < 48 else f"{h // 24} dni temu"
+
+
+@module.diagnostic("feed", "Subskrypcja w telefonie (iCal)")
+def diag_feed(ctx: Ctx) -> Check:
+    feed = ctx.db.get(CalendarFeed, 1)
+    if feed is None:
+        return Check("skip", "Wyłączona — wydarzenia z Jarvisa nie trafiają do telefonu",
+                     "Włącz w module Kalendarz → „Kalendarz w telefonie i Google”.")
+    age = utcnow() - (feed.last_fetch_at or feed.created_at)
+    if feed.last_fetch_at is None:
+        status = "warn" if age > timedelta(hours=24) else "ok"
+        return Check(status, f"Adres utworzony {_ago(feed.created_at)}, jeszcze nie pobrany",
+                     "Sprawdź, czy adres jest dodany w Google/iPhonie i czy Cloudflare Access ma wyjątek dla /api/public/calendar/*."
+                     if status == "warn" else "Google pobiera nowe kalendarze z opóźnieniem (do kilku godzin).")
+    status = "warn" if age > timedelta(hours=48) else "ok"
+    return Check(status, f"Ostatnie pobranie {_ago(feed.last_fetch_at)} ({feed.fetch_count}×) przez {feed.last_fetch_ua or '?'} · strefa {feed.tz}",
+                 "Telefon przestał pobierać — sprawdź subskrypcję i wyjątek w Cloudflare Access." if status == "warn" else "")
+
+
+@module.diagnostic("reminders", "Przypomnienia o wydarzeniach")
+def diag_reminders(ctx: Ctx) -> Check:
+    from app.config import settings
+
+    now = utcnow()
+    pending = ctx.db.scalars(select(Event).where(Event.remind_minutes.is_not(None), Event.reminded.is_(False),
+                                                 Event.start >= now, Event.start < now + timedelta(days=7)).order_by(Event.start)).all()
+    if not pending:
+        return Check("ok", "Brak przypomnień w najbliższych 7 dniach")
+    nxt = min(pending, key=lambda e: e.start - timedelta(minutes=e.remind_minutes or 0))
+    when = nxt.start - timedelta(minutes=nxt.remind_minutes or 0)
+    if not settings.vapid_private_key:
+        return Check("error", f"{len(pending)} przypomnień czeka, ale serwer nie może wysyłać push",
+                     "Ustaw klucze VAPID (grupa Powiadomienia push).")
+    return Check("ok", f"{len(pending)} w ciągu 7 dni; najbliższe „{nxt.title}” o {when:%Y-%m-%d %H:%M} UTC")

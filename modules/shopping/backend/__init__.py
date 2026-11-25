@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_user
 from app.db import get_db
 from app.models import User
-from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
 from app.timeutil import iso_z
 
 from . import emma, service
@@ -251,3 +251,29 @@ def list_widget(ctx: Ctx, opts: WidgetOpts):
             subtitle=" · ".join(x for x in (service.money(i.price_cents) if i.price_cents is not None else "brak ceny",
                                            f"dodał: {i.added_by}" if i.added_by else "") if x),
             badge=f"×{i.quantity}", href="#/shopping") for i in items])]
+
+
+# --- Diagnostyka ----------------------------------------------------------------------------------------------
+@module.diagnostic("delivery", "Dane ze sklepu EMMA (zapisane)")
+def diag_delivery(ctx: Ctx) -> Check:
+    from app.timeutil import utcnow
+
+    info = service.delivery(ctx.db)
+    if info is None:
+        return Check("warn", "Termin dostawy jeszcze nie pobrany", "Zadanie shopping.refresh działa co godzinę.")
+    hours = (utcnow() - info.fetched_at).total_seconds() / 3600
+    return Check("ok" if hours < 3 else "warn", f"Termin dostawy: {info.text or 'nie rozpoznano'} (pobrany {round(hours, 1)} h temu)",
+                 "" if info.text else "Strona sklepu mogła się zmienić — wyrażenie do terminu dostawy wymaga poprawki (emma.parse_delivery).")
+
+
+@module.diagnostic("emma", "Wyszukiwanie w sklepie EMMA (na żywo)", slow=True)
+def diag_emma(ctx: Ctx) -> Check:
+    try:
+        found = emma.search("mleko")
+    except emma.ShopError as exc:
+        return Check("error", str(exc))
+    if not found:
+        return Check("warn", "Sklep odpowiada, ale nie rozpoznano żadnego produktu dla „mleko”",
+                     "Selektory w modules/shopping/backend/emma.py mogą być nieaktualne — uruchom scripts/emma_probe.py.")
+    priced = sum(1 for p in found if p.get("price_cents") is not None)
+    return Check("ok", f"{len(found)} produktów, {priced} z ceną (np. {found[0].get('name', '?')[:50]})")

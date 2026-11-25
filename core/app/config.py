@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JARVIS_", env_file=None)
 
     database_url: str = "sqlite:////data/jarvis.db"
+    version: str = ""  # shown in Diagnostyka; set JARVIS_VERSION at build time (e.g. git sha)
     secret_key: str = ""
     setup_token: str = ""
     cookie_secure: bool = True

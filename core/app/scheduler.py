@@ -18,21 +18,27 @@ log = logging.getLogger("jarvis.scheduler")
 _last_run: dict[tuple[str, str], float] = {}
 HOUSEKEEPING_EVERY = 24 * 3600
 _last_housekeeping: float | None = None
+# for the Diagnostyka page: last run of each task / of the reminder loop (wall clock, naive UTC)
+task_status: dict[str, dict] = {}
+reminder_status: dict = {"last_tick": None, "sent": 0, "error": None}
 
 
 def tick() -> int:
     """Ask every module for due reminders and push them. Returns the count. Fast: no network except push."""
     count = 0
     now = utcnow()
+    error = None
     with SessionLocal() as db:
         for _module, hook in hub.reminder_hooks:
             try:
                 for reminder in hook(db, now):
                     send_push(db, reminder)
                     count += 1
-            except Exception:
+            except Exception as exc:
                 log.exception("reminder hook failed")
+                error = f"{_module}: {type(exc).__name__}: {exc}"[:300]
                 db.rollback()
+    reminder_status.update(last_tick=now, sent=reminder_status["sent"] + count, error=error)
     return count
 
 
@@ -45,14 +51,19 @@ def run_tasks(force: bool = False) -> list[str]:
         if not force and key in _last_run and now - _last_run[key] < every:
             continue
         _last_run[key] = now
+        started = time.monotonic()
+        status = {"every": every, "last_run": utcnow(), "ok": True, "error": None}
         with SessionLocal() as db:
             try:
                 fn(Ctx(db, module, hub))
                 db.commit()
                 ran.append(f"{module}.{task_id}")
-            except Exception:
+            except Exception as exc:
                 log.exception("task %s.%s failed", module, task_id)
+                status.update(ok=False, error=f"{type(exc).__name__}: {exc}"[:300])
                 db.rollback()
+        status["ms"] = round((time.monotonic() - started) * 1000)
+        task_status[f"{module}.{task_id}"] = status
     return ran
 
 

@@ -71,6 +71,14 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 - Dane zewnętrzne odświeża `@module.periodic` (manifest `tasks`), widgety czytają tylko z bazy. Scheduler ma osobne pętle dla
   przypomnień/alarmów i dla zadań, żeby wolna sieć nie opóźniała alarmów.
 
+## Diagnostyka
+
+Strona **Diagnostyka** (`#/debug`, `core/app/diagnostics.py`, `frontend/src/Debug.tsx`): testy rdzenia (konfiguracja, migracje,
+proxy/ciasteczko, zadania w tle ze stanem z `scheduler.task_status`, push, AI, moduły i czas widgetów, błędy przeglądarki) oraz
+testy modułów (`@module.diagnostic`). Sekcja „To urządzenie” sprawdza w przeglądarce zegar, https, PWA i push krok po kroku
+(zgoda, service worker, subskrypcja, zgodność klucza VAPID, rejestracja na serwerze, test na to urządzenie). Nowa funkcja,
+która może się cicho zepsuć, dostaje test diagnostyczny.
+
 ## Logi
 
 - Loguj przez `logging.getLogger("jarvis.<moduł>")`; konfiguracja w `core/app/logs.py` (stdout + JSON z rotacją, `JARVIS_LOG_*`).

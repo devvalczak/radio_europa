@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
 from app.timeutil import iso_z, utcnow
 
 from . import schedule
@@ -168,3 +168,24 @@ def widget_next(ctx: Ctx, opts: WidgetOpts):
         ListItem(title=a.label or "Alarm", subtitle=None if opts.small else ("codziennie" if len(a.days) == 7 else "cyklicznie" if a.days else "jednorazowo"),
                  time=iso_z(when), href="#/alarms")
         for a, when in upcoming[:opts.limit(1, 3, 3)]])]
+
+
+# --- Diagnostyka ----------------------------------------------------------------------------------------------
+@module.diagnostic("alarms", "Alarmy")
+def diag_alarms(ctx: Ctx) -> list[Check]:
+    from app.config import settings
+
+    alarms = ctx.db.scalars(select(Alarm).where(Alarm.enabled.is_(True))).all()
+    if not alarms:
+        return [Check("skip", "Brak włączonych alarmów")]
+    out = []
+    bad = [a for a in alarms if schedule.next_fire(a.time, a.days, a.tz, utcnow()) is None]
+    if bad:
+        out.append(Check("warn", f"{len(bad)} alarmów nie zadzwoni (jednorazowe w przeszłości albo zła strefa)",
+                         "Usuń lub popraw je w module Alarmy."))
+    upcoming = sorted(t for a in alarms if (t := schedule.next_fire(a.time, a.days, a.tz, utcnow())))
+    if upcoming:
+        out.append(Check("ok", f"{len(alarms)} włączonych; najbliższy {upcoming[0]:%Y-%m-%d %H:%M} UTC"))
+    if not settings.vapid_private_key:
+        out.append(Check("error", "Alarmy idą jako push, a serwer nie ma kluczy VAPID", "Patrz grupa Powiadomienia push."))
+    return out

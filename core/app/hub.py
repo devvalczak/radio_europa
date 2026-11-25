@@ -50,6 +50,7 @@ class Hub:
         self.subscribers: dict[str, list[tuple[str, Callable]]] = {}
         self.reminder_hooks: list[tuple[str, Callable]] = []
         self.tasks: list[tuple[str, str, int, Callable]] = []  # (module, task id, every seconds, fn)
+        self.diagnostics: list[tuple[str, str, str, bool, Callable]] = []  # (module, id, title, slow, fn)
 
     # --- registration -------------------------------------------------------------
     def check(self, manifest: dict, module: Module) -> None:
@@ -113,6 +114,8 @@ class Hub:
             self.tasks.append((mid, t["id"], t["every"], module.tasks[t["id"]]))
         if module.reminder_hook:
             self.reminder_hooks.append((mid, module.reminder_hook))
+        for did, (title, slow, fn) in module.diagnostics.items():
+            self.diagnostics.append((mid, did, title, slow, fn))
 
     # --- widgets --------------------------------------------------------------------
     def widget_spec(self, module: str, widget: str) -> dict | None:

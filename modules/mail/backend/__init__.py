@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app import crypto
 from app.db import get_db
 from app.hub import hub
-from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
 from app.timeutil import iso_z
 
 from . import imap, service
@@ -252,3 +252,46 @@ def widget_inbox(ctx: Ctx, opts: WidgetOpts):
 @module.periodic("sync")
 def sync_task(ctx: Ctx):
     service.sync_all(ctx)
+
+
+# --- Diagnostyka ----------------------------------------------------------------------------------------------
+@module.diagnostic("accounts", "Skrzynki (ostatnia synchronizacja)")
+def diag_accounts(ctx: Ctx) -> list[Check]:
+    from app.timeutil import utcnow
+
+    accounts = ctx.db.scalars(select(MailAccount).order_by(MailAccount.id)).all()
+    if not accounts:
+        return [Check("skip", "Brak skrzynek")]
+    out = []
+    for a in accounts:
+        if not a.enabled:
+            out.append(Check("skip", "Wyłączona", title=a.label))
+        elif a.last_error:
+            out.append(Check("error", a.last_error, "Kliknij „Połączenie z serwerami IMAP”, żeby sprawdzić na żywo.", a.label))
+        elif a.last_synced is None or (utcnow() - a.last_synced).total_seconds() > 1800:
+            out.append(Check("warn", f"Ostatnia synchronizacja: {a.last_synced or 'nigdy'}", "Zadanie mail.sync działa co 5 min — sprawdź „Zadania w tle”.", a.label))
+        else:
+            out.append(Check("ok", f"{a.unread_count} nieprzeczytanych · {a.host}", title=a.label))
+    if not crypto.available():
+        out.append(Check("error", "Brak JARVIS_ENCRYPTION_KEY — hasła skrzynek są nie do odczytania", "make encryption-key + restart, potem zapisz hasła ponownie."))
+    return out
+
+
+@module.diagnostic("imap", "Połączenie z serwerami IMAP (na żywo)", slow=True)
+def diag_imap(ctx: Ctx) -> list[Check]:
+    import time
+
+    accounts = ctx.db.scalars(select(MailAccount).where(MailAccount.enabled.is_(True)).order_by(MailAccount.id)).all()
+    if not accounts:
+        return [Check("skip", "Brak włączonych skrzynek")]
+    out = []
+    for a in accounts:
+        started = time.monotonic()
+        try:
+            box = service.open_box(a)
+            n = len(box.unseen())
+            box.close()
+            out.append(Check("ok", f"Połączono w {round((time.monotonic() - started) * 1000)} ms · {n} nieprzeczytanych", title=a.label))
+        except imap.MailError as exc:
+            out.append(Check("error", str(exc), title=a.label))
+    return out

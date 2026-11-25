@@ -31,12 +31,24 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Module", "Ctx", "ActionError", "Reminder", "ListBlock", "ListItem", "StatBlock", "TextBlock",
-    "ProgressBlock", "ButtonsBlock", "ButtonSpec", "WidgetOpts",
+    "ProgressBlock", "ButtonsBlock", "ButtonSpec", "WidgetOpts", "Check",
 ]
 
 # Fields a quick-action form fills in by itself (the shell sends the browser's values), so a quick action
 # may leave them out of `fields` even when the action requires them.
 AUTO_FIELDS = {"tz"}
+
+
+@dataclass
+class Check:
+    """One diagnostic result for the Diagnostyka page. `status`: ok | warn | error | skip.
+    `detail` says what was found, `hint` what to do about it (Polish, for the user). `title` names the item
+    when one check reports several (e.g. one line per mail account)."""
+
+    status: str
+    detail: str = ""
+    hint: str = ""
+    title: str = ""
 
 
 @dataclass(frozen=True)
@@ -75,6 +87,7 @@ class Module:
         # Routes WITHOUT login, mounted at /api/public/<id>. Only with manifest `public.reason` (an explicit decision);
         # protect them with an unguessable token in the path and never return more than that token grants.
         self.public_router = public_router
+        self.diagnostics: dict[str, tuple[str, bool, Callable]] = {}  # id -> (title, slow, fn)
         self.actions: dict[str, tuple[Callable, type[BaseModel] | None]] = {}
         self.widgets: dict[str, Callable] = {}
         self.subscriptions: dict[str, Callable] = {}
@@ -110,6 +123,17 @@ class Module:
 
         def deco(fn: Callable) -> Callable:
             self.tasks[task_id] = fn
+            return fn
+
+        return deco
+
+    def diagnostic(self, check_id: str, title: str, slow: bool = False):
+        """A check for the Diagnostyka page: `fn(ctx) -> Check | list[Check]`. Fast checks (database only) run when
+        the page opens; `slow=True` ones (network: IMAP, APIs) run only on the user's click. Exceptions become an
+        error result. Not part of the manifest: diagnostics are never exposed to AI or the hub."""
+
+        def deco(fn: Callable) -> Callable:
+            self.diagnostics[check_id] = (title, slow, fn)
             return fn
 
         return deco

@@ -42,7 +42,7 @@ try {
   let routes = process.argv[3]?.split(",").filter(Boolean);
   if (!routes) {
     const mods = await (await login.request.get(`${base}/api/modules`)).json();
-    routes = ["dashboard", ...mods.filter((m) => m.status === "ok").map((m) => m.id), "system", "settings"];
+    routes = ["dashboard", ...mods.filter((m) => m.status === "ok").map((m) => m.id), "debug", "system", "settings"];
   }
   const sizes = { desktop: { width: 1280, height: 860 }, phone: { width: 390, height: 844 } };
   for (const theme of themes) {

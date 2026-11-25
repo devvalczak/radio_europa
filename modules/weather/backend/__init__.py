@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app import http
 from app.db import get_db
-from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
 
 from . import service
 from .models import WeatherLocation
@@ -163,3 +163,31 @@ def refresh_task(ctx: Ctx):
     for loc in _locations(ctx.db):
         service.refresh(loc)
     ctx.db.commit()
+
+
+# --- Diagnostyka ----------------------------------------------------------------------------------------------
+@module.diagnostic("data", "Dane pogodowe (zapisane)")
+def diag_data(ctx: Ctx) -> list[Check]:
+    locs = _locations(ctx.db)
+    if not locs:
+        return [Check("skip", "Brak lokalizacji")]
+    out = []
+    for loc in locs:
+        if loc.fetch_error:
+            out.append(Check("error", loc.fetch_error, "Kliknij „Połączenie z Open-Meteo”, żeby sprawdzić na żywo.", loc.name))
+        elif loc.fetched_at is None:
+            out.append(Check("warn", "Jeszcze nie pobrane", title=loc.name))
+        else:
+            out.append(Check("warn" if service.is_stale(loc) else "ok", f"Pobrane {loc.fetched_at:%Y-%m-%d %H:%M} UTC", title=loc.name))
+    return out
+
+
+@module.diagnostic("api", "Połączenie z Open-Meteo (na żywo)", slow=True)
+def diag_api(ctx: Ctx) -> Check:
+    locs = _locations(ctx.db)
+    lat, lon, name = (locs[0].lat, locs[0].lon, locs[0].name) if locs else (52.23, 21.01, "Warszawa (test)")
+    try:
+        data = service.fetch_forecast(lat, lon)
+    except (http.FetchError, ValueError, KeyError) as exc:
+        return Check("error", f"{type(exc).__name__}: {exc}"[:200], "Open-Meteo nie odpowiada albo zmienił format odpowiedzi.")
+    return Check("ok", f"{name}: {data['current'].get('temp')}°C, {len(data.get('daily', []))} dni prognozy")

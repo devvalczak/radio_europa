@@ -5,7 +5,7 @@ import time
 from collections import deque
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Body, Depends, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -42,6 +42,33 @@ def logins(limit: int = Query(50, ge=1, le=200), before_id: int | None = None, d
 @router.get("/ai")
 def ai_status():
     return ai.describe()
+
+
+# --- Diagnostyka ---------------------------------------------------------------------------------------------
+@router.get("/diagnostics")
+def diagnostics(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
+    """All checks grouped; fast ones run now, slow (network) ones come back with `result: null` to run on demand."""
+    from . import diagnostics as diag
+
+    env = diag.Env(db, request, user)
+    groups: dict[str, dict] = {}
+    for d in diag.all_defs():
+        g = groups.setdefault(d.group, {"id": d.group, "title": diag.group_title(d.group), "checks": []})
+        g["checks"].append({"id": d.id, "title": d.title, "slow": d.slow, "result": None if d.slow else diag.run(d, env)})
+    return {"groups": list(groups.values())}
+
+
+@router.post("/diagnostics/{check_id}/run")
+def run_diagnostic(check_id: str, request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
+    from . import diagnostics as diag
+
+    d = next((x for x in diag.all_defs() if x.id == check_id), None)
+    if d is None:
+        raise HTTPException(404, "unknown_check")
+    result = diag.run(d, diag.Env(db, request, user))
+    logging.getLogger("jarvis.diagnostics").info("check %s ran: %s", check_id,
+                                                 ",".join(r["status"] for r in result["results"]))
+    return result
 
 
 # --- browser errors ---------------------------------------------------------------------------------

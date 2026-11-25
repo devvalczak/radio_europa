@@ -53,6 +53,12 @@ Podbij `version` przy zmianach. Opisy akcji pisz konkretnie: jaki efekt, jakie a
 - Czas lokalny użytkownika (alarmy, kalendarz): zapisuj strefę IANA i licz przez `zoneinfo`; w bazie naive UTC. Logikę czasu trzymaj w czystych funkcjach i testuj (zmiana czasu!).
 - Nie importuj innych modułów — używaj `ctx.call("modul.akcja", {...})` (wymaga `hub.call`).
 
+## 4c. Diagnostyka
+
+Moduł z zewnętrzną usługą, zadaniem w tle albo konfiguracją, która może się „cicho” zepsuć, dodaje `@module.diagnostic(...)`:
+test szybki (stan z bazy: ostatnie pobranie, ostatni błąd) i `slow=True` na żywo. Wzorce: `modules/mail` (skrzynki + IMAP),
+`modules/weather`, `modules/calendar` (subskrypcja, przypomnienia vs. klucze push). Opis w `docs/MODULE_CONTRACT.md` → Diagnostyka.
+
 ## 4b. Pulpit: opisy, widoki, rozmiary, szybkie akcje
 
 - Każdy widget ma w manifeście `description` („co pokazuje”). Jeśli ma sens kilka perspektyw (okres, filtr), dodaj `views`.
