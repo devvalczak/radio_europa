@@ -12,9 +12,11 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
   const [msg, setMsg] = useState("");
   const [totp, setTotp] = useState<{ secret: string; uri: string } | null>(null);
   const [code, setCode] = useState("");
+  const [ai, setAi] = useState<{ configured: boolean; provider: string | null; model: string | null; host: string | null } | null>(null);
 
   useEffect(() => {
     listThemes().then(setThemes).catch(() => undefined);
+    api<typeof ai>("/system/ai").then(setAi).catch(() => undefined);
   }, []);
 
   const run = async (fn: () => Promise<unknown>, ok = "") => {
@@ -87,6 +89,17 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
           <button onClick={() => run(async () => setTotp(await api("/auth/totp/begin", { method: "POST" })))}>
             Włącz 2FA
           </button>
+        )}
+      </section>
+
+      <section className="card stack">
+        <h2>{t.aiStatus}</h2>
+        {ai?.configured ? (
+          <p>
+            {ai.provider} · <b>{ai.model}</b> <span className="muted">({ai.host})</span>
+          </p>
+        ) : (
+          <p className="muted">{t.aiOff}</p>
         )}
       </section>
 

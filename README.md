@@ -40,7 +40,21 @@ kluczem `JARVIS_ENCRYPTION_KEY` (nowy `.env` ma go z `make init`; do istniejące
 osobno od kopii bazy). Powiadomienia push o nowych wiadomościach można ograniczyć do wybranych nadawców.
 
 **AI (opcjonalne):** bez konfiguracji wszystko działa, tylko bez streszczeń. Ustaw w `.env` `JARVIS_AI_PROVIDER`
-(`anthropic` albo `openai` = dowolne API zgodne z OpenAI, w tym lokalna Ollama), `JARVIS_AI_MODEL` i klucz/URL — przykłady w `.env.example`.
+(`anthropic`, `gemini` albo `openai` = dowolne API zgodne z OpenAI, w tym lokalna Ollama), `JARVIS_AI_MODEL` i klucz/URL — przykłady w `.env.example`.
+Stan AI widać w Ustawieniach (dostawca, model, host — nigdy klucz).
+
+**Gemini (darmowy plan):** klucz utwórz w Google AI Studio (aistudio.google.com → „Get API key”), wpisz do `.env` jako
+`JARVIS_AI_API_KEY`, ustaw `JARVIS_AI_PROVIDER=gemini` i `JARVIS_AI_MODEL` na model z listy dostępnych w AI Studio, potem `make up`.
+Klucz trafia do Google w nagłówku `x-goog-api-key`, nigdy w URL-u ani w logach. Przekroczenie limitu darmowego planu (HTTP 429)
+daje komunikat „spróbuj za X min” — bez ponawiania w pętli; automatyczne streszczenie newsów po prostu pomija cykl.
+Alternatywa: `JARVIS_AI_PROVIDER=openai` z `JARVIS_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`
+(warstwa zgodności Google; nieprzetestowana tutaj).
+**Prywatność:** na darmowym planie Google może wykorzystywać przesyłane treści do ulepszania usług. Newsy (publiczne nagłówki) idą
+do AI bez pytania; streszczenie poczty wymaga zgody włączanej w module Poczta (domyślnie wyłączona).
+
+**Logi:** czytelny tekst na stdout (`make logs`) oraz JSON w `data/logs/jarvis.jsonl` z rotacją (10 MB × 5). Zakładka **Dziennik**
+pokazuje logi (filtr poziomu, loggera, tekstu), dziennik audytu akcji hubu i historię logowań (czas, wynik, IP, przeglądarka).
+Audyt i historia logowań są usuwane po 90 dniach (`JARVIS_RETENTION_DAYS`). Hasła, tokeny i query stringi nie trafiają do logów.
 Alarm przychodzi jako powiadomienie push; to nie jest gwarantowany budzik (tryb oszczędzania baterii lub „Nie przeszkadzać” może go opóźnić).
 
 ## Dostęp z internetu (Cloudflare)

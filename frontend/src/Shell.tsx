@@ -6,6 +6,7 @@ import { Dashboard } from "./Dashboard";
 import { t } from "./i18n";
 import { frontendModules } from "./registry";
 import { Settings } from "./Settings";
+import { System } from "./System";
 
 export interface ModuleInfo {
   id: string;
@@ -56,6 +57,10 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
             <b>{m.name}</b>
           </a>
         ))}
+        <a href="#/system" className={route === "system" ? "on" : ""}>
+          <span>☰</span>
+          <b>{t.journal}</b>
+        </a>
         <a href="#/settings" className={route === "settings" ? "on" : ""}>
           <span>⚙</span>
           <b>{t.settings}</b>
@@ -64,6 +69,8 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       <main>
         {route === "settings" ? (
           <Settings status={status} onChange={onChange} modules={modules} />
+        ) : route === "system" ? (
+          <System />
         ) : active ? (
           <active.def.Page />
         ) : (

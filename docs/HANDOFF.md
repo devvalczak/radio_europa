@@ -1,54 +1,51 @@
 # Handoff: następna sesja
 
-Stan na koniec poprzedniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pułapki) i `docs/MODULE_CONTRACT.md`.
+Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pułapki) i `docs/MODULE_CONTRACT.md`.
 
 ## 1. Gdzie jesteśmy
 
-- Wszystko jest na `main`. Backend: ~170 testów (`make test`), frontend: `cd frontend && npm run build`.
+- `main` = stan sprzed tej sesji. Praca z tej sesji jest na `claude/personal-dashboard-app-nted7h` (do `main` tylko na prośbę).
+- Backend: ~195 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0006_login_events_and_mail_settings`.
 - Moduły: notes, calendar, weather, news, alarms, mail, shopping. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
-- AI jest opcjonalne i niezależne od dostawcy (`core/app/ai.py`): `anthropic` albo `openai` (dowolne API zgodne z OpenAI,
-  w tym Ollama). Moduły wołają je przez `ctx.ai(...)` (uprawnienie `ai.complete`); bez konfiguracji działają bez AI.
-  Używają go dziś: news (streszczenie nagłówków, zadanie w tle + akcja z `confirm`) i mail (streszczenie nieprzeczytanych, tylko na żądanie).
+- **Logi aplikacji** (`core/app/logs.py`): tekst na stdout + JSON z rotacją w `JARVIS_LOG_DIR/jarvis.jsonl`, filtr maskujący sekrety,
+  middleware z logiem żądań (ścieżka bez query stringa). Historia logowań w tabeli `login_events` (`core/app/auth.py: record_login`),
+  limiter prób liczony po `client_ip` (Cf-Connecting-Ip → X-Forwarded-For → adres połączenia). API tylko do odczytu:
+  `/api/system/logs|logins|ai`, `/api/hub/audit` (stronicowanie `before_id`, filtry `action`/`ok`, wejście zredagowane).
+  Zakładka **Dziennik** (`frontend/src/System.tsx`): Logi / Audyt / Logowania. Retencja audytu i logowań: `scheduler.purge_old`,
+  raz na dobę, `JARVIS_RETENTION_DAYS=90`.
+- **AI** (`core/app/ai.py`): dostawcy `anthropic`, `gemini` (natywny `generateContent`, klucz w nagłówku `x-goog-api-key`), `openai`
+  (zgodne z OpenAI, w tym Ollama). `AIError.code`: `not_configured | rate_limited | auth | blocked | truncated | failed`,
+  `user_message()` po polsku; moduły zamieniają `rate_limited` na HTTP 429 `ai_rate_limited`. Modele Gemini „myślące” liczą
+  rozumowanie do `maxOutputTokens`, więc dodajemy zapas `GEMINI_THINKING_HEADROOM` (nie wysyłamy `thinkingConfig`, bo nie każdy model go przyjmuje).
+- **Zgoda poczty na AI** (`mail_settings.allow_ai`, domyślnie wyłączona): bez niej `summarize` → 403 `ai_not_allowed`. Zmiana tylko
+  trasą `PUT /api/m/mail/settings` (nie akcją hubu — AI nie może samo sobie jej włączyć). Decyzja użytkownika: przełącznik, domyślnie off.
 
 ## 2. Nigdy niezweryfikowane na żywo (sandbox nie miał dostępu)
 
 `make up` w Dockerze, Cloudflare Tunnel/Access, push na telefon, Open-Meteo, EMMA (scraping), serwery IMAP (w tym Gmail, TLS),
-prawdziwy dostawca AI. Testy używają atrap. Jeśli użytkownik zgłosi błąd z prawdziwej maszyny, zacznij od tej listy.
+**prawdziwe API Gemini** i inni dostawcy AI. Testy używają atrap. Jeśli użytkownik zgłosi błąd z prawdziwej maszyny, zacznij od tej listy.
 
-## 3. Zadanie A: „logowanie” — NAJPIERW DOPYTAJ
+## 3. Gemini na żywo — gdy użytkownik będzie miał klucz
 
-Użytkownik napisał „będziemy implementować logowanie”. To jest niejednoznaczne i **nie zgaduj**. Logowanie (login) już istnieje:
-jeden użytkownik, hasło argon2, sesja w podpisanym ciasteczku (14 dni), TOTP, blokada po 5 próbach (w pamięci procesu),
-token pierwszej konfiguracji, nagłówek `X-Jarvis` przeciw CSRF. Zapytaj (AskUserQuestion), o co chodzi, np.:
-- **logowanie do aplikacji** — co ulepszyć: logowanie przez Google/passkeys (WebAuthn), weryfikacja JWT z Cloudflare Access
-  (`Cf-Access-Jwt-Assertion`) zamiast/obok hasła, wylogowanie wszystkich sesji, trwała blokada prób (w bazie), wielu użytkowników?
-- **logi aplikacji (logging)** — strukturalne logi (JSON), rotacja, podgląd logów i dziennika audytu w UI, poziomy per moduł?
-Dopiero po odpowiedzi zaproponuj plan.
+Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
+1. Poproś o klucz narzędziem `request_credential` (host `generativelanguage.googleapis.com`, nagłówek `x-goog-api-key`, bez prefiksu).
+   **Nigdy** nie wpisuj klucza do repo, `.env.example` ani czatu. Proxy wstrzyknie go do żądań; do `ai.complete` podaj atrapę
+   w `JARVIS_AI_API_KEY` (proxy ją podmieni).
+2. Zapytaj, którego modelu chce używać (nie zgaduj nazwy — sprawdź `GET /v1beta/models` z kluczem i wybierz z darmowego planu razem z użytkownikiem).
+3. Wywołaj raz `complete()` przez dostawcę `gemini`, sprawdź: kształt odpowiedzi, `finishReason`, czy zapas tokenów na „myślenie”
+   wystarcza, format błędu 429 (`RetryInfo.retryDelay`). Popraw `core/app/ai.py`/testy, jeśli rzeczywistość się różni.
+4. Opcjonalnie to samo dla ścieżki zgodnej z OpenAI (`/v1beta/openai`), żeby README mówiło prawdę.
 
-## 4. Zadanie B: darmowe API do AI (Gemini)
+## 4. Dalej w planie
 
-Cel: tani/darmowy dostawca zamiast płatnego. Do sprawdzenia, nie z pamięci (dokumentacja ai.google.dev była zablokowana przez proxy):
-- **Ścieżka 1 (najmniej kodu):** endpoint zgodny z OpenAI w Gemini API. Wtedy wystarczy konfiguracja:
-  `JARVIS_AI_PROVIDER=openai`, `JARVIS_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`,
-  `JARVIS_AI_MODEL=<model z darmowego planu>`, `JARVIS_AI_API_KEY=<klucz z Google AI Studio>`. Zweryfikuj ścieżkę, nagłówek
-  (Bearer) i nazwę modelu na żywo. Bez klucza `GET .../v1beta/openai/models` zwracało 404, więc to nic nie przesądza.
-- **Ścieżka 2:** natywny dostawca `gemini` w `core/app/ai.py` (`generateContent`, klucz w nagłówku `x-goog-api-key`), z testami
-  jak dla `anthropic`/`openai` w `core/tests/test_http_ai.py`.
-- **Test na żywo jest możliwy:** host `generativelanguage.googleapis.com` jest osiągalny z sandboxa (bez klucza odpowiada 403 od Google).
-  Poproś o klucz narzędziem `request_credential` (host jak wyżej, nagłówek `x-goog-api-key` albo Bearer dla ścieżki 1).
-  **Nigdy** nie wpisuj klucza do repo, `.env.example` ani czatu.
-- **Prywatność — decyzja użytkownika:** na darmowym planie Google może wykorzystywać przesyłane treści do ulepszania usług
-  (sprawdź aktualne warunki). Streszczenie poczty wysyła nadawców, tematy i początki maili. Zaproponuj ustawienie per moduł
-  (np. „pozwól wysyłać pocztę do chmurowego AI”) albo ostrzeżenie, i zapytaj użytkownika.
-- **Limity darmowego planu:** obsłuż 429 czytelnym komunikatem (dziś `AIError` → „Streszczenie nie powiodło się”), nie ponawiaj w pętli;
-  zadanie `news.digest` uruchamia się najwyżej co 6 h i tylko przy nowych artykułach.
-- Zaktualizuj `.env.example`, README (sekcja AI) i `CLAUDE.md`.
+CalDAV/Google Calendar, asystent AI używający akcji hubu jako narzędzi (uwaga: akcje z `confirm`, zgoda poczty, treść niezaufana),
+agent hosta (terminal, zadania na komputerze z potwierdzeniami, nasłuch tylko lokalnie). Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
 
 ## 5. Gotowy prompt na start następnej sesji
 
-> Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj `CLAUDE.md` i `docs/HANDOFF.md`. Najpierw zrób `git pull`,
-> `make test` i `cd frontend && npm ci && npm run build`, żeby potwierdzić, że wszystko jest zielone. Potem:
-> (1) dopytaj mnie, co rozumiem przez „logowanie” (logowanie do aplikacji czy logi aplikacji) i zaproponuj plan;
-> (2) dodaj darmowe API AI (Gemini) według sekcji 4 handoffu — najpierw sprawdź na żywo ścieżkę zgodną z OpenAI, klucz poproś
-> przez bezpieczny formularz, i zapytaj mnie o prywatność streszczeń poczty na darmowym planie.
-> Nie zgaduj — jeśli czegoś nie wiesz, pytaj. Na koniec wypchnij zmiany na swoją gałąź (do `main` tylko jeśli poproszę).
+```
+Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md i docs/HANDOFF.md. Najpierw zrób git pull,
+make test i cd frontend && npm ci && npm run build, żeby potwierdzić, że wszystko jest zielone. Potem zapytaj mnie,
+czym się zajmujemy (np. test Gemini na żywo z sekcji 3, jeśli mam już klucz, albo kolejny punkt z sekcji 4) i zaproponuj plan.
+Nie zgaduj — jeśli czegoś nie wiesz, pytaj. Na koniec wypchnij zmiany na swoją gałąź (do main tylko jeśli poproszę).
+```

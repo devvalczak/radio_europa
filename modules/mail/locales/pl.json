@@ -46,5 +46,11 @@
   "summaryFailed": "Nie udało się wygenerować streszczenia.",
   "loadFailed": "Nie udało się wczytać danych.",
   "saveFailed": "Nie udało się zapisać skrzynki.",
-  "messageFailed": "Nie udało się pobrać wiadomości."
+  "messageFailed": "Nie udało się pobrać wiadomości.",
+  "aiConsent": "Pozwól wysyłać nadawców, tematy i początki maili do AI",
+  "aiConsentTo": "Dostawca",
+  "aiConsentHint": "Domyślnie wyłączone. Treść trafia do zewnętrznego dostawcy tylko po kliknięciu „Streszcz”. Na darmowym planie Gemini Google może wykorzystywać przesłane treści do ulepszania swoich usług — rozważ płatny plan albo lokalny model.",
+  "aiConsentNeeded": "Włącz zgodę powyżej, żeby streszczać pocztę przez AI.",
+  "aiNotConfigured": "AI nie jest skonfigurowane (JARVIS_AI_* w .env).",
+  "settingsFailed": "Nie udało się zapisać ustawienia."
 }

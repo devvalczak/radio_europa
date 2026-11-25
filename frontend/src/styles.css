@@ -84,3 +84,16 @@ progress { width: 100%; accent-color: var(--accent); }
   .dash { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; }
 }
 .blocks p { white-space: pre-line; margin: 0; }
+
+/* Dziennik (logs, audit, logins) */
+.tabs { margin-bottom: 12px; }
+.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
+.log-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
+.log-list li { padding: 8px 0 8px 10px; border-top: 1px solid var(--border); border-left: 3px solid transparent; min-width: 0; }
+.log-list li.lvl-WARNING { border-left-color: #f5b54a; }
+.log-list li.lvl-ERROR, .log-list li.lvl-CRITICAL { border-left-color: var(--danger); }
+.log-head { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
+.log-head time { color: var(--muted); }
+.log-msg, .log-extra { overflow-wrap: anywhere; }
+.log-extra { font-size: 12px; }
+.log-list pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--panel-2); padding: 8px; border-radius: 8px; }

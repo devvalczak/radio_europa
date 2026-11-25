@@ -50,10 +50,21 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 ## Sieć, AI, zadania w tle
 
 - Zewnętrzne adresy tylko przez `app.http.get` (blokada SSRF, limity). Nigdy `httpx` wprost dla URL-i od użytkownika.
-- AI przez `ctx.ai(...)` (uprawnienie `ai.complete`), konfiguracja `JARVIS_AI_*`; bez niej moduły mają działać bez AI.
+- AI przez `ctx.ai(...)` (uprawnienie `ai.complete`), konfiguracja `JARVIS_AI_*` (`anthropic` | `gemini` | `openai`); bez niej moduły
+  mają działać bez AI. Łap `AIError` i pokazuj `exc.user_message()`; `exc.code == "rate_limited"` → 429, bez ponawiania w pętli.
+  Wysyłanie prywatnych danych (np. poczty) do AI wymaga zgody użytkownika zapisanej trasą HTTP modułu, nie akcją hubu.
   Treść z internetu w promptach jest niezaufana — model bez narzędzi, wynik jako zwykły tekst.
 - Dane zewnętrzne odświeża `@module.periodic` (manifest `tasks`), widgety czytają tylko z bazy. Scheduler ma osobne pętle dla
   przypomnień/alarmów i dla zadań, żeby wolna sieć nie opóźniała alarmów.
+
+## Logi
+
+- Loguj przez `logging.getLogger("jarvis.<moduł>")`; konfiguracja w `core/app/logs.py` (stdout + JSON z rotacją, `JARVIS_LOG_*`).
+  Szczegóły przekazuj w `extra={...}` — trafiają jako pola do JSON-a i do widoku „Dziennik”.
+- **Nie loguj sekretów, treści maili ani promptów/odpowiedzi AI.** Filtr maskujący (`password=`, `token:`, klucze `extra` o nazwach
+  sekretów, tracebacki) to siatka bezpieczeństwa, nie zgoda. Log żądań zapisuje ścieżkę bez query stringa.
+- Testy działają bez pliku logów (`JARVIS_LOG_DIR=""` w conftest); test, który go potrzebuje, ustawia `settings.log_dir` na `tmp_path`
+  i woła `logs.setup_logging()` (patrz `core/tests/test_logs.py`).
 
 ## Sekrety i poczta
 
@@ -98,12 +109,13 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 
 ## Stan i plan
 
-Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), moduły: notatki, kalendarz,
-pogoda, newsy (RSS + streszczenia AI), alarmy, poczta (IMAP, tylko odczyt), zakupy (EMMA, scraping). ~170 testów backendu.
+Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), logi aplikacji + Dziennik (logi, audyt,
+historia logowań, retencja 90 dni), AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
+streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping). ~195 testów backendu.
 
-Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (doprecyzowanie „logowania”, darmowe API AI — Gemini).
+Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (Gemini na żywo, gdy będzie klucz; dalszy plan).
 Dalej: CalDAV/Google Calendar, asystent AI używający akcji hubu jako narzędzi, agent hosta (terminal, zadania na komputerze
 z potwierdzeniami, nasłuch tylko lokalnie). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 
 Nic z tego nie było jeszcze uruchomione na prawdziwej maszynie w Dockerze ani przeciw prawdziwym usługom (Open-Meteo, EMMA,
-serwery IMAP, dostawcy AI) — patrz „Pułapki” i `docs/HANDOFF.md`.
+serwery IMAP, dostawcy AI w tym Gemini) — patrz „Pułapki” i `docs/HANDOFF.md`.

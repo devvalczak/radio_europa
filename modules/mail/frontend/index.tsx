@@ -93,6 +93,11 @@ function AccountForm({ draft, setDraft, onSave, onCancel, error }: { draft: Draf
   );
 }
 
+interface AiSettings {
+  allow_ai: boolean;
+  ai: { configured: boolean; provider: string | null; model: string | null; host: string | null };
+}
+
 function Page() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -102,6 +107,7 @@ function Page() {
   const [formError, setFormError] = useState("");
   const [open, setOpen] = useState<{ msg: Msg; body: Body | null; error: string } | null>(null);
   const [summary, setSummary] = useState("");
+  const [aiCfg, setAiCfg] = useState<AiSettings | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -114,6 +120,21 @@ function Page() {
       .catch(() => setError(t("loadFailed")));
   }, [filterAcc, unreadOnly]);
   useEffect(load, [load]);
+  useEffect(() => {
+    api.get<AiSettings>("/settings").then(setAiCfg).catch(() => setAiCfg(null));
+  }, []);
+
+  async function toggleAi(allow: boolean) {
+    setError("");
+    const before = aiCfg;
+    if (before) setAiCfg({ ...before, allow_ai: allow }); // immediate feedback; reverted if saving fails
+    try {
+      setAiCfg(await api.put<AiSettings>("/settings", { allow_ai: allow }));
+    } catch {
+      setAiCfg(before);
+      setError(t("settingsFailed"));
+    }
+  }
 
   async function save() {
     if (!draft) return;
@@ -188,8 +209,20 @@ function Page() {
 
       {draft && <AccountForm draft={draft} setDraft={setDraft} onSave={save} onCancel={() => setDraft(null)} error={formError} />}
 
-      <Card title={t("summary")} actions={<Button disabled={busy || accounts.length === 0} onClick={summarize}>{t("summarize")}</Button>}>
-        {summary ? <p style={{ whiteSpace: "pre-line", margin: 0 }}>{summary}</p> : <Muted>—</Muted>}
+      <Card title={t("summary")} actions={<Button disabled={busy || accounts.length === 0 || !aiCfg?.allow_ai || !aiCfg.ai.configured} onClick={summarize}>{t("summarize")}</Button>}>
+        {aiCfg && !aiCfg.ai.configured ? (
+          <Muted>{t("aiNotConfigured")}</Muted>
+        ) : aiCfg ? (
+          <>
+            <label className="check">
+              <input type="checkbox" checked={aiCfg.allow_ai} onChange={(e) => toggleAi(e.target.checked)} /> {t("aiConsent")}
+            </label>
+            <small className="muted block">{t("aiConsentTo")}: {aiCfg.ai.provider} · {aiCfg.ai.model} ({aiCfg.ai.host})</small>
+            <small className="muted block">{t("aiConsentHint")}</small>
+            {!aiCfg.allow_ai && <Muted>{t("aiConsentNeeded")}</Muted>}
+          </>
+        ) : null}
+        {summary ? <p style={{ whiteSpace: "pre-line", margin: 0 }}>{summary}</p> : aiCfg?.allow_ai ? <Muted>—</Muted> : null}
         <ErrorText>{error}</ErrorText>
       </Card>
 
