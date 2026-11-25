@@ -1,5 +1,5 @@
 import { api, openQuick } from "@jarvis/sdk";
-import { Button, Card, Dialog, Kbd, Menu, MenuEntry, ModuleIcon, PageTitle, Skeleton, Tag, toast } from "@jarvis/ui";
+import { Button, Card, Dialog, ErrorBoundary, Kbd, Menu, MenuEntry, ModuleIcon, PageTitle, Skeleton, Tag, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BlockData, Blocks } from "./Blocks";
 import { t } from "./i18n";
@@ -97,12 +97,14 @@ function Tile({ entry, item, editing, menu, dragProps }: {
         <Menu label={`${t.dash.tileMenu}: ${entry.title}`} trigger="⋯" entries={menu(updated ? ago(updated, now) : "")} />
       </header>
       <div className="tile-body">
+        <ErrorBoundary compact resetKey={updated}>
         {Custom ? <Custom /> : failed ? (
           <div className="tile-error">
             <p className="muted">{t.widgetFailed}</p>
             <Button onClick={load}>{t.dash.retry}</Button>
           </div>
         ) : blocks ? <Blocks blocks={blocks} onChanged={load} /> : <Skeleton lines={item.size === "1x1" ? 2 : 3} />}
+        </ErrorBoundary>
       </div>
       {stale && <footer className="tile-foot muted">{t.dash.stale.replace("{t}", ago(updated, now))}</footer>}
     </section>

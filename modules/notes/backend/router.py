@@ -8,14 +8,16 @@ from app.sdk import ButtonsBlock, ButtonSpec, Ctx, ListBlock, ListItem, Module, 
 from app.timeutil import iso_z
 
 from .models import Note
+from .text import derive_title, snippet
 
 router = APIRouter()
 module = Module(router=router)
 
 
 class NoteIn(BaseModel):
+    # empty title = taken from the first line of the content (the UI never asks for a title)
     title: str = Field(default="", max_length=200)
-    content: str = Field(default="", max_length=200_000)
+    content: str = Field(default="", max_length=200_000, json_schema_extra={"format": "markdown"})
     tags: list[str] = Field(default_factory=list, max_length=20)
     pinned: bool = False
 
@@ -34,6 +36,7 @@ def _out(n: Note) -> dict:
         "id": n.id,
         "title": n.title,
         "content": n.content,
+        "snippet": snippet(n.content),
         "tags": [t for t in n.tags.split(",") if t],
         "pinned": n.pinned,
         "created_at": iso_z(n.created_at),
@@ -67,8 +70,12 @@ def list_notes(q: str | None = None, tag: str | None = None, db: Session = Depen
     return [_out(n) for n in db.scalars(stmt).all()]
 
 
+def _title(body: NoteIn) -> str:
+    return body.title.strip()[:200] or derive_title(body.content)
+
+
 def _create(db: Session, body: NoteIn) -> dict:
-    note = Note(title=body.title, content=body.content, tags=_clean_tags(body.tags), pinned=body.pinned)
+    note = Note(title=_title(body), content=body.content, tags=_clean_tags(body.tags), pinned=body.pinned)
     db.add(note)
     db.commit()
     return _out(note)
@@ -87,7 +94,7 @@ def read_note(note_id: int, db: Session = Depends(get_db)):
 @router.put("/{note_id}")
 def update_note(note_id: int, body: NoteIn, db: Session = Depends(get_db)):
     note = _get(db, note_id)
-    note.title, note.content = body.title, body.content
+    note.title, note.content = _title(body), body.content
     note.tags, note.pinned = _clean_tags(body.tags), body.pinned
     db.commit()
     return _out(note)
@@ -129,8 +136,8 @@ def widget_recent(ctx: Ctx, opts: WidgetOpts):
     if not notes:
         if opts.view == "pinned":
             return [TextBlock(text="Brak przypiętych notatek. Przypnij ważną notatkę w module Notatki.")]
-        return [TextBlock(text="Brak notatek. Zapisz pierwszą myśl — wystarczy tytuł."), NEW_NOTE]
+        return [TextBlock(text="Brak notatek. Zapisz pierwszą myśl — tytułem zostanie pierwsza linia."), NEW_NOTE]
     return [ListBlock(items=[
         ListItem(title=("📌 " if n.pinned and opts.view != "pinned" else "") + (n.title or "(bez tytułu)"),
-                 subtitle=None if opts.small else (n.content[:80] or None), time=iso_z(n.updated_at), href="#/notes")
+                 subtitle=None if opts.small else (snippet(n.content, 80) or None), time=iso_z(n.updated_at), href="#/notes")
         for n in notes])]

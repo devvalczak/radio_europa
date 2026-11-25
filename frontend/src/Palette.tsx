@@ -31,6 +31,7 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
     const typing = (el: EventTarget | null) =>
       el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
     const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.defaultPrevented) return; // e.g. Ctrl+K = link inside the text editor
       if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         setOpen((o) => !o);

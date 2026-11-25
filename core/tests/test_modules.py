@@ -76,3 +76,28 @@ def test_editing_event_rearms_reminder(authed):
     authed.put(f"/api/m/calendar/{eid}", json=body)
     with SessionLocal() as db:
         assert len(collect_reminders(db, naive_now)) == 1
+
+
+def test_note_title_comes_from_the_first_line():
+    from modules.notes.backend.text import derive_title, snippet
+
+    assert derive_title("# Zakupy na weekend\n- mleko") == "Zakupy na weekend"
+    assert derive_title("\n\n- [ ] **Zadzwonić** do [mamy](https://example.com)") == "Zadzwonić do mamy"
+    assert derive_title("> cytat `kod`") == "cytat kod"
+    assert derive_title("```\nprint(1)\n```") == "print(1)"
+    long = "Bardzo długa pierwsza linia notatki która zdecydowanie przekracza limit sześćdziesięciu znaków"
+    assert derive_title(long).endswith("…") and len(derive_title(long)) <= 61 and " " not in derive_title(long)[-2:]
+    assert derive_title("") == "" and derive_title("---\n\n") == ""
+    assert snippet("Tytuł\n\nDruga *linia* i [link](https://x.y)\n| a | b |\n|---|---|") == "Druga linia i link a b"
+
+
+def test_notes_without_title_use_the_content(authed):
+    r = authed.post("/api/m/notes", json={"content": "## Pomysł na urodziny\nkupić **kwiaty**"})
+    assert r.status_code == 201 and r.json()["title"] == "Pomysł na urodziny" and r.json()["snippet"] == "kupić kwiaty"
+    nid = r.json()["id"]
+    upd = authed.put(f"/api/m/notes/{nid}", json={"content": "Nowa pierwsza linia\nreszta", "tags": []}).json()
+    assert upd["title"] == "Nowa pierwsza linia"
+    explicit = authed.post("/api/hub/actions/notes.create", json={"input": {"title": "Od AI", "content": "x"}}).json()["result"]
+    assert explicit["title"] == "Od AI"  # an explicit title (hub/AI callers) still wins
+    quick = {q["id"]: q for q in authed.get("/api/hub/quick").json()}["notes.new"]
+    assert [f["name"] for f in quick["fields"]] == ["content"] and quick["fields"][0]["format"] == "markdown"

@@ -29,9 +29,6 @@
       "react/jsx-runtime": [
         "node_modules/@types/react/jsx-runtime"
       ],
-      "react-markdown": [
-        "node_modules/react-markdown"
-      ],
       "@jarvis/ui": [
         "src/ui/index.tsx"
       ]

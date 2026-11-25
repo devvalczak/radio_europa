@@ -1,5 +1,5 @@
 import { api, ApiError, notifyChanged } from "@jarvis/sdk";
-import { Button, Dialog, ErrorText, Field, Switch, toast } from "@jarvis/ui";
+import { Button, Dialog, ErrorBoundary, ErrorText, Field, MarkdownEditor, Switch, toast } from "@jarvis/ui";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 
@@ -85,7 +85,12 @@ function errorsOf(e: unknown, q: QuickAction): { fields: Record<string, string>;
   return { fields, general: t.quick.offline };
 }
 
-function FieldInput({ f, value, set, autoFocus }: { f: QuickField; value: string | boolean; set: (v: string | boolean) => void; autoFocus: boolean }) {
+function FieldInput({ f, value, set, autoFocus, submit }: {
+  f: QuickField; value: string | boolean; set: (v: string | boolean) => void; autoFocus: boolean; submit: () => void;
+}) {
+  if (f.format === "markdown")
+    return <MarkdownEditor value={String(value)} onChange={set} placeholder={f.placeholder} autoFocus={autoFocus}
+      toolbar="compact" onSubmit={submit} label={f.label} minHeight={140} />;
   const common = { id: `q-${f.name}`, required: f.required, autoFocus, placeholder: f.placeholder };
   if (f.type === "boolean") return <Switch checked={Boolean(value)} onChange={set} label={f.label} />;
   if (f.enum)
@@ -147,16 +152,25 @@ export function QuickForm({ q, onClose }: { q: QuickAction; onClose: () => void 
 
   return (
     <form ref={formRef} className="quick-form" onSubmit={submit}
-      onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit(); } }}>
+      onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.defaultPrevented /* the editor submits itself */) { e.preventDefault(); e.currentTarget.requestSubmit(); } }}>
       {q.fields.map((f, i) =>
         f.type === "boolean" ? (
-          <FieldInput key={f.name} f={f} value={values[f.name]} set={(v) => setValues({ ...values, [f.name]: v })} autoFocus={false} />
+          <FieldInput key={f.name} f={f} value={values[f.name]} set={(v) => setValues((cur) => ({ ...cur, [f.name]: v }))} autoFocus={false}
+            submit={() => formRef.current?.requestSubmit()} />
+        ) : (
+          f.format === "markdown" ? (
+          <div key={f.name} className="quick-md">
+            <FieldInput f={f} value={values[f.name]} set={(v) => setValues((cur) => ({ ...cur, [f.name]: v }))} autoFocus={i === 0}
+              submit={() => formRef.current?.requestSubmit()} />
+            {errors.fields[f.name] && <small className="error">{errors.fields[f.name]}</small>}
+          </div>
         ) : (
           <Field key={f.name} label={f.required ? f.label : `${f.label} (${t.quick.optional})`}>
-            <FieldInput f={f} value={values[f.name]} set={(v) => setValues({ ...values, [f.name]: v })} autoFocus={i === 0} />
+            <FieldInput f={f} value={values[f.name]} set={(v) => setValues((cur) => ({ ...cur, [f.name]: v }))} autoFocus={i === 0}
+              submit={() => formRef.current?.requestSubmit()} />
             {errors.fields[f.name] && <small className="error">{errors.fields[f.name]}</small>}
           </Field>
-        ),
+        )),
       )}
       <ErrorText>{errors.general}</ErrorText>
       {saved && <p className="quick-saved" role="status">✓ {saved}</p>}
@@ -185,7 +199,9 @@ export function QuickHost() {
   if (!openId) return null;
   return (
     <Dialog open onClose={() => setOpenId(null)} title={q ? `${q.title} · ${q.module_name}` : t.loading}>
-      {q ? <QuickForm key={q.id} q={q} onClose={() => setOpenId(null)} /> : <p className="muted">{t.quick.unknown}</p>}
+      <ErrorBoundary compact resetKey={openId}>
+        {q ? <QuickForm key={q.id} q={q} onClose={() => setOpenId(null)} /> : <p className="muted">{t.quick.unknown}</p>}
+      </ErrorBoundary>
     </Dialog>
   );
 }

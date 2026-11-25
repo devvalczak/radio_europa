@@ -121,7 +121,7 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 ## Stan i plan
 
 Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), logi aplikacji + Dziennik (logi, audyt,
-historia logowań, retencja 90 dni), pulpit z szybkimi akcjami, paletą ⌘K, widokami i menu kafelków, 9 motywów z walidatorem kontrastu, Radix w @jarvis/ui, AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
+historia logowań, retencja 90 dni), pulpit z szybkimi akcjami, paletą ⌘K, widokami i menu kafelków, notatki z edytorem TipTap (Markdown, tytuł = pierwsza linia), 9 motywów z walidatorem kontrastu, Radix w @jarvis/ui, AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
 streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping). ~195 testów backendu.
 
 Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (Gemini na żywo, gdy będzie klucz; dalszy plan).

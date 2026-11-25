@@ -17,6 +17,8 @@
   --glow: none; --shadow: none; --bg-image: none;
   /* derived — never set by themes */
   --hover: color-mix(in srgb, var(--accent) 10%, var(--panel-2));
+  /* large fields (editor, textarea, code) never go pill-shaped even when controls are (nord: 999px) */
+  --field-radius: min(var(--control-radius), 12px);
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --line: color-mix(in srgb, var(--border) 70%, transparent);
   color-scheme: dark;
@@ -61,7 +63,7 @@ input, select, textarea {
   border: var(--border-width) solid var(--border); border-radius: var(--control-radius);
   min-height: var(--control-height); padding: 0 12px; transition: border-color .15s, box-shadow .15s;
 }
-textarea { padding: 10px 12px; resize: vertical; width: 100%; line-height: 1.5; }
+textarea { padding: 10px 12px; resize: vertical; width: 100%; line-height: 1.5; border-radius: var(--field-radius); }
 input[type="checkbox"], input[type="radio"] { min-height: 0; width: 16px; height: 16px; padding: 0; accent-color: var(--accent); }
 input:hover, select:hover, textarea:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -158,12 +160,12 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .split { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
 .split.split-main { grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); }
 .items { display: flex; flex-direction: column; gap: 6px; max-height: 70dvh; overflow: auto; }
-.item { text-align: left; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 10px 12px; min-height: 0; font-weight: 400; }
+.item { text-align: left; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 10px 12px; min-height: 0; font-weight: 400; border-radius: var(--field-radius); }
 .item b { font-weight: 600; }
 .item.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--glow); }
 .md { line-height: 1.6; }
 .md :first-child { margin-top: 0; }
-.md pre { overflow: auto; background: var(--panel-2); padding: 10px 12px; border-radius: var(--control-radius); }
+.md pre { overflow: auto; background: var(--panel-2); padding: 10px 12px; border-radius: var(--field-radius); }
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-top: var(--border-width) solid var(--line); }
 .list li:first-child { border-top: 0; padding-top: 0; }
@@ -216,7 +218,7 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .log-msg, .log-extra { overflow-wrap: anywhere; }
 .log-msg { margin-top: 2px; }
 .log-extra { font-size: 12px; font-family: var(--font-mono); }
-.log-list pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--panel-2); padding: 10px; border-radius: var(--control-radius); }
+.log-list pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--panel-2); padding: 10px; border-radius: var(--field-radius); }
 
 /* --- @jarvis/ui interactive primitives (Radix) ------------------------------------------------ */
 .ui-tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; margin-bottom: 16px; background: var(--panel-2); border: var(--border-width) solid var(--border); border-radius: calc(var(--control-radius) + 4px); }
@@ -263,7 +265,7 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .tile-foot { font-size: 12px; color: var(--warn); }
 .catalog { display: flex; flex-direction: column; gap: 16px; }
 .catalog section { display: flex; flex-direction: column; gap: 8px; }
-.catalog-item { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: var(--border-width) solid var(--line); border-radius: var(--control-radius); }
+.catalog-item { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: var(--border-width) solid var(--line); border-radius: var(--field-radius); }
 .catalog-item > .icon { color: var(--accent); }
 .skeleton { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
 .skeleton span { display: block; height: 10px; border-radius: 99px; background: linear-gradient(90deg, var(--panel-2), color-mix(in srgb, var(--text) 8%, var(--panel-2)), var(--panel-2)); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
@@ -316,6 +318,67 @@ input.palette-input { width: 100%; min-height: 46px; font-size: 16px; }
 .quick-form textarea { min-height: 110px; }
 .quick-actions { padding-top: 4px; }
 .quick-saved { color: var(--ok); font-size: 14px; }
+
+.crash { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border-color: var(--danger); }
+.crash.compact { gap: 6px; font-size: 13.5px; }
+
+/* --- rich text editor (MarkdownEditor, TipTap) ---------------------------------------------- */
+.rt { display: flex; flex-direction: column; border: var(--border-width) solid var(--border); border-radius: var(--field-radius);
+  background: var(--panel-2); transition: border-color .15s, box-shadow .15s; min-width: 0; }
+.rt:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rt-loading { padding: 14px; min-height: 120px; }
+.rt-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 5px 6px; border-bottom: var(--border-width) solid var(--line);
+  position: sticky; top: 0; z-index: 1; background: inherit; border-radius: var(--field-radius) var(--field-radius) 0 0; }
+button.rt-btn { width: 30px; height: 30px; min-height: 0; padding: 0; display: grid; place-items: center; background: transparent; border: 0;
+  border-radius: min(calc(var(--control-radius) - 3px), 8px); color: var(--muted); cursor: pointer; }
+button.rt-btn:hover:not(:disabled) { background: var(--panel); color: var(--text); }
+button.rt-btn.on { background: var(--accent-soft); color: var(--accent); }
+button.rt-btn:disabled { opacity: .35; cursor: default; }
+button.rt-btn:focus-visible, button.rt-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rt-sep { width: var(--border-width); height: 18px; background: var(--line); margin: 0 4px; }
+select.rt-select { min-height: 30px; padding: 0 8px; font-size: 13px; background: transparent; border-color: transparent; }
+.rt-tablebar { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; padding: 4px 2px 0; }
+button.rt-chip { min-height: 0; font: 500 12px/1 var(--font); padding: 6px 9px; border-radius: 99px; background: var(--panel); border: var(--border-width) solid var(--line); color: var(--text); cursor: pointer; }
+button.rt-chip:hover { border-color: var(--accent); }
+button.rt-chip.danger { color: var(--danger); }
+.rt-linkbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px; border-bottom: var(--border-width) solid var(--line); }
+.rt-linkbar input { flex: 1; min-width: 180px; min-height: 32px; }
+.rt-linkbar button { min-height: 32px; }
+.rt-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 6px 12px; border-top: var(--border-width) solid var(--line); font-size: 12px; color: var(--muted); }
+.rt-content { min-height: var(--rt-min, 160px); padding: 12px 14px; outline: none; line-height: 1.6; overflow-wrap: anywhere; font-size: 15px; }
+.rt-content > * + * { margin-top: .6em; }
+.rt-content p { margin: 0; }
+.rt-content h1, .rt-content h2, .rt-content h3 { margin: .9em 0 .2em; text-transform: none; letter-spacing: -0.01em; }
+.rt-content h1 { font-size: 24px; } .rt-content h2 { font-size: 19px; } .rt-content h3 { font-size: 16px; }
+.rt-content > :first-child { margin-top: 0; }
+.rt-content a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: text; }
+.rt-content ul, .rt-content ol { padding-left: 1.4em; margin: 0; }
+.rt-content li > p { margin: 0; }
+.rt-content ul[data-type="taskList"] { list-style: none; padding-left: 2px; }
+.rt-content ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
+.rt-content ul[data-type="taskList"] li > label { margin-top: 4px; flex: none; }
+.rt-content ul[data-type="taskList"] li > div { flex: 1; min-width: 0; }
+.rt-content ul[data-type="taskList"] li[data-checked="true"] > div { color: var(--muted); text-decoration: line-through; }
+.rt-content blockquote { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--accent); color: var(--muted); }
+.rt-content code { background: var(--panel); border: var(--border-width) solid var(--line); border-radius: 4px; padding: 1px 4px; font-size: .9em; }
+.rt-content pre { background: var(--panel); border: var(--border-width) solid var(--line); border-radius: var(--field-radius); padding: 10px 12px; overflow-x: auto; }
+.rt-content pre code { background: none; border: 0; padding: 0; }
+.rt-content hr { border: 0; border-top: 2px solid var(--line); margin: 1em 0; }
+.rt-content hr.ProseMirror-selectednode { border-top-color: var(--accent); }
+.rt-content table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.rt-content th, .rt-content td { border: var(--border-width) solid var(--border); padding: 6px 8px; vertical-align: top; position: relative; }
+.rt-content th { background: var(--panel); font-weight: 600; text-align: left; }
+.rt-content .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--accent-soft); pointer-events: none; }
+.rt-content p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted); float: left; height: 0; pointer-events: none; }
+.rt-content ::selection { background: var(--accent-soft); color: inherit; }
+.rt-compact .rt-toolbar { padding: 3px 4px; }
+.quick-md { display: flex; flex-direction: column; gap: 6px; }
+.note-editor { display: flex; flex-direction: column; gap: 12px; }
+/* the first line is the note's title: show it like one */
+.note-editor .rt-content > p:first-child, .quick-md .rt-content > p:first-child { font-family: var(--font-display); font-weight: 650; font-size: 1.15em; }
+.note-editor .rt-content { min-height: max(var(--rt-min), 42dvh); }
+.note-status.error { color: var(--danger); }
+.note-status.dirty { color: var(--warn); }
 
 /* --- phones ----------------------------------------------------------------------------------- */
 @media (max-width: 720px) {

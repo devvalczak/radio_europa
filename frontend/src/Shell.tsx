@@ -1,5 +1,5 @@
 import { api, ModuleDef } from "@jarvis/sdk";
-import { Dialog, Kbd, ModuleIcon, Toaster } from "@jarvis/ui";
+import { Dialog, ErrorBoundary, Kbd, ModuleIcon, Toaster } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { Dashboard } from "./Dashboard";
@@ -112,6 +112,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       </header>
 
       <main>
+        <ErrorBoundary resetKey={route}>
         {route === "settings" ? (
           <Settings status={status} onChange={onChange} modules={modules} />
         ) : route === "system" ? (
@@ -121,6 +122,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
         ) : (
           <Dashboard />
         )}
+        </ErrorBoundary>
       </main>
 
       <nav className="tabbar" aria-label={t.apps}>

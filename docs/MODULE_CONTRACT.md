@@ -104,7 +104,8 @@ Układ pulpitu (kolejność, rozmiary, widoki, które widgety) zapisuje się od 
 
 Formularz buduje powłoka ze schematu wejścia akcji (`GET /api/hub/quick`): `string` → pole tekstowe (`maxLength` > 500 →
 pole wieloliniowe), `integer`/`number` → liczba, `boolean` → przełącznik, `format: date-time` → data i godzina (wysyłana jako
-ISO UTC), `format: time` → godzina (`Field(json_schema_extra={"format": "time"})`), `enum` → lista. Pole `tz` akcji
+ISO UTC), `format: time` → godzina (`Field(json_schema_extra={"format": "time"})`), `format: markdown` → edytor tekstu
+z paskiem narzędzi (`MarkdownEditor`, zapis w Markdownie), `enum` → lista. Pole `tz` akcji
 uzupełnia przeglądarka (strefa użytkownika), więc nie musi być w `fields`. Wymagane pola akcji muszą być w `fields`
 (loader to sprawdza), akcje z `confirm: true` nie mogą być szybkie. Zapis idzie zwykłym `POST /api/hub/actions/…`
 (audyt), potem kafelki modułu odświeżają się same (`notifyChanged(module)` w `@jarvis/sdk`).

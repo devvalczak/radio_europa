@@ -48,6 +48,8 @@ Reguły:
   produktów w `shopping`) tylko, gdy treść tego wymaga.
 - Tekst na `--accent` zawsze w `--accent-contrast`. Tekst błędu w `--danger`, status w `--ok`/`--warn` + ikona/słowo
   (nie sam kolor — daltoniści, motyw wysokiego kontrastu).
+- Duże pola (edytor, textarea, bloki kodu, karty listy) używają `--field-radius` (maks. 12px), nie `--control-radius` — motyw
+  z przyciskami-pigułkami (`nord`) nie może robić owalnych pól tekstowych.
 - Odstępy jako wielokrotności `--space` (`calc(var(--space) * 2)`), ramki `var(--border-width) solid var(--border)`.
 - Nie stylizuj przycisków, kart ani nagłówków w module (inline `style`, własne klasy z kolorami/ramkami) — wtedy motyw nie zmieni
   ich kształtu. Inline `style` tylko do układu (szerokość, flex), nigdy do wyglądu.
@@ -66,6 +68,11 @@ Moduły składają strony z `@jarvis/ui` i nigdy nie importują `@radix-ui/*` be
 - `Menu` — rozwijane menu (pozycje, grupy radio, separatory, notka), np. menu ⋯ kafelka;
 - `toast(text, {tone, action})` — krótkie potwierdzenie/błąd z opcjonalną akcją („Cofnij”, „Otwórz”); `Toaster` montuje powłoka.
   Uwaga: toast to najwyższa warstwa i przejmuje Esc — w otwartym oknie potwierdzaj w treści okna, nie toastem;
+- `MarkdownEditor` — edytor tekstu (TipTap) zapisujący **Markdown**: nagłówki, pogrubienie/kursywa/przekreślenie/kod, linki
+  (tylko http/https/mailto), listy, listy zadań, cytaty, bloki kodu, linie, tabele; skróty Markdown podczas pisania, Ctrl+K link,
+  Ctrl+Enter `onSubmit`; `toolbar="compact"` w małych formularzach. Ładowany leniwie (osobny plik ~170 kB gzip) — nie importuj
+  `@tiptap/*` w modułach. Bez podkreśleń, kolorów i wyrównania — świadomie, bo Markdown ich nie zapisze;
+- `ErrorBoundary` — osłona: błąd jednego fragmentu (strona modułu, kafelek, formularz) nie wygasza całej aplikacji;
 - `Skeleton` — szkielet ładowania zamiast „Ładowanie…”, `Kbd` — skrót klawiszowy, `Eyebrow` — mała etykieta grupy.
 Brakuje komponentu? Dodaj go do `frontend/src/ui/index.tsx` (na Radix, jeśli to interakcja: menu, popover, select, toast),
 style `.ui-*` w `styles.css` wyłącznie na tokenach, i użyj w module. Nowy pakiet Radix: `npm install --save-exact`

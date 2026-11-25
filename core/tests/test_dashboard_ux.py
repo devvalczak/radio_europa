@@ -20,8 +20,8 @@ def test_quick_actions_are_listed_with_form_schema(authed):
     assert {"notes.new", "alarms.new", "calendar.new", "shopping.add"} <= set(quick)
     note = quick["notes.new"]
     assert note["action"] == "notes.create" and note["title"] == "Notatka" and note["module_name"] == "Notatki"
-    assert [(f["name"], f["label"]) for f in note["fields"]] == [("title", "Tytuł"), ("content", "Treść")]
-    assert note["fields"][1]["maxLength"] > 500  # long text -> the form renders a textarea
+    assert [(f["name"], f["label"]) for f in note["fields"]] == [("content", "Notatka")]  # title comes from the first line
+    assert note["fields"][0]["format"] == "markdown"  # -> the form renders the rich text editor
     alarm = quick["alarms.new"]
     assert alarm["auto"] == ["tz"] and {"name": "time", "label": "Godzina", "required": True}.items() <= alarm["fields"][0].items()
     assert "title" not in alarm["fields"][0]  # pydantic's English titles are dropped

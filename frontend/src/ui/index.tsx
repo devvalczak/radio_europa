@@ -3,7 +3,8 @@ import * as RMenu from "@radix-ui/react-dropdown-menu";
 import * as RToast from "@radix-ui/react-toast";
 import * as RSwitch from "@radix-ui/react-switch";
 import * as RTabs from "@radix-ui/react-tabs";
-import { useEffect, useId, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { Component, lazy, Suspense, useEffect, useId, useState, type ButtonHTMLAttributes, type ErrorInfo, type ReactNode } from "react";
+import type { MarkdownEditorProps } from "./editor/MarkdownEditor";
 
 /** Shared building blocks. Module pages compose these so every app looks the same and follows the theme. */
 
@@ -211,3 +212,39 @@ export const Skeleton = ({ lines = 3 }: { lines?: number }) => (
 
 /** Keyboard shortcut hint, e.g. <Kbd>Ctrl K</Kbd>. */
 export const Kbd = ({ children }: { children: ReactNode }) => <kbd className="kbd">{children}</kbd>;
+
+/* --- Rich text editor that stores Markdown (TipTap). Code-split: downloaded the first time it is shown. ---- */
+const LazyEditor = lazy(() => import("./editor/MarkdownEditor"));
+export type { MarkdownEditorProps };
+export const MarkdownEditor = (props: MarkdownEditorProps) => (
+  <Suspense fallback={<div className="rt rt-loading"><Skeleton lines={3} /></div>}>
+    <LazyEditor {...props} />
+  </Suspense>
+);
+
+/** Keeps one broken page/widget from blanking the whole app. `resetKey` change (e.g. route) clears the error. */
+export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: unknown; compact?: boolean }, { error: Error | null; key: unknown }> {
+  state = { error: null as Error | null, key: this.props.resetKey };
+  static getDerivedStateFromProps(props: { resetKey?: unknown }, state: { key: unknown }) {
+    return props.resetKey !== state.key ? { error: null, key: props.resetKey } : null;
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("UI error", error, info.componentStack);
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className={this.props.compact ? "crash compact" : "crash card"} role="alert">
+        <b>Ten fragment aplikacji napotkał błąd.</b>
+        {!this.props.compact && <p className="muted">Reszta działa normalnie. Spróbuj ponownie; jeśli błąd wraca, szczegóły są w konsoli przeglądarki.</p>}
+        <div className="row">
+          <button onClick={() => this.setState({ error: null })}>Spróbuj ponownie</button>
+          {!this.props.compact && <button className="ghost" onClick={() => window.location.reload()}>Odśwież stronę</button>}
+        </div>
+      </div>
+    );
+  }
+}
