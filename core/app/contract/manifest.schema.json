@@ -245,6 +245,20 @@
           }
         }
       }
+    },
+    "public": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 300
+        }
+      }
     }
   }
 }

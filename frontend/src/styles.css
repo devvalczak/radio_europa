@@ -501,3 +501,8 @@ button.theme-card:focus-visible { outline: 2px solid var(--focus); outline-offse
 .theme-prev > span { display: flex; align-items: flex-end; justify-content: space-between; height: 100%; padding: 8px 10px; border: 1px solid; font-weight: 700; font-size: 18px; }
 .theme-prev i { display: block; width: 34px; height: 12px; }
 .theme-name { font-size: 13px; font-weight: 600; color: var(--text); padding: 0 4px; }
+
+/* calendar: phone subscription */
+.feed-url { margin: 0; }
+.feed-url input { font-family: var(--font-mono); font-size: 13px; }
+.feed-steps { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }

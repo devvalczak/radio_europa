@@ -40,7 +40,10 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 - **Czas:** w bazie naive UTC (`app.timeutil`), w API ISO-8601 z `Z`; wejście musi mieć strefę (`AwareDatetime`).
   Widgety przekazują czas w polu `time`, a przeglądarka formatuje go lokalnie.
 - **Bezpieczeństwo:** każda trasa modułu jest za `require_user`; zmiany stanu wymagają nagłówka `X-Jarvis`
-  (`@jarvis/sdk` dodaje go sam). Nie dodawaj tras publicznych bez wyraźnej decyzji. Nigdy nie commituj `.env` ani sekretów.
+  (`@jarvis/sdk` dodaje go sam). Nie dodawaj tras publicznych bez wyraźnej decyzji użytkownika; jeśli już, to tylko przez
+  `Module(public_router=...)` (montowane pod `/api/public/<id>`, loader wymaga `public.reason` w manifeście), z tajnym tokenem
+  w ścieżce (w bazie tylko skrót), limitem zapytań i 404 dla złego tokenu. Log żądań maskuje resztę ścieżki `/api/public/<id>/***`.
+  Jedyna dziś: subskrypcja iCal kalendarza. Nigdy nie commituj `.env` ani sekretów.
   Akcje niszczące/nieodwracalne oznaczaj `confirm: true`.
 - **Frontend modułów:** używaj `@jarvis/ui` i `@jarvis/sdk`, teksty z `locales/pl.json` przez `createT`. Moduł może importować
   tylko to, co frontend ma w `package.json` i aliasach (`vite.config.ts` + `tsconfig.json` paths) — nową zależność dodaj w obu.

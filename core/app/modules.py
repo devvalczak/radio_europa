@@ -45,6 +45,9 @@ def load_modules(app: FastAPI, hub: Hub, modules_dir: str, package: str = "modul
                 tags=[manifest["id"]],
                 dependencies=[Depends(require_user)],
             )
+            if module.public_router is not None:
+                # no require_user here: see manifest `public.reason` (checked by hub.check)
+                app.include_router(module.public_router, prefix=f"/api/public/{manifest['id']}", tags=[f"{manifest['id']}-public"])
             entry.update(status="ok", error="")
             log.info("loaded module %s %s", manifest["id"], manifest["version"])
         except Exception as exc:  # noqa: BLE001 — one bad module must not stop the rest

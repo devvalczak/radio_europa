@@ -2,7 +2,7 @@
   "contract": 1,
   "id": "calendar",
   "name": "Kalendarz",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Wydarzenia i przypomnienia z powiadomieniami push.",
   "permissions": [
     "push.send"
@@ -82,5 +82,8 @@
       ],
       "success": "Dodano wydarzenie"
     }
-  ]
+  ],
+  "public": {
+    "reason": "Adres subskrypcji iCal dla telefonu i Google Calendar: aplikacje kalendarza nie umieją się zalogować; dostęp chroni tajny token w ścieżce (tylko odczyt, można go zmienić lub wyłączyć)."
+  }
 }

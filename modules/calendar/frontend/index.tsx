@@ -1,5 +1,5 @@
 import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Field, Muted, PageTitle, Row } from "@jarvis/ui";
+import { Button, Card, ErrorText, Field, Muted, PageTitle, Row, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -169,7 +169,102 @@ function Page() {
         </Card>
       )}
       <ErrorText>{error}</ErrorText>
+      <PhoneSync />
     </>
+  );
+}
+
+interface Feed {
+  enabled: boolean;
+  tz?: string;
+  created_at?: string;
+  last_fetch_at?: string | null;
+  last_fetch_client?: string;
+  fetch_count?: number;
+  path?: string;
+}
+
+/** Private iCal address for Google Calendar / iPhone (read-only subscription). The token is shown only once. */
+function PhoneSync() {
+  const [feed, setFeed] = useState<Feed | null>(null);
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = useCallback(() => {
+    api.get<Feed>("/feed").then(setFeed).catch(() => setErr(t("feed.loadFailed")));
+  }, []);
+  useEffect(load, [load]);
+
+  async function create() {
+    if (feed?.enabled && !window.confirm(t("feed.confirmNew"))) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await api.post<Feed>("/feed", { tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      setUrl(window.location.origin + r.path);
+      setFeed(r);
+      toast(t("feed.created"));
+    } catch {
+      setErr(t("feed.saveFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function disable() {
+    if (!window.confirm(t("feed.confirmOff"))) return;
+    await api.del("/feed");
+    setUrl("");
+    toast(t("feed.disabled"));
+    load();
+  }
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast(t("feed.copied"));
+    } catch {
+      toast(t("feed.copyFailed"), { tone: "error" });
+    }
+  }
+
+  return (
+    <Card title={t("feed.title")}>
+      <Muted>{t("feed.intro")}</Muted>
+      {feed && !feed.enabled && !url && (
+        <Row>
+          <Button variant="primary" disabled={busy} onClick={create}>{t("feed.create")}</Button>
+        </Row>
+      )}
+      {url && (
+        <div className="stack feed-url">
+          <b>{t("feed.urlOnce")}</b>
+          <Row>
+            <input className="grow" readOnly value={url} aria-label={t("feed.urlLabel")} onFocus={(e) => e.currentTarget.select()} />
+            <Button variant="primary" onClick={copy}>{t("feed.copy")}</Button>
+          </Row>
+          <ol className="feed-steps">
+            <li>{t("feed.google")}</li>
+            <li>{t("feed.iphone")}</li>
+          </ol>
+          {window.location.protocol !== "https:" && <p className="error">{t("feed.needsHttps")}</p>}
+          <small className="muted">{t("feed.access")}</small>
+        </div>
+      )}
+      {feed?.enabled && (
+        <>
+          <small className="muted block">
+            {feed.last_fetch_at
+              ? t("feed.lastFetch", { when: new Date(feed.last_fetch_at).toLocaleString("pl-PL"), n: feed.fetch_count ?? 0, client: feed.last_fetch_client || "?" })
+              : t("feed.neverFetched")}
+          </small>
+          <Row>
+            {!url && <Button disabled={busy} onClick={create}>{t("feed.regenerate")}</Button>}
+            <Button variant="danger" onClick={disable}>{t("feed.disable")}</Button>
+          </Row>
+        </>
+      )}
+      <ErrorText>{err}</ErrorText>
+    </Card>
   );
 }
 

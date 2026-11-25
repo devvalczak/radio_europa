@@ -70,8 +70,11 @@ class ActionError(Exception):
 
 
 class Module:
-    def __init__(self, router: APIRouter | None = None) -> None:
+    def __init__(self, router: APIRouter | None = None, public_router: APIRouter | None = None) -> None:
         self.router = router or APIRouter()
+        # Routes WITHOUT login, mounted at /api/public/<id>. Only with manifest `public.reason` (an explicit decision);
+        # protect them with an unguessable token in the path and never return more than that token grants.
+        self.public_router = public_router
         self.actions: dict[str, tuple[Callable, type[BaseModel] | None]] = {}
         self.widgets: dict[str, Callable] = {}
         self.subscriptions: dict[str, Callable] = {}

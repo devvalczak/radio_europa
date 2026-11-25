@@ -67,6 +67,15 @@ Hub zamienia go na odpowiedź HTTP; trasy modułu mogą go przechwycić i zwróc
 Przy zagnieżdżonym `ctx.call` używana jest ta sama sesja, więc commit zostaje po stronie wywołującego.
 Błąd subskrybenta zdarzenia jest logowany i nie psuje emitenta.
 
+## Trasy publiczne (wyjątek)
+
+Domyślnie każda trasa modułu wymaga zalogowania. Gdy zewnętrzny klient nie umie się logować (np. kalendarz w telefonie),
+moduł może dać `Module(public_router=APIRouter())` — powłoka montuje go pod `/api/public/<id>` **bez** `require_user`.
+Warunek: manifest `public: {"reason": "…"}` (min. 20 znaków uzasadnienia; loader odrzuca moduł, jeśli router i manifest się
+nie zgadzają). Zasady: tajny token w ścieżce (`secrets.token_urlsafe(32)`, w bazie tylko SHA-256, porównanie `hmac.compare_digest`),
+404 dla złego/wyłączonego tokenu, limit zapytań na IP, tylko odczyt, możliwość wygenerowania nowego tokenu i wyłączenia.
+Log żądań zapisuje ścieżkę jako `/api/public/<id>/***`. Przy Cloudflare Access ścieżka potrzebuje wyjątku (Bypass).
+
 ## Szyna huba
 
 - `GET /api/hub/actions` — lista akcji ze schematami wejścia (to samo posłuży jako zestaw narzędzi dla AI).

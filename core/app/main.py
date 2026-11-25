@@ -34,6 +34,9 @@ def create_app() -> FastAPI:
         # path only: query strings may carry search terms or tokens
         start = time.perf_counter()
         path = request.url.path
+        if path.startswith("/api/public/"):
+            # public routes carry their secret in the path (e.g. calendar feed token): keep only the module part
+            path = "/api/public/" + path[len("/api/public/"):].split("/", 1)[0] + "/***"
         try:
             response = await call_next(request)
         except Exception:

@@ -89,6 +89,9 @@ class Hub:
                 raise ValueError(f"widget '{w['id']}': default size {w['default']} is not in sizes")
             if len({v["id"] for v in w.get("views", [])}) != len(w.get("views", [])):
                 raise ValueError(f"widget '{w['id']}': view ids must be unique")
+        has_public = module.public_router is not None and bool(module.public_router.routes)
+        if has_public != ("public" in manifest):
+            raise ValueError("public routes need manifest `public.reason` (and a declared `public` needs a public_router)")
         perms = manifest.get("permissions", [])
         if module.reminder_hook and "push.send" not in perms:
             raise ValueError("reminders need the 'push.send' permission")
