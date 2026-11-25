@@ -44,3 +44,14 @@ class MailMessage(Base):
     snippet: Mapped[str] = mapped_column(String(300), default="")
     received: Mapped[datetime] = mapped_column(DateTime, index=True)  # naive UTC
     seen: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class MailSettings(Base):
+    """Single row (id=1). `allow_ai`: consent to send senders, subjects and snippets to the configured AI
+    provider (off by default: free cloud plans may use submitted content). Changed only through the UI route,
+    never through a hub action, so an AI caller cannot grant itself access."""
+
+    __tablename__ = "mail_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    allow_ai: Mapped[bool] = mapped_column(Boolean, default=False)

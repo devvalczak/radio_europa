@@ -10,6 +10,7 @@ os.environ.update(
     JARVIS_SECRET_KEY="x" * 40,
     JARVIS_SETUP_TOKEN="setup-secret",
     JARVIS_COOKIE_SECURE="false",
+    JARVIS_LOG_DIR="",  # no log file unless a test asks for one (tmp_path)
     JARVIS_MODULES_DIR=str(ROOT / "modules"),
 )
 

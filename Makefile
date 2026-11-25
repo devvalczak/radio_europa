@@ -34,7 +34,7 @@ test: ## backend tests (needs: pip install -r core/requirements-dev.txt)
 
 migration: ## new migration from model changes: make migration m="add thing"
 	@rm -f .mig.db
-	cd core && JARVIS_SECRET_KEY=$$(printf 'x%.0s' $$(seq 40)) JARVIS_DATABASE_URL=sqlite:///../.mig.db \
+	cd core && JARVIS_LOG_DIR= JARVIS_SECRET_KEY=$$(printf 'x%.0s' $$(seq 40)) JARVIS_DATABASE_URL=sqlite:///../.mig.db \
 	  JARVIS_MODULES_DIR=$$PWD/../modules PYTHONPATH=$$PWD:$$PWD/.. \
 	  sh -c 'alembic upgrade head && alembic revision --autogenerate -m "$(m)"'
 	@rm -f .mig.db

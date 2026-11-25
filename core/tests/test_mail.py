@@ -355,8 +355,34 @@ def ai_on(monkeypatch):
     return sent
 
 
+def allow_ai(client, on=True):
+    r = client.put("/api/m/mail/settings", json={"allow_ai": on})
+    assert r.status_code == 200 and r.json()["allow_ai"] is on
+
+
+def test_summary_needs_consent_off_by_default(authed, ai_on):
+    add(authed)
+    s = authed.get("/api/m/mail/settings").json()
+    assert s["allow_ai"] is False and s["ai"]["configured"] is True and "key" not in str(s["ai"]).lower()
+    r = authed.post("/api/hub/actions/mail.summarize_unread", json={"confirmed": True})
+    assert (r.status_code, r.json()["detail"]["code"]) == (403, "ai_not_allowed")
+    assert authed.post("/api/m/mail/summary").status_code == 403 and ai_on == []
+    # consent is not reachable through the hub (an AI caller must not grant itself access)
+    assert not [a for a in authed.get("/api/hub/actions").json() if "setting" in a["name"] or "allow" in a["name"]]
+    allow_ai(authed)
+    allow_ai(authed, False)
+    assert authed.post("/api/m/mail/summary").status_code == 403
+
+
+def test_consent_change_needs_csrf_header(authed):
+    authed.headers.pop("X-Jarvis")
+    assert authed.put("/api/m/mail/settings", json={"allow_ai": True}).status_code == 403
+    assert authed.get("/api/m/mail/settings").json()["allow_ai"] is False
+
+
 def test_summary_needs_confirmation_and_ai(authed, ai_on, monkeypatch):
     add(authed)
+    allow_ai(authed)
     r = authed.post("/api/hub/actions/mail.summarize_unread", json={})
     assert (r.status_code, r.json()["detail"]["code"]) == (409, "confirmation_required") and ai_on == []
     ok = authed.post("/api/hub/actions/mail.summarize_unread", json={"confirmed": True})
@@ -376,6 +402,7 @@ def test_summary_with_nothing_unread(authed, server, ai_on):
     for m in server.messages:
         m["seen"] = True
     add(authed)
+    allow_ai(authed)
     assert authed.post("/api/m/mail/summary").status_code == 404
 
 

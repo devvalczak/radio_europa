@@ -112,7 +112,9 @@ def generate_digest(ctx: Ctx, *, force: bool = False) -> Digest:
     try:
         text = ctx.ai(SYSTEM, "\n".join(lines), max_tokens=700)
     except AIError as exc:
-        raise ActionError(f"Streszczenie nie powiodło się: {exc}", 502, "ai_failed") from exc
+        limited = exc.code == "rate_limited"
+        raise ActionError(f"Streszczenie nie powiodło się: {exc.user_message()}", 429 if limited else 502,
+                          "ai_rate_limited" if limited else "ai_failed") from exc
     digest = Digest(article_count=len(articles), text=text[:4000])
     ctx.db.add(digest)
     ctx.db.commit()

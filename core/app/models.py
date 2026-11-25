@@ -45,3 +45,18 @@ class UserLayout(Base):
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     data: Mapped[str] = mapped_column(Text, default="[]")
+
+
+class LoginEvent(Base):
+    """Login history: every sign-in attempt, sign-up and sign-out (kept JARVIS_RETENTION_DAYS)."""
+
+    __tablename__ = "login_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ts: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    username: Mapped[str] = mapped_column(String(64), default="")
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), default=None)
+    ok: Mapped[bool] = mapped_column(Boolean)
+    reason: Mapped[str] = mapped_column(String(32))
+    ip: Mapped[str] = mapped_column(String(64), default="")
+    user_agent: Mapped[str] = mapped_column(String(200), default="")

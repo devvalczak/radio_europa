@@ -13,7 +13,7 @@
     { "name": "list_accounts", "description": "Zwraca skonfigurowane skrzynki (bez haseł) z liczbą nieprzeczytanych wiadomości i stanem ostatniej synchronizacji." },
     { "name": "list_unread", "description": "Zwraca najnowsze nieprzeczytane wiadomości (nadawca, temat, początek treści, data) ze wszystkich lub z wybranej skrzynki." },
     { "name": "get_message", "description": "Pobiera pełną treść jednej wiadomości jako zwykły tekst (po id skrzynki i uid z listy). Nie oznacza wiadomości jako przeczytanej." },
-    { "name": "summarize_unread", "description": "Streszcza nieprzeczytane wiadomości przez AI i wskazuje najpilniejsze. Wysyła nadawców, tematy i początki treści do skonfigurowanego dostawcy AI.", "confirm": true }
+    { "name": "summarize_unread", "description": "Streszcza nieprzeczytane wiadomości przez AI i wskazuje najpilniejsze. Wysyła nadawców, tematy i początki treści do skonfigurowanego dostawcy AI — tylko gdy użytkownik włączył na to zgodę w ustawieniach modułu.", "confirm": true }
   ],
   "tasks": [{ "id": "sync", "every": 300 }]
 }

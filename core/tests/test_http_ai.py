@@ -143,3 +143,108 @@ def test_ctx_ai_needs_permission(ai_cfg, monkeypatch):
     assert Ctx(None, "allowed", hub).ai("s", "p") == "hi"
     with pytest.raises(PermissionError):
         Ctx(None, "denied", hub).ai("s", "p")
+
+
+# --- Gemini (native generateContent) and HTTP error mapping ------------------------------------------
+
+def test_gemini_request_and_parsing(ai_cfg, monkeypatch):
+    ai_cfg("gemini", "models/gemini-test", "AIza-test")
+    assert ai.configured()
+    seen = {}
+
+    def fake_post(url, headers, body, timeout):
+        seen.update(url=url, headers=headers, body=body)
+        return {"candidates": [{"content": {"parts": [{"text": "myślę...", "thought": True}, {"text": " Cześć"},
+                                                      {"text": "!"}]}, "finishReason": "STOP"}]}
+
+    monkeypatch.setattr(ai, "_post", fake_post)
+    assert ai.complete("sys", "hello", max_tokens=50) == "Cześć!"  # thought parts are not part of the answer
+    assert seen["url"] == "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:generateContent"
+    assert seen["headers"] == {"x-goog-api-key": "AIza-test"}  # key in a header, never in the URL
+    assert seen["body"]["systemInstruction"] == {"parts": [{"text": "sys"}]}
+    assert seen["body"]["contents"] == [{"role": "user", "parts": [{"text": "hello"}]}]
+    assert seen["body"]["generationConfig"]["maxOutputTokens"] == 50 + ai.GEMINI_THINKING_HEADROOM
+    assert ai.describe() == {"configured": True, "provider": "gemini", "model": "models/gemini-test",
+                             "host": "generativelanguage.googleapis.com"}
+
+
+@pytest.mark.parametrize("data,code", [
+    ({"promptFeedback": {"blockReason": "SAFETY"}}, "blocked"),
+    ({"candidates": [{"content": {"parts": [{"text": "x"}]}, "finishReason": "SAFETY"}]}, "blocked"),
+    ({"candidates": [{"content": {"parts": []}, "finishReason": "MAX_TOKENS"}]}, "truncated"),
+    ({"candidates": []}, "failed"),
+    ([], "failed"),
+])
+def test_gemini_problem_responses(ai_cfg, monkeypatch, data, code):
+    ai_cfg("gemini", "g", "k")
+    monkeypatch.setattr(ai, "_post", lambda *a: data)
+    with pytest.raises(ai.AIError) as exc:
+        ai.complete("s", "p")
+    assert exc.value.code == code and exc.value.user_message()
+
+
+def _mock_httpx(monkeypatch, response):
+    seen = {}
+
+    def fake(url, headers, json, timeout):
+        seen.update(url=url, headers=headers)
+        return response
+
+    monkeypatch.setattr(ai.httpx, "post", fake)
+    return seen
+
+
+def test_http_errors_are_classified_without_leaking_the_key(ai_cfg, monkeypatch):
+    ai_cfg("gemini", "g", "AIza-SECRET")
+    req = httpx.Request("POST", "https://generativelanguage.googleapis.com/x")
+    body = {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED",
+                      "details": [{"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "125s"}]}}
+    _mock_httpx(monkeypatch, httpx.Response(429, json=body, request=req))
+    with pytest.raises(ai.AIError) as exc:
+        ai.complete("s", "p")
+    assert exc.value.code == "rate_limited" and exc.value.retry_after == 125
+    assert "2 min" in exc.value.user_message()
+
+    _mock_httpx(monkeypatch, httpx.Response(429, headers={"retry-after": "30"}, request=req))
+    with pytest.raises(ai.AIError) as exc:
+        ai.complete("s", "p")
+    assert exc.value.retry_after == 30
+
+    for status, code in ((403, "auth"), (401, "auth"), (500, "failed")):
+        _mock_httpx(monkeypatch, httpx.Response(status, text="AIza-SECRET echoed", request=req))
+        with pytest.raises(ai.AIError) as exc:
+            ai.complete("s", "p")
+        assert exc.value.code == code and "AIza-SECRET" not in str(exc.value) + exc.value.user_message()
+
+    _mock_httpx(monkeypatch, httpx.Response(200, text="<html>", request=req))
+    with pytest.raises(ai.AIError, match="invalid JSON"):
+        ai.complete("s", "p")
+
+
+def test_describe_without_config(ai_cfg):
+    ai_cfg()
+    assert ai.describe()["configured"] is False
+
+
+def test_rate_limit_becomes_readable_429_in_modules(authed, ai_cfg, monkeypatch):
+    ai_cfg("gemini", "g", "k")
+    authed.put("/api/m/mail/settings", json={"allow_ai": True})
+
+    def limited(*a):
+        raise ai.AIError("AI rate limit exceeded", "rate_limited", 60)
+
+    monkeypatch.setattr(ai, "_post", limited)
+    from app.db import SessionLocal
+    from modules.mail.backend.models import MailAccount, MailMessage
+    from app.timeutil import utcnow
+
+    with SessionLocal() as db:
+        acc = MailAccount(label="a", host="imap.example.com", username="u", password_enc="x")
+        db.add(acc)
+        db.flush()
+        db.add(MailMessage(account_id=acc.id, uid=1, subject="s", received=utcnow()))
+        db.commit()
+    r = authed.post("/api/hub/actions/mail.summarize_unread", json={"confirmed": True})
+    assert r.status_code == 429 and r.json()["detail"]["code"] == "ai_rate_limited"
+    assert "limit" in r.json()["detail"]["detail"].lower() and "1 min" in r.json()["detail"]["detail"]
+    assert authed.get("/api/system/ai").json()["provider"] == "gemini"

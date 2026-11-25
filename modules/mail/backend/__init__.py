@@ -151,6 +151,28 @@ def read_message(account_id: int, uid: int, db: Session = Depends(get_db)):
         raise HTTPException(exc.status, str(exc)) from exc
 
 
+class SettingsIn(BaseModel):
+    allow_ai: bool
+
+
+def _settings_out(db: Session) -> dict:
+    from app import ai
+
+    return {"allow_ai": service.ai_allowed(db), "ai": ai.describe()}
+
+
+@router.get("/settings")
+def get_settings(db: Session = Depends(get_db)):
+    return _settings_out(db)
+
+
+@router.put("/settings")
+def put_settings(body: SettingsIn, db: Session = Depends(get_db)):
+    # deliberately a UI route and not a hub action: an AI caller must not be able to grant itself access
+    service.set_ai_allowed(db, body.allow_ai)
+    return _settings_out(db)
+
+
 @router.post("/summary")
 def make_summary(db: Session = Depends(get_db)):
     try:

@@ -1,3 +1,4 @@
+import logging
 import secrets
 
 import pyotp
@@ -8,10 +9,11 @@ from sqlalchemy.orm import Session
 
 from .config import settings
 from .db import get_db
-from .models import User
+from .models import LoginEvent, User
 from .security import COOKIE, hash_password, limiter, make_session, read_session, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+log = logging.getLogger("jarvis.auth")
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
@@ -34,6 +36,28 @@ def require_user(request: Request, user: User | None = Depends(current_user)) ->
     if request.method not in SAFE_METHODS and "x-jarvis" not in request.headers:
         raise HTTPException(403, "missing_csrf_header")
     return user
+
+
+def client_ip(request: Request) -> str:
+    """Best-effort client address behind Cloudflare -> Caddy. Informational and a rate-limit key, not proof:
+    the headers are trustworthy only because core is reachable solely through the proxy."""
+    ip = request.headers.get("cf-connecting-ip", "").strip()
+    if not ip:
+        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not ip and request.client:
+        ip = request.client.host
+    return (ip or "-")[:64]
+
+
+def record_login(db: Session, request: Request, username: str, reason: str, user: User | None = None) -> None:
+    """Stores a login-history row and commits. Never pass passwords or codes here."""
+    ok = reason in ("ok", "setup", "logout")
+    ip = client_ip(request)
+    db.add(LoginEvent(username=username[:64], user_id=user.id if user else None, ok=ok, reason=reason, ip=ip,
+                      user_agent=request.headers.get("user-agent", "")[:200]))
+    db.commit()
+    log.log(logging.INFO if ok else logging.WARNING, "auth %s user=%s ip=%s", reason, username[:64], ip,
+            extra={"event": "auth", "reason": reason})
 
 
 def _set_cookie(response: Response, user_id: int) -> None:
@@ -76,40 +100,51 @@ def status(user: User | None = Depends(current_user), db: Session = Depends(get_
 
 
 @router.post("/setup")
-def setup(body: SetupIn, response: Response, db: Session = Depends(get_db)):
+def setup(body: SetupIn, request: Request, response: Response, db: Session = Depends(get_db)):
     if db.scalar(select(func.count()).select_from(User)) > 0:
         raise HTTPException(409, "already_configured")
     if not settings.setup_token or not secrets.compare_digest(body.token, settings.setup_token):
+        record_login(db, request, body.username, "bad_setup_token")
         raise HTTPException(403, "bad_setup_token")
     user = User(username=body.username, password_hash=hash_password(body.password))
     db.add(user)
     db.commit()
+    record_login(db, request, user.username, "setup", user)
     _set_cookie(response, user.id)
     return {"ok": True}
 
 
 @router.post("/login")
 def login(body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
-    key = f"{request.client.host if request.client else '-'}:{body.username.lower()}"
+    key = f"{client_ip(request)}:{body.username.lower()}"
     if limiter.locked(key):
+        record_login(db, request, body.username, "locked")
         raise HTTPException(429, "too_many_attempts")
     user = db.scalar(select(User).where(User.username == body.username))
     if user is None or not verify_password(user.password_hash, body.password):
         limiter.fail(key)
+        record_login(db, request, body.username, "invalid_credentials", user)
         raise HTTPException(401, "invalid_credentials")
     if user.totp_enabled:
         if not body.totp:
+            # password was right: worth seeing in the history if it was not you
+            record_login(db, request, body.username, "totp_required", user)
             raise HTTPException(401, "totp_required")
         if not pyotp.TOTP(user.totp_secret).verify(body.totp, valid_window=1):
             limiter.fail(key)
+            record_login(db, request, body.username, "invalid_totp", user)
             raise HTTPException(401, "invalid_totp")
     limiter.reset(key)
+    record_login(db, request, user.username, "ok", user)
     _set_cookie(response, user.id)
     return {"ok": True}
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(request: Request, response: Response, user: User | None = Depends(current_user),
+           db: Session = Depends(get_db)):
+    if user is not None:
+        record_login(db, request, user.username, "logout", user)
     response.delete_cookie(COOKIE, path="/")
     return {"ok": True}
 

@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     modules_dir: str = "/srv/modules"
     scheduler_interval: int = 30
 
+    # Logging: readable text on stdout + JSON lines in a rotating file (empty log_dir = stdout only)
+    log_level: str = "INFO"
+    log_dir: str = "/data/logs"
+    log_max_mb: float = 10
+    log_backups: int = 5
+    # audit log and login history older than this are deleted by a daily cleanup
+    retention_days: int = 90
+
     # AI (optional). provider: "" (off) | "anthropic" | "openai" (any OpenAI-compatible API, e.g. Ollama at
     # http://host:11434/v1). The model has no default on purpose: set JARVIS_AI_MODEL explicitly.
     ai_provider: str = ""

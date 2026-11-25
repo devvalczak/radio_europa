@@ -13,6 +13,7 @@ from .auth import require_user
 from .config import settings
 from .db import get_db
 from .hub import Hub, HubError
+from .logs import redact_text
 from .models import AuditLog, User, UserLayout
 from .sdk import ActionError, Ctx
 from .widgets import Block
@@ -73,10 +74,17 @@ def build_router(hub: Hub) -> APIRouter:
             raise HTTPException(e.status, {"code": e.code, "detail": str(e)}) from e
 
     @router.get("/hub/audit")
-    def audit(limit: int = 50, db: Session = Depends(get_db)):
-        rows = db.scalars(select(AuditLog).order_by(AuditLog.id.desc()).limit(min(limit, 200))).all()
-        return [{"ts": r.ts.isoformat() + "Z", "actor": r.actor, "action": r.action, "ok": r.ok, "error": r.error}
-                for r in rows]
+    def audit(limit: int = 50, before_id: int | None = None, action: str = "", ok: bool | None = None,
+              db: Session = Depends(get_db)):
+        stmt = select(AuditLog).order_by(AuditLog.id.desc()).limit(max(1, min(limit, 200)))
+        if before_id is not None:
+            stmt = stmt.where(AuditLog.id < before_id)
+        if action:
+            stmt = stmt.where(AuditLog.action.startswith(action[:100], autoescape=True))
+        if ok is not None:
+            stmt = stmt.where(AuditLog.ok.is_(ok))
+        return [{"id": r.id, "ts": r.ts.isoformat() + "Z", "actor": r.actor, "action": r.action, "ok": r.ok,
+                 "error": r.error, "input": redact_text(r.input or "")} for r in db.scalars(stmt)]
 
     # --- widgets & layout --------------------------------------------------------------
     @router.get("/hub/widgets")

@@ -14,7 +14,7 @@ from app.sdk import ActionError, Ctx, Reminder
 from app.timeutil import utcnow
 
 from . import imap
-from .models import MailAccount, MailMessage
+from .models import MailAccount, MailMessage, MailSettings
 from .parse import parse_message, snippet
 
 log = logging.getLogger("jarvis.mail")
@@ -184,11 +184,26 @@ def fetch_body(acc: MailAccount, uid: int) -> dict:
     }
 
 
+def ai_allowed(db: Session) -> bool:
+    row = db.get(MailSettings, 1)
+    return bool(row and row.allow_ai)
+
+
+def set_ai_allowed(db: Session, allowed: bool) -> None:
+    row = db.get(MailSettings, 1) or MailSettings(id=1)
+    row.allow_ai = allowed
+    db.add(row)
+    db.commit()
+
+
 def summarize(ctx: Ctx) -> str:
     from app.ai import AIError
 
     if not ctx.ai_available:
         raise ActionError("AI nie jest skonfigurowane (ustaw JARVIS_AI_* w .env).", 503, "ai_not_configured")
+    if not ai_allowed(ctx.db):
+        raise ActionError("Wysyłanie poczty do AI jest wyłączone. Włącz je w ustawieniach modułu Poczta.", 403,
+                          "ai_not_allowed")
     rows = ctx.db.execute(
         select(MailMessage, MailAccount.label).join(MailAccount).where(MailMessage.seen.is_(False))
         .order_by(MailMessage.received.desc()).limit(SUMMARY_MESSAGES)
@@ -200,4 +215,6 @@ def summarize(ctx: Ctx) -> str:
     try:
         return ctx.ai(SYSTEM, "\n".join(lines), max_tokens=700)
     except AIError as exc:
-        raise ActionError(f"Streszczenie nie powiodło się: {exc}", 502, "ai_failed") from exc
+        limited = exc.code == "rate_limited"
+        raise ActionError(f"Streszczenie nie powiodło się: {exc.user_message()}", 429 if limited else 502,
+                          "ai_rate_limited" if limited else "ai_failed") from exc

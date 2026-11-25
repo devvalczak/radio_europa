@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -169,5 +171,6 @@ def digest_task(ctx: Ctx):
         return  # nothing new since the last digest
     try:
         service.generate_digest(ctx, force=True)
-    except ActionError:
-        pass  # AI hiccup: the next run retries
+    except ActionError as exc:
+        # rate limit or AI hiccup: skip this cycle, the next scheduled run retries (no retry loop)
+        logging.getLogger("jarvis.news").warning("digest skipped: %s (%s)", exc.code, exc)
