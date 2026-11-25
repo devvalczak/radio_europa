@@ -72,7 +72,8 @@ Moduły składają strony z `@jarvis/ui` i nigdy nie importują `@radix-ui/*` be
   (tylko http/https/mailto), listy, listy zadań, cytaty, bloki kodu, linie, tabele; skróty Markdown podczas pisania, Ctrl+K link,
   Ctrl+Enter `onSubmit`; `toolbar="compact"` w małych formularzach. Ładowany leniwie (osobny plik ~170 kB gzip) — nie importuj
   `@tiptap/*` w modułach. Bez podkreśleń, kolorów i wyrównania — świadomie, bo Markdown ich nie zapisze;
-- `ErrorBoundary` — osłona: błąd jednego fragmentu (strona modułu, kafelek, formularz) nie wygasza całej aplikacji;
+- `ErrorBoundary` — osłona: błąd jednego fragmentu (strona modułu, kafelek, formularz) nie wygasza całej aplikacji
+  i sam trafia do logów serwera (`jarvis.frontend`); własne zgłoszenia: `reportError` z `@jarvis/sdk`;
 - `Skeleton` — szkielet ładowania zamiast „Ładowanie…”, `Kbd` — skrót klawiszowy, `Eyebrow` — mała etykieta grupy.
 Brakuje komponentu? Dodaj go do `frontend/src/ui/index.tsx` (na Radix, jeśli to interakcja: menu, popover, select, toast),
 style `.ui-*` w `styles.css` wyłącznie na tokenach, i użyj w module. Nowy pakiet Radix: `npm install --save-exact`

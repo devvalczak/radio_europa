@@ -42,15 +42,48 @@ interface Opts {
   query?: Record<string, string | undefined>;
 }
 
+/* --- browser error reports ------------------------------------------------------------------------------
+   The shell installs the real reporter after login (src/errorReport.ts); before that, reports are dropped. */
+export type ErrorKind = "js" | "promise" | "react" | "api" | "network" | "resource";
+export interface ErrorReport {
+  message?: string;
+  stack?: string;
+  component?: string;
+  source?: string;
+  line?: number;
+  col?: number;
+  method?: string;
+  path?: string;
+  status?: number;
+}
+let reporter: ((kind: ErrorKind, data: ErrorReport) => void) | null = null;
+export const setErrorReporter = (fn: typeof reporter) => (reporter = fn);
+/** Send an error to the server log (jarvis.frontend). Never put text the user typed into it. */
+export const reportError = (kind: ErrorKind, data: ErrorReport) => {
+  try {
+    reporter?.(kind, data);
+  } catch {
+    /* reporting must never break the app */
+  }
+};
+
 export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T> {
   const url = new URL("/api" + path, window.location.origin);
   for (const [k, v] of Object.entries(opts.query ?? {})) if (v) url.searchParams.set(k, v);
-  const res = await fetch(url, {
-    method: opts.method ?? "GET",
-    credentials: "same-origin",
-    headers: { "X-Jarvis": "1", ...(opts.body ? { "Content-Type": "application/json" } : {}) },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  const method = opts.method ?? "GET";
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      credentials: "same-origin",
+      headers: { "X-Jarvis": "1", ...(opts.body ? { "Content-Type": "application/json" } : {}) },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch (e) {
+    reportError("network", { method, path: url.pathname, message: e instanceof Error ? e.message : String(e) });
+    throw e;
+  }
+  if (res.status >= 500) reportError("api", { method, path: url.pathname, status: res.status });
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

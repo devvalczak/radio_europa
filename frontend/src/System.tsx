@@ -11,7 +11,9 @@ interface LoginRow { id: number; ts: string; username: string; ok: boolean; reas
 
 const when = (iso: string) => new Date(iso).toLocaleString();
 const failText = (e: unknown) => (e instanceof ApiError ? errorText(e.detail) : e instanceof Error ? e.message : "Błąd");
-const EXTRA_SKIP = new Set(["ts", "level", "logger", "msg", "exc"]);
+// shown separately (collapsed) instead of in the key=value line
+const EXTRA_SKIP = new Set(["ts", "level", "logger", "msg", "exc", "stack", "component", "user_agent", "event", "kind", "client_ts", "user_id"]);
+const FRONTEND = "jarvis.frontend";
 
 function Logs() {
   const [level, setLevel] = useState("INFO");
@@ -20,16 +22,23 @@ function Logs() {
   const [data, setData] = useState<{ enabled: boolean; entries: LogEntry[] } | null>(null);
   const [err, setErr] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (loggerOverride?: string) => {
     setErr("");
     try {
-      const p = new URLSearchParams({ level, logger: logger.trim(), q: q.trim(), limit: "300" });
+      const p = new URLSearchParams({ level, logger: (loggerOverride ?? logger).trim(), q: q.trim(), limit: "300" });
       setData(await api(`/system/logs?${p}`));
     } catch (e) {
       setErr(failText(e));
     }
   }, [level, logger, q]);
   useEffect(() => void load(), [level]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const frontendOnly = logger === FRONTEND;
+  const toggleFrontend = () => {
+    const next = frontendOnly ? "" : FRONTEND;
+    setLogger(next);
+    void load(next);
+  };
 
   return (
     <Card>
@@ -40,6 +49,10 @@ function Logs() {
         <input placeholder={t.sys.logger} value={logger} onChange={(e) => setLogger(e.target.value)} />
         <input placeholder={t.sys.search} value={q} onChange={(e) => setQ(e.target.value)} />
         <Button type="submit">{t.sys.refresh}</Button>
+        <Button type="button" variant={frontendOnly ? "primary" : "default"} aria-pressed={frontendOnly} onClick={toggleFrontend}
+          title={t.sys.frontendHint}>
+          {t.sys.frontend}
+        </Button>
       </form>
       <ErrorText>{err}</ErrorText>
       {data && !data.enabled && <Muted>{t.sys.noLogFile}</Muted>}
@@ -55,6 +68,12 @@ function Logs() {
               <div className="log-msg">{e.msg}</div>
               {extra.length > 0 && <div className="muted log-extra">{extra.map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join("  ")}</div>}
               {e.exc && <details><summary>{t.sys.traceback}</summary><pre>{e.exc}</pre></details>}
+              {(typeof e.stack === "string" || typeof e.component === "string") && (
+                <details>
+                  <summary>{t.sys.traceback}</summary>
+                  <pre>{[e.stack, e.component && `${t.sys.components}:${e.component}`, e.user_agent].filter(Boolean).join("\n\n")}</pre>
+                </details>
+              )}
             </li>
           );
         })}

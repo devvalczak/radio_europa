@@ -180,7 +180,8 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .cal button.sel { background: var(--accent-soft); box-shadow: var(--glow); }
 
 /* --- dashboard ------------------------------------------------------------------------------- */
-.dash { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 156px; grid-auto-flow: dense; gap: 16px; }
+/* rows grow when a tile's content (e.g. text + button in a small tile) does not fit, instead of clipping it */
+.dash { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(156px, auto); grid-auto-flow: dense; gap: 16px; }
 .tile-slot { min-width: 0; min-height: 0; }
 .tile { height: 100%; display: flex; flex-direction: column; gap: 10px; overflow: hidden; padding: 14px 16px; transition: border-color .15s, transform .15s; }
 .tile:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }

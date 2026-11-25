@@ -74,6 +74,11 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
   Szczegóły przekazuj w `extra={...}` — trafiają jako pola do JSON-a i do widoku „Dziennik”.
 - **Nie loguj sekretów, treści maili ani promptów/odpowiedzi AI.** Filtr maskujący (`password=`, `token:`, klucze `extra` o nazwach
   sekretów, tracebacki) to siatka bezpieczeństwa, nie zgoda. Log żądań zapisuje ścieżkę bez query stringa.
+- **Błędy przeglądarki** (wyjątki JS, odrzucone obietnice, awarie złapane przez `ErrorBoundary`, API 5xx i brak sieci, niewczytane
+  pliki aplikacji) trafiają do loggera `jarvis.frontend` przez `POST /api/system/client-errors` (tylko po zalogowaniu, limit
+  120/min/użytkownika, query stringi obcinane). Kod: `frontend/src/errorReport.ts`; ręcznie `reportError(kind, {...})` z `@jarvis/sdk`.
+  Nie wkładaj tam treści wpisanych przez użytkownika. W Dzienniku filtr „Tylko przeglądarka”. W trybie dev React dodatkowo
+  zgłasza złapane błędy jako `[js]` — w buildzie produkcyjnym zostaje sam wpis `[react]`.
 - Testy działają bez pliku logów (`JARVIS_LOG_DIR=""` w conftest); test, który go potrzebuje, ustawia `settings.log_dir` na `tmp_path`
   i woła `logs.setup_logging()` (patrz `core/tests/test_logs.py`).
 

@@ -218,3 +218,62 @@ def test_housekeeping_runs_at_most_daily(monkeypatch):
     scheduler.housekeeping()
     scheduler.housekeeping()
     assert calls == [1]
+
+
+# --- browser errors ------------------------------------------------------------------------------------
+@pytest.fixture()
+def fresh_budget(monkeypatch):
+    from app import system_api
+
+    monkeypatch.setattr(system_api, "_recent", {})
+    monkeypatch.setattr(system_api, "_flood_logged", {})
+    return system_api
+
+
+def test_client_errors_need_login_and_csrf_header(client):
+    assert client.post("/api/system/client-errors", json=[{"kind": "js", "message": "x"}]).status_code == 401
+    client.post("/api/auth/setup", json={"token": "setup-secret", "username": "owner", "password": PASSWORD})
+    client.headers.pop("X-Jarvis")
+    assert client.post("/api/system/client-errors", json=[{"kind": "js", "message": "x"}]).status_code == 403
+
+
+def test_client_errors_are_validated(authed, fresh_budget):
+    post = lambda body: authed.post("/api/system/client-errors", json=body).status_code
+    assert post([{"kind": "js", "message": "x" * 501}]) == 422
+    assert post([{"kind": "hack", "message": "x"}]) == 422
+    assert post([{"kind": "js", "message": "x"}] * 21) == 422
+    assert post([{"kind": "js", "message": "x", "count": 0}]) == 422
+    assert post([]) == 204
+
+
+def test_client_errors_land_in_the_log_file(authed, logfile, fresh_budget):
+    body = [
+        {"kind": "react", "message": "Cannot read properties of undefined (reading 'words')", "stack": "TypeError\n  at Editor (MarkdownEditor.tsx:12:3)",
+         "component": "at MarkdownEditor\n  at Card", "route": "#/notes", "count": 3, "ts": "2026-11-25T21:00:00Z"},
+        {"kind": "api", "method": "GET", "path": "/api/hub/widgets/notes/recent?size=2x1&token=abc", "status": 500, "route": "#/dashboard"},
+        {"kind": "resource", "source": "https://example.com/assets/app.js?sig=secret123", "route": "#/dashboard"},
+        {"kind": "js", "message": "failed with password=hunter2", "source": "/src/x.ts", "line": 4, "col": 7},
+    ]
+    assert authed.post("/api/system/client-errors", json=body, headers={"User-Agent": "TestBrowser/2"}).status_code == 204
+    got = [e for e in lines(logfile) if e["logger"] == "jarvis.frontend"]
+    react, api, res, js = got
+    assert react["level"] == "ERROR" and react["msg"].startswith("[react] Cannot read") and react["msg"].endswith("(×3)")
+    assert react["route"] == "#/notes" and react["count"] == 3 and "MarkdownEditor.tsx" in react["stack"] and react["user_agent"] == "TestBrowser/2"
+    assert api["level"] == "WARNING" and api["path"] == "/api/hub/widgets/notes/recent" and api["status"] == 500
+    assert "GET /api/hub/widgets/notes/recent -> 500" in api["msg"]
+    assert res["source"] == "https://example.com/assets/app.js"
+    text = logfile.read_text(encoding="utf-8")
+    for secret in ("token=abc", "secret123", "hunter2"):
+        assert secret not in text
+    assert js["line"] == 4 and js["col"] == 7
+    # visible in the journal with the logger filter
+    entries = authed.get("/api/system/logs", params={"logger": "jarvis.frontend"}).json()["entries"]
+    assert len(entries) == 4
+
+
+def test_client_error_flood_is_capped(authed, logfile, fresh_budget):
+    for _ in range(7):  # 7 × 20 = 140 > 120 per minute
+        assert authed.post("/api/system/client-errors", json=[{"kind": "js", "message": "loop"}] * 20).status_code == 204
+    got = [e for e in lines(logfile) if e["logger"] == "jarvis.frontend"]
+    assert len([e for e in got if e["msg"].startswith("[js] loop")]) == fresh_budget.FLOOD_LIMIT
+    assert len([e for e in got if "flood" in e["msg"]]) == 1

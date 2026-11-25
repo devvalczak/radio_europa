@@ -4,6 +4,7 @@ import * as RToast from "@radix-ui/react-toast";
 import * as RSwitch from "@radix-ui/react-switch";
 import * as RTabs from "@radix-ui/react-tabs";
 import { Component, lazy, Suspense, useEffect, useId, useState, type ButtonHTMLAttributes, type ErrorInfo, type ReactNode } from "react";
+import { reportError } from "@jarvis/sdk";
 import type { MarkdownEditorProps } from "./editor/MarkdownEditor";
 
 /** Shared building blocks. Module pages compose these so every app looks the same and follows the theme. */
@@ -233,6 +234,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: u
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("UI error", error, info.componentStack);
+    reportError("react", { message: error.message, stack: error.stack, component: info.componentStack ?? undefined });
   }
   render() {
     if (!this.state.error) return this.props.children;

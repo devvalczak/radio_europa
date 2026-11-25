@@ -3,6 +3,7 @@ import { Dialog, ErrorBoundary, Kbd, ModuleIcon, Toaster } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { Dashboard } from "./Dashboard";
+import { installErrorReporting } from "./errorReport";
 import { t } from "./i18n";
 import { frontendModules } from "./registry";
 import { openPalette, Palette, paletteKeys } from "./Palette";
@@ -52,6 +53,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
   const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
+    installErrorReporting(); // the shell renders only after login: the report endpoint needs a session
     api<ModuleInfo[]>("/modules").then(setModules).catch(() => setModules([]));
   }, []);
   useEffect(() => {
