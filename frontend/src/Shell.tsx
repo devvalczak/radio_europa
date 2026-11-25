@@ -1,10 +1,12 @@
 import { api, ModuleDef } from "@jarvis/sdk";
-import { Dialog, ModuleIcon } from "@jarvis/ui";
+import { Dialog, Kbd, ModuleIcon, Toaster } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { Dashboard } from "./Dashboard";
 import { t } from "./i18n";
 import { frontendModules } from "./registry";
+import { openPalette, Palette, paletteKeys } from "./Palette";
+import { QuickHost } from "./quick";
 import { Settings } from "./Settings";
 import { System } from "./System";
 
@@ -72,6 +74,11 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
     <div className="shell">
       <aside className="sidebar">
         <Brand sub={t.tagline} />
+        <button className="bare search-btn" onClick={openPalette}>
+          <span aria-hidden>⌕</span>
+          <span className="grow">{t.palette.searchShort}</span>
+          <Kbd>{paletteKeys()}</Kbd>
+        </button>
         <a href="#/dashboard" className={`nav-link ${route === "dashboard" ? "on" : ""}`} aria-current={route === "dashboard" ? "page" : undefined}>
           <span className="glyph" aria-hidden>◎</span>
           {t.dashboard}
@@ -99,6 +106,8 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
 
       <header className="topbar">
         <Brand />
+        <span className="grow" />
+        <button className="bare topbar-btn" onClick={openPalette} aria-label={t.palette.search}>⌕</button>
         <a href="#/settings" className="avatar" aria-label={t.settings}>{(status.username ?? "?").slice(0, 1).toUpperCase()}</a>
       </header>
 
@@ -130,6 +139,10 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
           <span className="lbl">{t.more}</span>
         </button>
       </nav>
+
+      <Toaster />
+      <QuickHost />
+      <Palette modules={modules} />
 
       <Dialog open={drawer} onClose={() => setDrawer(false)} title={t.apps}>
         <div className="app-grid">

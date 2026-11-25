@@ -20,10 +20,11 @@ def test_quick_actions_are_listed_with_form_schema(authed):
     assert {"notes.new", "alarms.new", "calendar.new", "shopping.add"} <= set(quick)
     note = quick["notes.new"]
     assert note["action"] == "notes.create" and note["title"] == "Notatka" and note["module_name"] == "Notatki"
-    assert [f["name"] for f in note["fields"]] == ["title", "content"]
+    assert [(f["name"], f["label"]) for f in note["fields"]] == [("title", "Tytuł"), ("content", "Treść")]
     assert note["fields"][1]["maxLength"] > 500  # long text -> the form renders a textarea
     alarm = quick["alarms.new"]
-    assert alarm["auto"] == ["tz"] and {"name": "time", "required": True} .items() <= alarm["fields"][0].items()
+    assert alarm["auto"] == ["tz"] and {"name": "time", "label": "Godzina", "required": True}.items() <= alarm["fields"][0].items()
+    assert "title" not in alarm["fields"][0]  # pydantic's English titles are dropped
     assert alarm["fields"][0]["format"] == "time"
     start = next(f for f in quick["calendar.new"]["fields"] if f["name"] == "start")
     assert start["required"] and start["format"] == "date-time"
@@ -58,11 +59,12 @@ def _module():
 
 
 @pytest.mark.parametrize("quick,error", [
-    ([{"id": "q", "title": "Q", "action": "nope", "fields": ["title"]}], "unknown action"),
-    ([{"id": "q", "title": "Q", "action": "wipe", "fields": ["title"]}], "confirmation"),
-    ([{"id": "q", "title": "Q", "action": "make", "fields": ["title", "ghost"]}], "not in the action input"),
-    ([{"id": "q", "title": "Q", "action": "make", "fields": ["body"]}], "required fields missing"),
-    ([{"id": "q", "title": "Q", "action": "make", "fields": ["title"]}] * 2, "unique"),
+    ([{"id": "q", "title": "Q", "action": "nope", "fields": [{"name": "title", "label": "X"}]}], "unknown action"),
+    ([{"id": "q", "title": "Q", "action": "wipe", "fields": [{"name": "title", "label": "X"}]}], "confirmation"),
+    ([{"id": "q", "title": "Q", "action": "make", "fields": [{"name": "title", "label": "X"}, {"name": "ghost", "label": "X"}]}], "not in the action input"),
+    ([{"id": "q", "title": "Q", "action": "make", "fields": [{"name": "body", "label": "X"}]}], "required fields missing"),
+    ([{"id": "q", "title": "Q", "action": "make", "fields": [{"name": "title", "label": "X"}]}] * 2, "unique"),
+    ([{"id": "q", "title": "Q", "action": "make", "fields": [{"name": "title", "label": "X"}, {"name": "title", "label": "Y"}]}], "duplicate"),
 ])
 def test_hub_rejects_bad_quick_actions(quick, error):
     with pytest.raises(ValueError, match=error):
@@ -70,7 +72,7 @@ def test_hub_rejects_bad_quick_actions(quick, error):
 
 
 def test_valid_quick_action_with_auto_tz():
-    Hub().check(validate_manifest(_manifest(quick=[{"id": "q", "title": "Q", "action": "make", "fields": ["title"]}])), _module())
+    Hub().check(validate_manifest(_manifest(quick=[{"id": "q", "title": "Q", "action": "make", "fields": [{"name": "title", "label": "X"}]}])), _module())
 
 
 def test_manifest_schema_for_views_and_quick():

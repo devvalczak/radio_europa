@@ -1,7 +1,9 @@
 import * as RDialog from "@radix-ui/react-dialog";
+import * as RMenu from "@radix-ui/react-dropdown-menu";
+import * as RToast from "@radix-ui/react-toast";
 import * as RSwitch from "@radix-ui/react-switch";
 import * as RTabs from "@radix-ui/react-tabs";
-import { useId, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 /** Shared building blocks. Module pages compose these so every app looks the same and follows the theme. */
 
@@ -113,3 +115,99 @@ export const Dialog = ({ open, onClose, title, children, actions }: {
     </RDialog.Portal>
   </RDialog.Root>
 );
+
+/* --- Menu: dropdown with plain items, radio groups and separators (keyboard + typeahead from Radix) -- */
+export type MenuEntry =
+  | { type: "item"; label: ReactNode; onSelect: () => void; danger?: boolean; hint?: ReactNode }
+  | { type: "radio"; label: ReactNode; value: string; options: { value: string; label: ReactNode }[]; onChange: (v: string) => void }
+  | { type: "separator" }
+  | { type: "label"; label: ReactNode }
+  | { type: "note"; label: ReactNode };
+
+export const Menu = ({ trigger, entries, label, align = "end" }: {
+  trigger: ReactNode; entries: MenuEntry[]; label: string; align?: "start" | "end";
+}) => (
+  <RMenu.Root modal={false}>
+    <RMenu.Trigger asChild>
+      <button className="ghost icon-btn ui-menu-trigger" aria-label={label}>{trigger}</button>
+    </RMenu.Trigger>
+    <RMenu.Portal>
+      <RMenu.Content className="ui-menu card" align={align} sideOffset={6} collisionPadding={8}>
+        {entries.map((e, i) =>
+          e.type === "separator" ? <RMenu.Separator key={i} className="ui-menu-sep" />
+          : e.type === "label" ? <RMenu.Label key={i} className="ui-menu-label">{e.label}</RMenu.Label>
+          : e.type === "note" ? <RMenu.Label key={i} className="ui-menu-note">{e.label}</RMenu.Label>
+          : e.type === "radio" ? (
+            <RMenu.Group key={i}>
+              <RMenu.Label className="ui-menu-label">{e.label}</RMenu.Label>
+              <RMenu.RadioGroup value={e.value} onValueChange={e.onChange}>
+                {e.options.map((o) => (
+                  <RMenu.RadioItem key={o.value} value={o.value} className="ui-menu-item">
+                    <span className="ui-menu-check" aria-hidden><RMenu.ItemIndicator>●</RMenu.ItemIndicator></span>
+                    {o.label}
+                  </RMenu.RadioItem>
+                ))}
+              </RMenu.RadioGroup>
+            </RMenu.Group>
+          ) : (
+            <RMenu.Item key={i} className={`ui-menu-item ${e.danger ? "danger" : ""}`} onSelect={e.onSelect}>
+              <span className="ui-menu-check" aria-hidden />
+              <span className="grow">{e.label}</span>
+              {e.hint && <span className="muted ui-menu-hint">{e.hint}</span>}
+            </RMenu.Item>
+          ),
+        )}
+      </RMenu.Content>
+    </RMenu.Portal>
+  </RMenu.Root>
+);
+
+/* --- Toasts: short confirmations ("Dodano notatkę") with an optional action ("Cofnij", "Otwórz"). ----- */
+interface ToastItem { id: number; text: ReactNode; tone: "ok" | "error" | "info"; action?: { label: string; run: () => void } }
+let toastSeq = 0;
+const listeners = new Set<(t: ToastItem) => void>();
+
+/** Show a toast from anywhere (modules too). Errors stay longer. */
+export function toast(text: ReactNode, opts: { tone?: ToastItem["tone"]; action?: ToastItem["action"] } = {}) {
+  const item = { id: ++toastSeq, text, tone: opts.tone ?? "ok", action: opts.action };
+  listeners.forEach((l) => l(item));
+}
+
+/** Mounted once by the shell. */
+export function Toaster() {
+  const [items, setItems] = useState<ToastItem[]>([]);
+  useEffect(() => {
+    const add = (t: ToastItem) => setItems((xs) => [...xs.slice(-2), t]);
+    listeners.add(add);
+    return () => void listeners.delete(add);
+  }, []);
+  const drop = (id: number) => setItems((xs) => xs.filter((x) => x.id !== id));
+  return (
+    <RToast.Provider swipeDirection="right" label="Powiadomienie">
+      {items.map((t) => (
+        <RToast.Root key={t.id} className={`ui-toast card tone-${t.tone}`} duration={t.tone === "error" ? 8000 : t.action ? 6000 : 3500}
+          onOpenChange={(o) => !o && drop(t.id)}>
+          <span className="ui-toast-mark" aria-hidden>{t.tone === "error" ? "!" : t.tone === "info" ? "i" : "✓"}</span>
+          <RToast.Title className="grow">{t.text}</RToast.Title>
+          {t.action && (
+            <RToast.Action asChild altText={t.action.label}>
+              <button className="ghost" onClick={t.action.run}>{t.action.label}</button>
+            </RToast.Action>
+          )}
+          <RToast.Close asChild><button className="ghost icon-btn" aria-label="Zamknij">✕</button></RToast.Close>
+        </RToast.Root>
+      ))}
+      <RToast.Viewport className="ui-toasts" />
+    </RToast.Provider>
+  );
+}
+
+/** Placeholder lines while something loads (instead of a bare "Ładowanie…"). */
+export const Skeleton = ({ lines = 3 }: { lines?: number }) => (
+  <div className="skeleton" aria-busy="true" aria-label="Wczytywanie">
+    {Array.from({ length: lines }, (_, i) => <span key={i} style={{ width: `${90 - i * 18}%` }} />)}
+  </div>
+);
+
+/** Keyboard shortcut hint, e.g. <Kbd>Ctrl K</Kbd>. */
+export const Kbd = ({ children }: { children: ReactNode }) => <kbd className="kbd">{children}</kbd>;

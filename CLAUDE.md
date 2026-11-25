@@ -52,6 +52,9 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
   `Tabs`, `Switch`, `Dialog`), moduły nie importują `@radix-ui/*`. Szczegóły, walidator kontrastu i zrzuty
   (`frontend/scripts/theme-shots.mjs`): **skill `jarvis-design`**. Plugin Claude Code `frontend-design` (jeśli włączony)
   służy do pomysłów, ale reguły `jarvis-design` mają pierwszeństwo. Nowy motyw musi przejść `npm run check:themes` (część buildu).
+- **Pulpit ma być zrozumiały bez instrukcji:** widget ma `description`, sensowne `views`, treść zależną od rozmiaru (`WidgetOpts`)
+  i pusty stan z następnym krokiem (przycisk `quick`/`href`); główna czynność modułu to `quick` w manifeście. Akcje użytkownika
+  potwierdzaj `toast(...)` z `@jarvis/ui` (z „Cofnij” przy usuwaniu), błędy pokazuj po polsku z opcją ponowienia — bez emoji i ozdobników.
 - **Widgety są deklaratywne** (bloki z `app/widgets.py`). Własny komponent React tylko jako wyjątek (`ModuleDef.widgets`).
 - Uprawnienia z manifestu w modułach w procesie to deklaracja, nie izolacja — nie traktuj ich jako granicy bezpieczeństwa.
 
@@ -118,7 +121,7 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 ## Stan i plan
 
 Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), logi aplikacji + Dziennik (logi, audyt,
-historia logowań, retencja 90 dni), 9 motywów z walidatorem kontrastu, Radix w @jarvis/ui, AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
+historia logowań, retencja 90 dni), pulpit z szybkimi akcjami, paletą ⌘K, widokami i menu kafelków, 9 motywów z walidatorem kontrastu, Radix w @jarvis/ui, AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
 streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping). ~195 testów backendu.
 
 Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (Gemini na żywo, gdy będzie klucz; dalszy plan).

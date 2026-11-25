@@ -62,7 +62,11 @@ Moduły składają strony z `@jarvis/ui` i nigdy nie importują `@radix-ui/*` be
   `Eyebrow`, `Muted`, `ErrorText`, `Tag`, `ModuleIcon`;
 - `Tabs` — zakładki (strzałki na klawiaturze, `aria-selected`), panel renderujesz sam według `value`;
 - `Switch` — trwałe ustawienie wł./wył. z etykietą (filtry widoku zostają checkboxami);
-- `Dialog` — okno modalne (pułapka fokusu, Esc, klik obok zamyka), np. podgląd wiadomości w `mail`.
+- `Dialog` — okno modalne (pułapka fokusu, Esc, klik obok zamyka), np. podgląd wiadomości w `mail`;
+- `Menu` — rozwijane menu (pozycje, grupy radio, separatory, notka), np. menu ⋯ kafelka;
+- `toast(text, {tone, action})` — krótkie potwierdzenie/błąd z opcjonalną akcją („Cofnij”, „Otwórz”); `Toaster` montuje powłoka.
+  Uwaga: toast to najwyższa warstwa i przejmuje Esc — w otwartym oknie potwierdzaj w treści okna, nie toastem;
+- `Skeleton` — szkielet ładowania zamiast „Ładowanie…”, `Kbd` — skrót klawiszowy, `Eyebrow` — mała etykieta grupy.
 Brakuje komponentu? Dodaj go do `frontend/src/ui/index.tsx` (na Radix, jeśli to interakcja: menu, popover, select, toast),
 style `.ui-*` w `styles.css` wyłącznie na tokenach, i użyj w module. Nowy pakiet Radix: `npm install --save-exact`
 w `frontend/` (wersja wydana ≥ 2 tygodnie temu); nie potrzebuje aliasu, bo importuje go tylko `src/ui`.

@@ -40,8 +40,15 @@
       "title": "Alarm",
       "action": "create",
       "fields": [
-        "time",
-        "label"
+        {
+          "name": "time",
+          "label": "Godzina"
+        },
+        {
+          "name": "label",
+          "label": "Opis",
+          "placeholder": "np. Pobudka"
+        }
       ],
       "success": "Ustawiono alarm"
     }

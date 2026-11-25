@@ -81,8 +81,15 @@
       "title": "Zakupy",
       "action": "add_item",
       "fields": [
-        "query",
-        "quantity"
+        {
+          "name": "query",
+          "label": "Produkt",
+          "placeholder": "np. mleko 3,2%"
+        },
+        {
+          "name": "quantity",
+          "label": "Ilość"
+        }
       ],
       "success": "Dodano do listy zakupów"
     }

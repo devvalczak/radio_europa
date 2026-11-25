@@ -21,10 +21,20 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public detail: string,
+    /** Human-readable message when the server sent one (hub/ActionError: {code, detail}). */
+    public info: string = "",
+    /** Raw response body, e.g. FastAPI 422 validation errors [{loc, msg}]. */
+    public data: unknown = undefined,
   ) {
-    super(detail);
+    super(info || detail);
   }
 }
+
+/** Tell the dashboard (and anyone listening) that a module's data changed: its tiles reload. */
+export const notifyChanged = (module: string) => window.dispatchEvent(new CustomEvent("jarvis:changed", { detail: { module } }));
+
+/** Open a quick action form ("<module>.<quick id>" from the manifest `quick`) from anywhere. */
+export const openQuick = (id: string) => window.dispatchEvent(new CustomEvent("jarvis:quick", { detail: { id } }));
 
 interface Opts {
   method?: string;
@@ -47,8 +57,9 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
     // FastAPI errors: a plain string, or {code, detail} from the hub; expose the string / the code
     const d = data.detail;
     const detail = typeof d === "string" ? d : d && typeof d.code === "string" ? d.code : res.statusText;
+    const info = d && typeof d === "object" && typeof d.detail === "string" ? d.detail : "";
     if (res.status === 401 && detail === "not_authenticated") window.dispatchEvent(new Event("jarvis:unauth"));
-    throw new ApiError(res.status, detail);
+    throw new ApiError(res.status, detail, info, data);
   }
   return data as T;
 }

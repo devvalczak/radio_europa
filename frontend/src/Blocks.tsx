@@ -1,12 +1,12 @@
-import { api, ApiError } from "@jarvis/sdk";
-import { Button, Muted } from "@jarvis/ui";
+import { api, ApiError, openQuick } from "@jarvis/sdk";
+import { Button, Muted, toast } from "@jarvis/ui";
 
 export type BlockData =
   | { type: "list"; items: { title: string; subtitle?: string; badge?: string; href?: string; time?: string; all_day?: boolean }[]; empty?: string }
   | { type: "stat"; label: string; value: string; hint?: string }
   | { type: "text"; text: string }
   | { type: "progress"; label: string; value: number }
-  | { type: "buttons"; buttons: { label: string; href?: string; action?: string; input?: Record<string, unknown> }[] };
+  | { type: "buttons"; buttons: { label: string; href?: string; action?: string; quick?: string; primary?: boolean; input?: Record<string, unknown> }[] };
 
 const fmtTime = (iso: string, allDay?: boolean) =>
   new Date(iso).toLocaleString("pl-PL", allDay ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -19,7 +19,7 @@ async function runAction(name: string, input: Record<string, unknown> | undefine
       if (!window.confirm(`Potwierdzić akcję ${name}?`)) return;
       await api(`/hub/actions/${name}`, { method: "POST", body: { input: input ?? {}, confirmed: true } });
     } else {
-      window.alert("Nie udało się wykonać akcji.");
+      toast(e instanceof ApiError && e.info ? e.info : "Nie udało się wykonać akcji.", { tone: "error" });
       return;
     }
   }
@@ -73,11 +73,13 @@ export function Blocks({ blocks, onChanged }: { blocks: BlockData[]; onChanged: 
               <div key={i} className="row">
                 {b.buttons.map((btn, j) =>
                   btn.href ? (
-                    <a key={j} href={btn.href}>
-                      <Button>{btn.label}</Button>
-                    </a>
+                    // a real <button> (not <a><button>) so it gets the theme's button shape; href is validated server-side
+                    <Button key={j} variant={btn.primary ? "primary" : "default"} onClick={() => (window.location.href = btn.href!)}>
+                      {btn.label}
+                    </Button>
                   ) : (
-                    <Button key={j} onClick={() => btn.action && runAction(btn.action, btn.input, onChanged)}>
+                    <Button key={j} variant={btn.primary ? "primary" : "default"}
+                      onClick={() => (btn.quick ? openQuick(btn.quick) : btn.action && runAction(btn.action, btn.input, onChanged))}>
                       {btn.label}
                     </Button>
                   ),

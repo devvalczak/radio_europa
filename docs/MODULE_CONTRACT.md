@@ -25,7 +25,8 @@ Zły moduł nie przeszkadza w starcie core'a ani innych modułów.
 | `id` | `^[a-z][a-z0-9_]{1,31}$`, musi równać się nazwie katalogu |
 | `name`, `version`, `description` | wyświetlane w menu i Ustawieniach; wersja `x.y.z` |
 | `permissions` | `push.send` (powiadomienia, przypomnienia), `hub.call` (wywoływanie akcji innych modułów), `ai.complete` (`ctx.ai(...)`) |
-| `widgets[]` | `id`, `title`, `sizes` (`1x1`/`2x1`/`2x2`), `default`, `refresh` (sekundy, 0 = bez odświeżania) |
+| `widgets[]` | `id`, `title`, `sizes` (`1x1`/`2x1`/`2x2`), `default` (musi być w `sizes`), `refresh` (sekundy, 0 = bez odświeżania), `description` (co pokazuje — widać w katalogu widgetów; pisz zawsze), `views` (opcjonalnie 2–6 × `{id, title}`, pierwszy = domyślny) |
+| `quick[]` | szybkie akcje na pulpicie i w palecie ⌘K: `id`, `title` (krótko, np. „Notatka”), `action` (akcja modułu bez `confirm`), `fields[]` (`{name, label, placeholder?}` — pola wejścia akcji, po polsku), `success` (komunikat po zapisie) |
 | `actions[]` | `name`, `description`, `confirm` (true = wymaga potwierdzenia przy wywołaniu) |
 | `tasks[]` | zadania w tle: `id`, `every` (sekundy, 60–86400); kod: `@module.periodic("id")` |
 | `events` | `emits`: nazwy zdarzeń modułu; `subscribes`: pełne nazwy `<modul>.<zdarzenie>` |
@@ -76,6 +77,14 @@ Błąd subskrybenta zdarzenia jest logowany i nie psuje emitenta.
 
 ## Widgety
 
+Handler może przyjąć drugi argument `opts: WidgetOpts` (`size`: `1x1`/`2x1`/`2x2`, `view`: id widoku albo `None`,
+`opts.limit(mały, szeroki, duży)`, `opts.small`, `opts.large`) — **dopasuj treść do rozmiaru** (mały kafelek: 1–2 wiersze
+bez podtytułów) i do wybranego widoku. Hub sprawdza `size`/`view` z manifestem (422 przy złych). Handler `fn(ctx)` bez
+`opts` też działa. Odpowiedź API: `{blocks, updated_at}`; użytkownik zmienia widok i rozmiar w menu ⋯ kafelka.
+
+**Puste stany:** zamiast samego „Brak danych” powiedz, co zrobić dalej — `TextBlock` + `ButtonsBlock` z przyciskiem
+`quick: "<moduł>.<quick id>"` (otwiera formularz szybkiej akcji) albo `href` do modułu; `primary: true` wyróżnia przycisk.
+
 Backend zwraca bloki, powłoka je renderuje (wspólny wygląd, motywy, brak JS po stronie modułu):
 
 | Blok | Pola |
@@ -84,11 +93,21 @@ Backend zwraca bloki, powłoka je renderuje (wspólny wygląd, motywy, brak JS p
 | `StatBlock` | `label`, `value`, `hint` |
 | `TextBlock` | `text` |
 | `ProgressBlock` | `label`, `value` 0–1 |
-| `ButtonsBlock` | `buttons[]` (`label` + `href` albo `action` + `input`) |
+| `ButtonsBlock` | `buttons[]` (`label` + `href` albo `action` + `input` albo `quick` = „<moduł>.<quick id>”; `primary`) |
 
 `href` musi zaczynać się od `#/`, `/` lub `https://`. Wyjątek awaryjny: `widgets: { <id>: Component }` w
 `ModuleDef` zastępuje renderowanie bloków własnym komponentem React.
-Układ pulpitu (kolejność, rozmiary, które widgety) zapisuje użytkownik; nowe widgety pojawiają się w „Dodaj widget”.
+Układ pulpitu (kolejność, rozmiary, widoki, które widgety) zapisuje się od razu po każdej zmianie (`PUT /api/hub/layout`,
+`DELETE` = przywróć domyślny); nowe widgety pojawiają się w katalogu „Dodaj widget” z opisem.
+
+## Szybkie akcje (`quick`)
+
+Formularz buduje powłoka ze schematu wejścia akcji (`GET /api/hub/quick`): `string` → pole tekstowe (`maxLength` > 500 →
+pole wieloliniowe), `integer`/`number` → liczba, `boolean` → przełącznik, `format: date-time` → data i godzina (wysyłana jako
+ISO UTC), `format: time` → godzina (`Field(json_schema_extra={"format": "time"})`), `enum` → lista. Pole `tz` akcji
+uzupełnia przeglądarka (strefa użytkownika), więc nie musi być w `fields`. Wymagane pola akcji muszą być w `fields`
+(loader to sprawdza), akcje z `confirm: true` nie mogą być szybkie. Zapis idzie zwykłym `POST /api/hub/actions/…`
+(audyt), potem kafelki modułu odświeżają się same (`notifyChanged(module)` w `@jarvis/sdk`).
 
 ## Frontend
 

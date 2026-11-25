@@ -44,8 +44,16 @@
       "title": "Notatka",
       "action": "create",
       "fields": [
-        "title",
-        "content"
+        {
+          "name": "title",
+          "label": "Tytuł",
+          "placeholder": "np. Pomysł na weekend"
+        },
+        {
+          "name": "content",
+          "label": "Treść",
+          "placeholder": "Markdown, opcjonalnie"
+        }
       ],
       "success": "Dodano notatkę"
     }

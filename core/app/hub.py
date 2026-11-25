@@ -74,10 +74,13 @@ class Hub:
                 raise ValueError(f"quick '{q['id']}': action needs confirmation, not allowed as a quick action")
             model = module.actions[q["action"]][1]
             known = set(model.model_fields) if model else set()
-            if unknown := set(q["fields"]) - known:
+            names = [f["name"] for f in q["fields"]]
+            if len(set(names)) != len(names):
+                raise ValueError(f"quick '{q['id']}': duplicate fields")
+            if unknown := set(names) - known:
                 raise ValueError(f"quick '{q['id']}': fields not in the action input: {sorted(unknown)}")
             required = {n for n, f in (model.model_fields.items() if model else []) if f.is_required()}
-            if missing := required - set(q["fields"]) - AUTO_FIELDS:
+            if missing := required - set(names) - AUTO_FIELDS:
                 raise ValueError(f"quick '{q['id']}': required fields missing from the form: {sorted(missing)}")
         if len({q["id"] for q in manifest.get("quick", [])}) != len(manifest.get("quick", [])):
             raise ValueError("quick ids must be unique")

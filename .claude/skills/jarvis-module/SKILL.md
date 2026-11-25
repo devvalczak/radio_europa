@@ -53,6 +53,14 @@ Podbij `version` przy zmianach. Opisy akcji pisz konkretnie: jaki efekt, jakie a
 - Czas lokalny użytkownika (alarmy, kalendarz): zapisuj strefę IANA i licz przez `zoneinfo`; w bazie naive UTC. Logikę czasu trzymaj w czystych funkcjach i testuj (zmiana czasu!).
 - Nie importuj innych modułów — używaj `ctx.call("modul.akcja", {...})` (wymaga `hub.call`).
 
+## 4b. Pulpit: opisy, widoki, rozmiary, szybkie akcje
+
+- Każdy widget ma w manifeście `description` („co pokazuje”). Jeśli ma sens kilka perspektyw (okres, filtr), dodaj `views`.
+- Handler widgetu bierze `opts: WidgetOpts` i dopasowuje treść: `opts.limit(2, 3, 7)`, bez podtytułów na `opts.small`.
+- Pusty stan mówi, co zrobić dalej (`TextBlock` + przycisk `quick`/`href`), nie tylko „Brak danych”.
+- Najczęstsza czynność modułu (dodaj X) → `quick` w manifeście: 1–3 pola z polskimi etykietami; reszta ma wartości domyślne.
+- Szczegóły: `docs/MODULE_CONTRACT.md` → Widgety, Szybkie akcje; wzorzec: `modules/notes`, `modules/calendar`.
+
 ## 4a. Sekrety i dane osobowe
 
 Moduł przechowujący hasła/tokeny: szyfruj przez `app.crypto`, nie zwracaj ich w API, **nie twórz akcji hubu przyjmującej sekret**
@@ -82,7 +90,8 @@ wszystkich modułów (autogenerate bez nich pominie moduł i wygeneruje `drop_ta
 Dodaj `core/tests/test_<id>.py` w stylu `test_modules.py` / `test_hub_api.py`, używając fixture `authed`:
 - CRUD/trasy, walidacja wejścia (422), brak dostępu bez logowania (401),
 - każda akcja przez `/api/hub/actions/<id>.<akcja>`, w tym `confirm`,
-- dane widgetów (`/api/hub/widgets/<id>/<widget>`), także stan pusty,
+- dane widgetów (`/api/hub/widgets/<id>/<widget>`), także stan pusty, każdy widok (`?view=`) i rozmiar (`?size=`),
+- szybkie akcje z `GET /api/hub/quick` (pola, etykiety) i ich wykonanie,
 - zdarzenia/przypomnienia (czas przekazuj jawnie jak w teście kalendarza),
 - zewnętrzne API zamockowane (`app.http.get`, `app.ai._post`); sprawdź też, że widgety nie dotykają sieci,
 - parsowanie niezaufanych danych (złe linki, HTML, nie-kanał), idempotencję odświeżania i zadania w tle (`scheduler.run_tasks(force=True)`).

@@ -34,6 +34,14 @@ class LayoutItem(BaseModel):
     view: str | None = None
 
 
+def _resolve(prop: dict) -> dict:
+    """Optional fields come as anyOf [type, null]: flatten to the non-null alternative for the form."""
+    if "anyOf" in prop:
+        alt = next((a for a in prop["anyOf"] if a.get("type") != "null"), {})
+        prop = {**{k: v for k, v in prop.items() if k != "anyOf"}, **alt}
+    return {k: v for k, v in prop.items() if k != "title"}  # pydantic's English title; the manifest label wins
+
+
 def build_router(hub: Hub) -> APIRouter:
     router = APIRouter(dependencies=[Depends(require_user)])
 
@@ -60,7 +68,7 @@ def build_router(hub: Hub) -> APIRouter:
                 out.append({
                     "id": f"{m['id']}.{q['id']}", "module": m["id"], "module_name": m["name"], "title": q["title"],
                     "action": action.full_name, "success": q.get("success", ""),
-                    "fields": [{"name": f, "required": f in required, **props.get(f, {})} for f in q["fields"]],
+                    "fields": [{**_resolve(props.get(f["name"], {})), **f, "required": f["name"] in required} for f in q["fields"]],
                     "auto": sorted(AUTO_FIELDS & set(props)),
                 })
         return out

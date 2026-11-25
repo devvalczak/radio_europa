@@ -66,9 +66,19 @@
       "title": "Wydarzenie",
       "action": "create_event",
       "fields": [
-        "title",
-        "start",
-        "all_day"
+        {
+          "name": "title",
+          "label": "Tytuł",
+          "placeholder": "np. Dentysta"
+        },
+        {
+          "name": "start",
+          "label": "Początek"
+        },
+        {
+          "name": "all_day",
+          "label": "Cały dzień"
+        }
       ],
       "success": "Dodano wydarzenie"
     }
