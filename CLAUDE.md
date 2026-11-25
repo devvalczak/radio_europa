@@ -89,11 +89,21 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 
 ## Git
 
-Rozwój na gałęzi wskazanej w zadaniu (`claude/personal-dashboard-app-nted7h`), commity opisowe, push `-u origin <gałąź>`.
-Pull requesta nie twórz bez wyraźnej prośby użytkownika.
+- `main` to gałąź domyślna i stabilna: zawiera całą dotychczasową pracę (scalone z `claude/personal-dashboard-app-nted7h`).
+- Pracuj na gałęzi wskazanej w zadaniu sesji, commity opisowe, push `-u origin <gałąź>`. Do `main` scalaj i twórz pull requesty
+  tylko na wyraźną prośbę użytkownika; przed scaleniem: `make test` i `npm run build` muszą przechodzić.
+- Bywa, że **dwie sesje Claude pracują równolegle** na tym repo (tak powstał moduł `shopping`). Przed pracą i przed `make migration`
+  zrób `git pull`; numery migracji (`0001`…) muszą tworzyć jedną liniową historię. Autogenerate bez zainstalowanych zależności
+  wszystkich modułów pominie moduł i wygeneruje `drop_table` jego tabel — zawsze przejrzyj plik migracji przed commitem.
 
-## Plan dalszych prac
+## Stan i plan
 
-Zrobione: etap 1 (rdzeń, notatki, kalendarz), kontrakt v1, etap 2 (pogoda, newsy ze streszczeniami AI, alarmy), poczta (IMAP, tylko odczyt), zakupy. Dalej: CalDAV/Google Calendar, warstwa AI
-niezależna od dostawcy (akcje hubu jako narzędzia, lokalnie Ollama z małym modelem — laptop ma ≤ 8 GB RAM i brak GPU),
-agent hosta (terminal, zadania na komputerze z potwierdzeniami, nasłuch tylko lokalnie).
+Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), moduły: notatki, kalendarz,
+pogoda, newsy (RSS + streszczenia AI), alarmy, poczta (IMAP, tylko odczyt), zakupy (EMMA, scraping). ~170 testów backendu.
+
+Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (doprecyzowanie „logowania”, darmowe API AI — Gemini).
+Dalej: CalDAV/Google Calendar, asystent AI używający akcji hubu jako narzędzi, agent hosta (terminal, zadania na komputerze
+z potwierdzeniami, nasłuch tylko lokalnie). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
+
+Nic z tego nie było jeszcze uruchomione na prawdziwej maszynie w Dockerze ani przeciw prawdziwym usługom (Open-Meteo, EMMA,
+serwery IMAP, dostawcy AI) — patrz „Pułapki” i `docs/HANDOFF.md`.
