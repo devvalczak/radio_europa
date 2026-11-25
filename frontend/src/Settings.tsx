@@ -1,13 +1,14 @@
 import { api, ApiError } from "@jarvis/sdk";
+import { PageTitle } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { errorText, t } from "./i18n";
 import { enablePush, pushSupported } from "./push";
 import type { ModuleInfo } from "./Shell";
-import { applyTheme, currentTheme, listThemes, ThemeInfo } from "./theme";
+import { applyTheme, currentTheme, listThemes, loadTheme, ThemeInfo } from "./theme";
 
 export function Settings({ status, onChange, modules }: { status: AuthStatus; onChange: () => void; modules: ModuleInfo[] }) {
-  const [themes, setThemes] = useState<ThemeInfo[]>([]);
+  const [themes, setThemes] = useState<(ThemeInfo & { tok: Record<string, string> })[]>([]);
   const [theme, setTheme] = useState(currentTheme());
   const [msg, setMsg] = useState("");
   const [totp, setTotp] = useState<{ secret: string; uri: string } | null>(null);
@@ -15,7 +16,10 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
   const [ai, setAi] = useState<{ configured: boolean; provider: string | null; model: string | null; host: string | null } | null>(null);
 
   useEffect(() => {
-    listThemes().then(setThemes).catch(() => undefined);
+    listThemes()
+      .then((list) => Promise.all(list.map(async (x) => ({ ...x, tok: await loadTheme(x) }))))
+      .then(setThemes)
+      .catch(() => undefined);
     api<typeof ai>("/system/ai").then(setAi).catch(() => undefined);
   }, []);
 
@@ -31,22 +35,32 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
 
   return (
     <>
-      <h1>{t.settings}</h1>
+      <PageTitle>{t.settings}</PageTitle>
       <section className="card stack">
         <h2>{t.theme}</h2>
-        <select
-          value={theme}
-          onChange={(e) => {
-            setTheme(e.target.value);
-            applyTheme(e.target.value);
-          }}
-        >
+        <div className="theme-grid" role="radiogroup" aria-label={t.theme}>
           {themes.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name}
-            </option>
+            // the preview shows the theme's own colours and fonts: inline styles are the point here
+            <button
+              key={x.id}
+              role="radio"
+              aria-checked={theme === x.id}
+              className={`bare theme-card ${theme === x.id ? "on" : ""}`}
+              onClick={() => {
+                setTheme(x.id);
+                applyTheme(x.id);
+              }}
+            >
+              <span className="theme-prev" style={{ background: x.tok.bg, borderRadius: x.tok.radius, fontFamily: x.tok.fontDisplay }}>
+                <span style={{ background: x.tok.panel, borderColor: x.tok.border, color: x.tok.text, borderRadius: x.tok.radius }}>
+                  Aa
+                  <i style={{ background: x.tok.accent, borderRadius: x.tok.controlRadius }} />
+                </span>
+              </span>
+              <span className="theme-name">{x.name}</span>
+            </button>
           ))}
-        </select>
+        </div>
         <small className="muted">Własny motyw: dodaj plik JSON do frontend/public/themes i wpis w index.json.</small>
       </section>
 

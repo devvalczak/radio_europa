@@ -107,12 +107,12 @@ function Page() {
   return (
     <>
       <PageTitle>{t("title")}</PageTitle>
-      <div className="split" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(260px, 1fr)" }}>
+      <div className="split split-main">
         <Card>
           <Row between>
-            <Button onClick={() => shift(-1)}>←</Button>
+            <Button className="icon-btn" aria-label={t("prevMonth")} onClick={() => shift(-1)}>←</Button>
             <b>{anchor.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</b>
-            <Button onClick={() => shift(1)}>→</Button>
+            <Button className="icon-btn" aria-label={t("nextMonth")} onClick={() => shift(1)}>→</Button>
           </Row>
           <div className="cal">
             {DOW.map((d) => <div key={d} className="dow">{d}</div>)}
@@ -121,7 +121,7 @@ function Page() {
               const n = byDay.get(k)?.length ?? 0;
               const cls = [d.getMonth() !== anchor.getMonth() && "out", k === todayKey && "today", k === dayKey(day) && "sel"].filter(Boolean).join(" ");
               return (
-                <Button key={k} className={cls} onClick={() => setDay(d)}>
+                <Button key={k} className={`day ${cls}`} onClick={() => setDay(d)}>
                   <span>{d.getDate()}</span>
                   {n > 0 && <span className="muted"><span className="dot" />{n}</span>}
                 </Button>

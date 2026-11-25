@@ -15,8 +15,8 @@ Internet → Cloudflare (Access) → Tunnel (cloudflared) → Caddy ─┬─ / 
   Nowy moduł: `make new-module name=pogoda`. Moduły rozmawiają przez hub (akcje, zdarzenia, audyt), a widgety
   są deklaratywne i układane przez użytkownika na pulpicie.
 - `frontend/` – Vite + React + TypeScript. Motywy: `frontend/public/themes/*.json` + wpis w `index.json` (9 gotowych: Domyślny,
-  Jasny, HUD, Nord, Solarized jasny/ciemny, Wysoki kontrast, Retro terminal, Cyberpunk). Własny motyw: skopiuj `default.json`,
-  zmień tokeny, `cd frontend && npm run check:themes` (komplet tokenów + kontrast WCAG). Zrzuty wszystkich stron we wszystkich
+  Jasny, HUD, Nord, Solarized jasny/ciemny, Wysoki kontrast, Retro terminal, Cyberpunk) — każdy ma własne kolory, fonty i kształt
+  przycisków, kart, menu i nagłówków; wybór z podglądem w Ustawieniach. Własny motyw: skopiuj `default.json`, zmień tokeny, `cd frontend && npm run check:themes` (komplet tokenów + kontrast WCAG). Zrzuty wszystkich stron we wszystkich
   motywach: `node frontend/scripts/theme-shots.mjs` (opis w `.claude/skills/jarvis-design/SKILL.md`).
 
 ## Uruchomienie lokalne

@@ -1,5 +1,5 @@
 import { api, ApiError } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Muted, Row, Tabs } from "@jarvis/ui";
+import { Button, Card, ErrorText, Muted, PageTitle, Row, Tabs } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import { errorText, t } from "./i18n";
 
@@ -137,7 +137,7 @@ export function System() {
   const [tab, setTab] = useState<Tab>("logs");
   return (
     <>
-      <h1>{t.journal}</h1>
+      <PageTitle sub={t.sys.subtitle}>{t.journal}</PageTitle>
       <Tabs value={tab} onChange={setTab} label={t.journal}
             items={(["logs", "audit", "logins"] as Tab[]).map((x) => ({ value: x, label: t.sys.tabs[x] }))} />
       {tab === "logs" ? <Logs /> : tab === "audit" ? <Audit /> : <Logins />}

@@ -1,0 +1,6 @@
+{
+  "buttons": ["soft", "solid", "outline", "pill", "bracket", "notched"],
+  "cards": ["elevated", "flat", "outline", "brackets", "notched", "terminal"],
+  "nav": ["pill", "bar", "underline", "prompt"],
+  "titles": ["plain", "rule", "prompt", "glitch"]
+}

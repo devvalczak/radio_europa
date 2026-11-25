@@ -46,6 +46,8 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
   tylko to, co frontend ma w `package.json` i aliasach (`vite.config.ts` + `tsconfig.json` paths) — nową zależność dodaj w obu.
 - **Każdy nowy lub zmieniany moduł (i każdy ekran rdzenia) budujemy i sprawdzamy we WSZYSTKICH motywach zainstalowanych
   w aplikacji** (`frontend/public/themes/index.json` — dziś 9: ciemne, jasne, monospace, wysoki kontrast) oraz na telefonie.
+  Motywy zmieniają nie tylko kolory, ale i kształt UI (fonty nagłówków, przyciski `soft/outline/pill/bracket/notched`, karty,
+  menu, nagłówki stron) — dlatego moduły nie stylizują przycisków/kart/nagłówków same, tylko używają `PageTitle`, `Card`, `Button`.
   Tylko tokeny motywu (`var(--…)`), zero zakodowanych kolorów/fontów; interaktywne elementy z `@jarvis/ui` (Radix pod spodem:
   `Tabs`, `Switch`, `Dialog`), moduły nie importują `@radix-ui/*`. Szczegóły, walidator kontrastu i zrzuty
   (`frontend/scripts/theme-shots.mjs`): **skill `jarvis-design`**. Plugin Claude Code `frontend-design` (jeśli włączony)

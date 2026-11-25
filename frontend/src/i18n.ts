@@ -1,9 +1,16 @@
 const pl = {
   appName: "Jarvis",
+  tagline: "osobisty asystent",
+  welcome: "Zaloguj się",
+  apps: "Aplikacje",
+  system: "System",
+  more: "Więcej",
+  greetings: ["Dobranoc", "Dzień dobry", "Dzień dobry", "Dobry wieczór"],
   dashboard: "Pulpit",
   settings: "Ustawienia",
   journal: "Dziennik",
   sys: {
+    subtitle: "Logi aplikacji, dziennik akcji i historia logowań",
     tabs: { logs: "Logi", audit: "Audyt", logins: "Logowania" } as Record<string, string>,
     level: "Poziom",
     logger: "Logger (np. jarvis.mail)",

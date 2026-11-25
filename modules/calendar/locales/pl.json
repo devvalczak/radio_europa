@@ -24,5 +24,7 @@
   "remind.10": "10 min wcześniej",
   "remind.30": "30 min wcześniej",
   "remind.60": "1 h wcześniej",
-  "remind.1440": "1 dzień wcześniej"
+  "remind.1440": "1 dzień wcześniej",
+  "prevMonth": "Poprzedni miesiąc",
+  "nextMonth": "Następny miesiąc"
 }

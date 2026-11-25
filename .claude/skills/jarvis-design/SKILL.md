@@ -23,7 +23,24 @@ Motyw = plik JSON w `frontend/public/themes/` + wpis w `index.json`. `theme.ts` 
 | focus | `--focus` | obwódka fokusu klawiatury |
 | radius, borderWidth, space | `--radius`, `--border-width`, `--space` | zaokrąglenie, grubość ramek, jednostka odstępu (8px) |
 | glow, shadow, bgImage | `--glow`, `--shadow`, `--bg-image` | poświata, cień kart, tło (gradient/wzór) |
-| font, fontMono, colorScheme | `--font`, `--font-mono`, `color-scheme` | kroje, natywne kontrolki jasne/ciemne |
+| font, fontDisplay, fontMono, colorScheme | `--font`, `--font-display`, `--font-mono`, `color-scheme` | tekst, nagłówki, kod; natywne kontrolki jasne/ciemne |
+| headingCase, headingTracking, headingWeight | `--heading-case`, `--heading-tracking`, `--heading-weight` | WIELKIE LITERY, rozstrzelenie, grubość nagłówków |
+| controlRadius, controlHeight | `--control-radius`, `--control-height` | kształt i wysokość przycisków/pól (999px = pigułki; min. 32px) |
+
+Fonty są w paczce (fontsource, bez zapytań do Google): `Inter Variable`, `Space Grotesk Variable`, `JetBrains Mono Variable`,
+`Orbitron Variable` (import w `src/main.tsx`). Nowy krój: `npm install --save-exact @fontsource-variable/<nazwa>` + import.
+
+### Charakter motywu (kształt UI, nie tylko kolory)
+
+Motyw ustawia też 4 „osobowości" (`src/theme-personality.json`, pierwsza wartość = domyślna); `theme.ts` wstawia je jako
+`data-*` na `<html>`, a `styles.css` (sekcja „theme personalities") zmienia według nich kształt elementów:
+- `buttons`: `soft` | `solid` | `outline` | `pill` | `bracket` (`[ TEKST ]`, HUD/terminal) | `notched` (ścięte rogi, cyberpunk)
+- `cards`: `elevated` | `flat` | `outline` | `brackets` (narożniki HUD) | `notched` (ścięty róg + pasek akcentu) | `terminal` (przerywana ramka, `## tytuł`)
+- `nav` (menu boczne i `Tabs`): `pill` | `bar` (pionowa kreska, zakładki podkreślone) | `underline` | `prompt` (odwrócone kolory)
+- `titles` (nagłówek strony `PageTitle`): `plain` | `rule` (linia z akcentem) | `prompt` (`> Tytuł_`) | `glitch`
+Nowy wariant: dopisz wartość do `theme-personality.json` i reguły `[data-<klucz>="<wartość>"] …` w `styles.css`, sprawdź
+wszystkie motywy. Element, który ma zachować własny kształt (kafelek, przełącznik, dzień kalendarza), dostaje klasę `bare`
+(całkowicie poza regułami przycisków) albo `icon-btn`/`item`/`day` (wyłączone z wybranych wariantów).
 
 Reguły:
 - **Żadnych zakodowanych kolorów, fontów, promieni ani cieni** w modułach i w `styles.css` poza `:root`. Tylko `var(--…)`.
@@ -32,13 +49,17 @@ Reguły:
 - Tekst na `--accent` zawsze w `--accent-contrast`. Tekst błędu w `--danger`, status w `--ok`/`--warn` + ikona/słowo
   (nie sam kolor — daltoniści, motyw wysokiego kontrastu).
 - Odstępy jako wielokrotności `--space` (`calc(var(--space) * 2)`), ramki `var(--border-width) solid var(--border)`.
+- Nie stylizuj przycisków, kart ani nagłówków w module (inline `style`, własne klasy z kolorami/ramkami) — wtedy motyw nie zmieni
+  ich kształtu. Inline `style` tylko do układu (szerokość, flex), nigdy do wyglądu.
 - Nie zakładaj ciemnego tła: są motywy jasne (`light`, `solarized-light`). Nie zakładaj zaokrągleń ani poświaty (`terminal`
   ma `radius: 0`, `contrast` ma grube ramki) i proporcjonalnego fontu (`hud`, `terminal` są monospace — zostaw miejsce na szerszy tekst).
 
 ## 2. Komponenty: `@jarvis/ui`
 
 Moduły składają strony z `@jarvis/ui` i nigdy nie importują `@radix-ui/*` bezpośrednio (Radix jest tylko w `frontend/src/ui`):
-- `Card`, `Button` (`variant: default | primary | danger`), `Field`, `Row`, `PageTitle`, `Muted`, `ErrorText`, `Tag`, `ModuleIcon`;
+- `Card`, `Button` (`variant: default | primary | danger | ghost`; klasa `icon-btn` dla przycisku z samą ikoną + `aria-label`),
+  `Field`, `Row`, `PageTitle` (`sub` = podtytuł, `actions` = przyciski po prawej — **każda strona zaczyna się od niego**),
+  `Eyebrow`, `Muted`, `ErrorText`, `Tag`, `ModuleIcon`;
 - `Tabs` — zakładki (strzałki na klawiaturze, `aria-selected`), panel renderujesz sam według `value`;
 - `Switch` — trwałe ustawienie wł./wył. z etykietą (filtry widoku zostają checkboxami);
 - `Dialog` — okno modalne (pułapka fokusu, Esc, klik obok zamyka), np. podgląd wiadomości w `mail`.
@@ -56,7 +77,8 @@ w `frontend/` (wersja wydana ≥ 2 tygodnie temu); nie potrzebuje aliasu, bo imp
 
 ## 4. Nowy motyw
 
-1. Skopiuj `frontend/public/themes/default.json`, ustaw **wszystkie** tokeny (kolory jako `#rrggbb`), `colorScheme` zgodny z tłem.
+1. Skopiuj `frontend/public/themes/default.json`, ustaw **wszystkie** tokeny (kolory jako `#rrggbb`), `colorScheme` zgodny z tłem,
+   oraz charakter (`buttons`, `cards`, `nav`, `titles`, fonty, `controlRadius`) — motyw ma się różnić kształtem, nie tylko kolorem.
 2. Dopisz `{ "id", "name", "file" }` do `index.json` (nazwa po polsku).
 3. `cd frontend && npm run check:themes` — walidator (`scripts/check-themes.mjs`, część `npm run build`) sprawdza komplet tokenów
    i kontrast WCAG: tekst/tekst drugorzędny/akcent/błąd ≥ 4.5:1 na tłach, tekst na akcencie ≥ 4.5:1, statusy i fokus ≥ 3:1.

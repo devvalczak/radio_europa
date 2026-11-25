@@ -1,5 +1,5 @@
 import { api } from "@jarvis/sdk";
-import { Button, Card, Muted, Row } from "@jarvis/ui";
+import { Button, Card, ModuleIcon, Muted, PageTitle, Row } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import { BlockData, Blocks } from "./Blocks";
 import { t } from "./i18n";
@@ -50,8 +50,9 @@ function Tile({ entry, editing, controls }: { entry: CatalogEntry; editing: bool
 
   return (
     <section className={`card tile ${editing ? "editing" : ""}`}>
-      <header className="row between">
+      <header className="tile-head">
         <a href={`#/${entry.module}`}>
+          <ModuleIcon id={entry.module} fallback="" />
           <h2>{entry.title}</h2>
         </a>
         {controls}
@@ -100,17 +101,21 @@ export function Dashboard() {
 
   return (
     <>
-      <Row between>
-        <h1>{t.dashboard}</h1>
-        {editing ? (
-          <Row>
-            <Button onClick={cancel}>{t.cancel}</Button>
-            <Button variant="primary" onClick={done}>{t.done}</Button>
-          </Row>
-        ) : (
-          <Button onClick={() => setEditing(true)}>{t.editLayout}</Button>
-        )}
-      </Row>
+      <PageTitle
+        sub={`${t.greetings[Math.floor(new Date().getHours() / 6)]} · ${new Date().toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}`}
+        actions={
+          editing ? (
+            <>
+              <Button onClick={cancel}>{t.cancel}</Button>
+              <Button variant="primary" onClick={done}>{t.done}</Button>
+            </>
+          ) : (
+            <Button onClick={() => setEditing(true)}>{t.editLayout}</Button>
+          )
+        }
+      >
+        {t.dashboard}
+      </PageTitle>
 
       {layout.length === 0 && <Muted>{t.noWidgets}</Muted>}
       <div className="dash">
@@ -119,14 +124,14 @@ export function Dashboard() {
           if (!entry) return null;
           const controls = editing && (
             <span className="row tile-controls">
-              <button onClick={() => move(i, i - 1)} aria-label="w lewo">‹</button>
-              <button onClick={() => move(i, i + 1)} aria-label="w prawo">›</button>
+              <button className="icon-btn" onClick={() => move(i, i - 1)} aria-label="w lewo">‹</button>
+              <button className="icon-btn" onClick={() => move(i, i + 1)} aria-label="w prawo">›</button>
               {entry.sizes.length > 1 && (
                 <select value={it.size} onChange={(e) => setLayout(layout.map((x, j) => (j === i ? { ...x, size: e.target.value } : x)))}>
                   {entry.sizes.map((s) => <option key={s}>{s}</option>)}
                 </select>
               )}
-              <button className="danger" onClick={() => setLayout(layout.filter((_, j) => j !== i))} aria-label={t.delete}>✕</button>
+              <button className="danger icon-btn" onClick={() => setLayout(layout.filter((_, j) => j !== i))} aria-label={t.delete}>✕</button>
             </span>
           );
           return (

@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "themes");
 const COLORS = ["bg", "panel", "panel2", "border", "text", "muted", "accent", "accentContrast", "danger", "ok", "warn", "focus"];
-const OTHER = ["radius", "glow", "font", "fontMono", "space", "borderWidth", "shadow", "bgImage", "colorScheme"];
+const OTHER = ["radius", "glow", "font", "fontMono", "space", "borderWidth", "shadow", "bgImage", "colorScheme",
+  "fontDisplay", "headingCase", "headingTracking", "headingWeight", "controlRadius", "controlHeight"];
+// personality values: src/theme-personality.json (each one styled in src/styles.css, "theme personalities")
+const PERSONALITY = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "src", "theme-personality.json"), "utf8"));
 // [foreground, backgrounds, minimum ratio, why]
 const PAIRS = [
   ["text", ["bg", "panel", "panel2"], 4.5, "body text"],
@@ -46,6 +49,10 @@ for (const t of index) {
   const tok = JSON.parse(readFileSync(join(dir, t.file), "utf8"));
   for (const k of [...COLORS, ...OTHER]) if (typeof tok[k] !== "string" || !tok[k]) errors.push(`${where}: missing token "${k}"`);
   for (const k of COLORS) if (tok[k] && !hex(tok[k])) errors.push(`${where}: "${k}" must be #rgb or #rrggbb (got ${tok[k]})`);
+  for (const [k, allowed] of Object.entries(PERSONALITY))
+    if (!allowed.includes(tok[k])) errors.push(`${where}: "${k}" must be one of ${allowed.join(", ")} (got ${tok[k]})`);
+  if (!["none", "uppercase"].includes(tok.headingCase)) errors.push(`${where}: headingCase must be "none" or "uppercase"`);
+  if (parseInt(tok.controlHeight) < 32) errors.push(`${where}: controlHeight below 32px is too small to tap`);
   if (!["light", "dark"].includes(tok.colorScheme)) errors.push(`${where}: colorScheme must be "light" or "dark"`);
   if (COLORS.some((k) => !hex(tok[k] ?? ""))) continue;
   const light = lum(hex(tok.bg)) > 0.4;

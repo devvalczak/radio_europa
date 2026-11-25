@@ -25,10 +25,16 @@ export function Login({ setup, onDone }: { setup: boolean; onDone: () => void })
   }
 
   return (
-    <div className="center">
+    <div className="login-wrap">
       <form className="card login" onSubmit={submit}>
-        <h1>{t.appName}</h1>
-        {setup && <h2>{t.setupTitle}</h2>}
+        <div className="brand">
+          <span className="reactor" aria-hidden />
+          <span>
+            <b>{t.appName}</b>
+            <small>{t.tagline}</small>
+          </span>
+        </div>
+        <h1>{setup ? t.setupTitle : t.welcome}</h1>
         {setup && (
           <label>
             {t.setupToken}

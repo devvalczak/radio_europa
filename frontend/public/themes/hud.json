@@ -1,8 +1,8 @@
 {
-  "radius": "4px",
+  "radius": "2px",
   "glow": "0 0 12px rgba(56,225,255,.35)",
-  "font": "'JetBrains Mono', 'Cascadia Mono', 'SF Mono', Consolas, ui-monospace, monospace",
-  "fontMono": "'JetBrains Mono', 'Cascadia Mono', 'SF Mono', Consolas, ui-monospace, monospace",
+  "font": "'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace",
+  "fontMono": "'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace",
   "space": "8px",
   "borderWidth": "1px",
   "shadow": "none",
@@ -19,5 +19,15 @@
   "danger": "#ff5470",
   "ok": "#3dffb0",
   "warn": "#ffc857",
-  "focus": "#38e1ff"
+  "focus": "#38e1ff",
+  "fontDisplay": "'Orbitron Variable', 'Space Grotesk Variable', system-ui, sans-serif",
+  "headingCase": "uppercase",
+  "headingTracking": "0.12em",
+  "headingWeight": "600",
+  "controlRadius": "2px",
+  "controlHeight": "36px",
+  "buttons": "bracket",
+  "cards": "brackets",
+  "nav": "bar",
+  "titles": "rule"
 }

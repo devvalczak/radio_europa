@@ -1,8 +1,8 @@
 {
   "radius": "4px",
   "glow": "none",
-  "font": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-  "fontMono": "'JetBrains Mono', 'Cascadia Mono', 'SF Mono', Consolas, ui-monospace, monospace",
+  "font": "'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  "fontMono": "'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace",
   "space": "8px",
   "borderWidth": "2px",
   "shadow": "none",
@@ -19,5 +19,15 @@
   "danger": "#ff8080",
   "ok": "#5cff8a",
   "warn": "#ffd400",
-  "focus": "#00e5ff"
+  "focus": "#00e5ff",
+  "fontDisplay": "'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  "headingCase": "none",
+  "headingTracking": "0",
+  "headingWeight": "800",
+  "controlRadius": "4px",
+  "controlHeight": "44px",
+  "buttons": "outline",
+  "cards": "outline",
+  "nav": "bar",
+  "titles": "rule"
 }

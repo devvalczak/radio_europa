@@ -17,7 +17,7 @@ export const Card = ({ title, actions, children, className = "" }: { title?: str
   </section>
 );
 
-export const Button = ({ variant = "default", ...rest }: { variant?: "default" | "primary" | "danger" } & ButtonHTMLAttributes<HTMLButtonElement>) => (
+export const Button = ({ variant = "default", ...rest }: { variant?: "default" | "primary" | "danger" | "ghost" } & ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button {...rest} className={`${variant === "default" ? "" : variant} ${rest.className ?? ""}`.trim()} />
 );
 
@@ -40,7 +40,19 @@ export const Tag = ({ children, onClick }: { children: ReactNode; onClick?: () =
   </span>
 );
 
-export const PageTitle = ({ children }: { children: ReactNode }) => <h1>{children}</h1>;
+/** Page header: title, optional subtitle line and actions on the right. Themes decorate it (rule, prompt, glitch). */
+export const PageTitle = ({ children, sub, actions }: { children: ReactNode; sub?: ReactNode; actions?: ReactNode }) => (
+  <header className="page-head">
+    <div>
+      <h1>{children}</h1>
+      {sub && <p className="sub">{sub}</p>}
+    </div>
+    {actions && <div className="row">{actions}</div>}
+  </header>
+);
+
+/** Small uppercase label above a group of content. */
+export const Eyebrow = ({ children }: { children: ReactNode }) => <span className="eyebrow">{children}</span>;
 
 /** Module icon from the module's icon.svg (monochrome), tinted with the current text colour. */
 export const ModuleIcon = ({ id, fallback = "▣" }: { id: string; fallback?: string }) => {
@@ -75,7 +87,7 @@ export const Switch = ({ checked, onChange, label, disabled }: {
   const id = useId();
   return (
     <div className="ui-switch-row">
-      <RSwitch.Root id={id} className="ui-switch" checked={checked} onCheckedChange={onChange} disabled={disabled}>
+      <RSwitch.Root id={id} className="bare ui-switch" checked={checked} onCheckedChange={onChange} disabled={disabled}>
         <RSwitch.Thumb className="ui-switch-thumb" />
       </RSwitch.Root>
       <label htmlFor={id}>{label}</label>
@@ -93,7 +105,7 @@ export const Dialog = ({ open, onClose, title, children, actions }: {
       <RDialog.Content className="ui-dialog card" aria-describedby={undefined}>
         <header className="row between">
           <RDialog.Title asChild><h2>{title}</h2></RDialog.Title>
-          <RDialog.Close asChild><button aria-label="Zamknij">✕</button></RDialog.Close>
+          <RDialog.Close asChild><button className="ghost icon-btn" aria-label="Zamknij">✕</button></RDialog.Close>
         </header>
         <div className="ui-dialog-body">{children}</div>
         {actions && <footer className="row">{actions}</footer>}
