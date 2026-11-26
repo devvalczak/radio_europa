@@ -8,3 +8,4 @@ __pycache__/
 .venv/
 .mig.db
 e2e-failure.png
+emma-pages/

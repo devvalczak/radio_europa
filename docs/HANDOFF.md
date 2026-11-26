@@ -64,6 +64,8 @@ Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
 ## 4. Zadanie na następną sesję (A — laptop — wciąż do zrobienia; B i CI zrobione)
 
 ### A. Uruchomienie na prawdziwym laptopie i weryfikacja na żywo
+Instrukcja dla użytkownika krok po kroku: **`docs/URUCHOMIENIE.md`** (wymagania, `make init`/`make up`, telefon i tunel,
+aktualizacja, typowe problemy, lista rzeczy do sprawdzenia). Użytkownik mógł ją już przejść sam i przyjść z błędami — zacznij od nich.
 Sandbox nie ma Dockera ani dostępu do tych usług, więc potrzebny jest laptop użytkownika:
 - Najpierw `list_computer_folders` → `request_computer_folder` (Remote Control w aplikacji Claude na laptopie, folder z repo).
   Jeśli się nie da — poproś użytkownika o uruchomienie komend i wklejenie wyniku (nie zgaduj wyników).
@@ -74,6 +76,9 @@ Sandbox nie ma Dockera ani dostępu do tych usług, więc potrzebny jest laptop 
   i zamień syntetyczne fixture'y na prawdziwe strony), IMAP Gmail (hasło aplikacji, TLS), push na telefonie (sekcja „To urządzenie”),
   WebSocket konsoli SSH przez Caddy (i przez cloudflared, jeśli tunel działa), OpenSSH na laptopie (`host.docker.internal`,
   `sudo apt install openssh-server`).
+- Nowe od poprzedniej sesji, też do sprawdzenia na żywo: CalDAV (iCloud/Nextcloud/Fastmail — odkrywanie, REPORT, PUT/DELETE
+  z ETag; iCloud przekierowuje na `pXX-caldav.icloud.com`), tajny adres iCal Google, push porannego briefu o ustawionej godzinie,
+  przypomnienia zadań, `make backup`/`make restore` w Dockerze.
 - Cloudflare: `make up-quick` (szybki tunel) albo `up-tunnel` z tokenem; Access z wyjątkiem dla `/api/public/calendar/*`;
   subskrypcja iCal w Google Calendar — czy faktycznie pobiera.
 - Gemini: sekcja 3 (klucz przez `request_credential` albo wpisany przez użytkownika do `.env` na laptopie — nigdy do czatu/repo);
@@ -105,12 +110,12 @@ użytkownik chce), agent hosta (zadania na komputerze z potwierdzeniami), głos.
 ## 6. Gotowy prompt na start następnej sesji
 
 ```
-Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md i docs/HANDOFF.md. Najpierw zrób git pull,
-make test i cd frontend && npm ci && npm run build, żeby potwierdzić, że wszystko jest zielone. Potem realizujemy sekcję 4
-handoffu: (A) uruchomienie na moim laptopie w Dockerze i weryfikacja na żywo wszystkiego, co dotąd sprawdzane było tylko
-na atrapach (Diagnostyka, Open-Meteo, EMMA, IMAP, push, SSH, Cloudflare, Gemini) + CI na GitHubie; (B) automatyczne kopie
-zapasowe i włączenie 2FA. Do laptopa połącz się przez Remote Control (request_computer_folder); jeśli się nie da, daj mi
-komendy do uruchomienia. Zanim zaczniesz, dopytaj mnie o to, czego nie wiesz (np. gdzie trzymać kopie zapasowe, czy mam
-klucz Gemini, czy mam domenę w Cloudflare) i zaproponuj plan. Nie zgaduj. Na koniec wypchnij zmiany na swoją gałąź
-(do main tylko jeśli poproszę).
+Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md, docs/HANDOFF.md i docs/URUCHOMIENIE.md. Najpierw
+git pull, make test i cd frontend && npm ci && npm run build. Potem sekcja 4A handoffu: uruchomienie na moim laptopie
+w Dockerze (pierwszy build w historii projektu) i weryfikacja na żywo wszystkiego, co dotąd było sprawdzane tylko na atrapach
+(Diagnostyka, Open-Meteo, EMMA, IMAP, push, poranny brief, SSH, Cloudflare, CalDAV/Google iCal, Gemini). Do laptopa połącz się
+przez Remote Control (request_computer_folder); jeśli się nie da, dawaj mi komendy do uruchomienia i czekaj na wyniki — nie
+zgaduj ich. [Tu wklej błędy z make up / make logs albo zrzut Diagnostyki, jeśli już próbowałem.] Zanim zaczniesz, dopytaj
+o to, czego nie wiesz (domena w Cloudflare? klucz Gemini? który kalendarz CalDAV?), i zaproponuj plan. Poprawki wypychaj na
+swoją gałąź; do main tylko gdy poproszę.
 ```

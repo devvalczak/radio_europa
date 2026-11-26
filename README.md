@@ -1,7 +1,10 @@
 # Jarvis (radio_europa)
 
-Osobisty dashboard „do daily użycia" — rdzeń + wtyczki (moduły). Etap 1: logowanie z 2FA,
-notatki, kalendarz z przypomnieniami push, motywy, Docker + tunel Cloudflare.
+Osobisty dashboard „do daily użycia" — rdzeń + wtyczki (moduły): logowanie z 2FA, pulpit z widgetami, notatki, kalendarz
+(z CalDAV i Google iCal), zadania, poranny brief, pogoda, newsy, alarmy, poczta, zakupy, asystent AI, konsola SSH, kopie zapasowe.
+Docker + tunel Cloudflare.
+
+**Pierwsze uruchomienie na laptopie: [docs/URUCHOMIENIE.md](docs/URUCHOMIENIE.md)** (krok po kroku, z telefonem i rozwiązywaniem problemów).
 
 ## Architektura
 
@@ -29,8 +32,9 @@ make up       # http://localhost:8080
 ```
 
 Przy pierwszym wejściu podaj token z `make init` i wybierz login oraz hasło (min. 12 znaków).
-Dla zwykłego `http://localhost` ustaw w `.env` `JARVIS_COOKIE_SECURE=false`.
-Dane (SQLite) leżą w `./data`.
+Jeśli pod `http://localhost` logowanie wraca do ekranu logowania, ustaw w `.env` `JARVIS_COOKIE_SECURE=false` (tylko lokalnie).
+Dane (SQLite) leżą w `./data` (kontener pisze jako UID 1000: w razie `PermissionError` — `sudo chown -R 1000:1000 data`).
+Aktualizacja: `make backup && git pull && make up` (migracje wykonują się same). Szczegóły: [docs/URUCHOMIENIE.md](docs/URUCHOMIENIE.md).
 
 ### Kopie zapasowe i 2FA
 
@@ -44,7 +48,17 @@ Dane (SQLite) leżą w `./data`.
   (`integrity_check`, wersja schematu), odkłada obecną bazę obok i uruchamia core.
 - Diagnostyka pokazuje wiek ostatniej kopii i stan kopii poza laptopem. Dopóki 2FA jest wyłączone, pulpit przypomina o włączeniu.
 
-## Moduły (etap 2)
+## Moduły
+
+**Zadania:** termin z godziną (push przed terminem) albo na cały dzień, „ważne”, szybkie dodawanie z pulpitu i przez asystenta.
+**Poranny brief:** raz dziennie o wybranej godzinie jeden push — pogoda, wydarzenia, zadania na dziś i po terminie, liczba
+nieprzeczytanych maili, zakupy (opcjonalnie nagłówki). Składany bez AI; nadawcy i tematy maili tylko na stronie modułu.
+**Wyszukiwanie:** Ctrl/⌘+K (albo „/”) szuka w notatkach, wydarzeniach, zadaniach, poczcie, zakupach i newsach i otwiera wynik.
+**Kalendarze zewnętrzne** (Kalendarz → „Kalendarze zewnętrzne”): CalDAV w obie strony — iCloud (`https://caldav.icloud.com` +
+hasło aplikacji z appleid.apple.com), Fastmail (`https://caldav.fastmail.com/dav/`), Nextcloud (`https://serwer/remote.php/dav`),
+Radicale; synchronizacja co 15 min, przy konflikcie wygrywa serwer, powtarzające się wydarzenia tylko do odczytu. Google — tylko
+do odczytu przez „Tajny adres w formacie iCal” (zapis do Google wymagałby osobnej aplikacji OAuth). Serwer w sieci domowej:
+`JARVIS_ALLOW_PRIVATE_HOSTS=true`. Wydarzenia z zewnętrznych kalendarzy nie trafiają do eksportu iCal Jarvisa (bez duplikatów).
 
 Notatki, Kalendarz, **Pogoda** (Open-Meteo, bez klucza; lokalizację wybierasz wyszukiwarką), **Newsy** (własna lista źródeł RSS/Atom,
 nagłówki + codzienne streszczenie AI) i **Alarmy** (jednorazowe i cykliczne, jako push). Układ pulpitu ustawiasz w „Edytuj układ”.
@@ -111,4 +125,5 @@ cd frontend && npm ci && npm run build                    # typecheck + build
 - Moduły działają w procesie core'a — uprawnienia z manifestu są deklaracją, nie izolacją. Tryb z osobnym kontenerem jest poza zakresem.
 - Limiter prób logowania jest w pamięci procesu (reset po restarcie).
 - Interfejs po polsku; teksty powłoki w `frontend/src/i18n.ts`, teksty modułów w `modules/<id>/locales/pl.json`.
-- Kolejne etapy: pogoda i newsy (RSS + streszczenia AI), Google/IMAP, warstwa AI, agent hosta (terminal, zadania na komputerze).
+- Nieweryfikowane na żywo (sandbox bez dostępu): Docker, Open-Meteo, EMMA, IMAP, push, CalDAV/Google iCal, Gemini — lista i plan w `docs/HANDOFF.md`.
+- Kolejne etapy: zapis do Google Calendar (OAuth), agent hosta (zadania na komputerze z potwierdzeniami), głos.

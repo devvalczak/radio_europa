@@ -11,6 +11,7 @@ modules/     wtyczki według kontraktu v1: notes, calendar, … (każda: manifes
 frontend/    Vite + React + TS (PWA), @jarvis/sdk, @jarvis/ui (+ Radix), dashboard z widgetami, motywy w public/themes/*.json
 proxy/       Caddy (/api → core, reszta → frontend), docker-compose.yml, profile cloudflared (tunnel / quick)
 docs/MODULE_CONTRACT.md   pełny opis kontraktu — czytaj przed zmianą czegokolwiek w modułach lub hubie
+docs/URUCHOMIENIE.md      uruchomienie na laptopie krok po kroku (dla użytkownika); docs/HANDOFF.md — stan i następne kroki
 ```
 
 Przepływ: przeglądarka → Caddy → `/api` (core) lub frontend. Core ładuje `modules/*/manifest.json`, waliduje schematem
@@ -20,7 +21,8 @@ Przepływ: przeglądarka → Caddy → `/api` (core) lub frontend. Core ładuje 
 
 ```bash
 make init                         # .env z sekretami (nie nadpisuje istniejącego)
-make up | down | logs             # Docker compose; make up-quick / up-tunnel dla Cloudflare
+make up | down | logs             # Docker compose; make up-quick / up-tunnel dla Cloudflare (krok po kroku: docs/URUCHOMIENIE.md)
+make backup | restore f=…         # kopia bazy teraz / przywrócenie (offline, odkłada obecną bazę obok)
 make test                         # pytest backendu (cd core && python -m pytest -q)
 make migration m="opis"           # nowa migracja z różnic modeli (wymaga alembic w PATH)
 make new-module name=pogoda       # szkielet modułu zgodny z kontraktem
@@ -193,8 +195,9 @@ automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`
 build, E2E), zadania z terminami, poranny brief (push), wyszukiwanie we wszystkim (Ctrl+K), kalendarze zewnętrzne (CalDAV w obie
 strony, iCal/Google do odczytu). ~315 testów backendu.
 
-Następna sesja: **uruchomienie na prawdziwym laptopie + weryfikacja na żywo** (użytkownik odłożył ją; pracujemy w chmurze) —
-szczegóły w `docs/HANDOFF.md` (sekcja 4A). Kopie zapasowe, przypomnienie 2FA i CI są zrobione (sekcja 4B).
+Następna sesja: **uruchomienie na prawdziwym laptopie + weryfikacja na żywo** — instrukcja dla użytkownika w
+`docs/URUCHOMIENIE.md`, zadanie i gotowy prompt w `docs/HANDOFF.md` (sekcje 4A i 6). Kopie, 2FA, CI, zadania, brief,
+wyszukiwanie i CalDAV są zrobione i w `main`. Zmieniając sposób uruchamiania (Makefile, compose, `.env`), aktualizuj też URUCHOMIENIE.md.
 Dalej: weryfikacja na żywo (Gemini z narzędziami, OpenSSH, push na telefonie, Open-Meteo, EMMA, IMAP, CalDAV/iCloud/Google iCal),
 Google Calendar w obie strony (wymaga aplikacji OAuth), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 
