@@ -45,6 +45,9 @@ def load_modules(app: FastAPI, hub: Hub, modules_dir: str, package: str = "modul
                 tags=[manifest["id"]],
                 dependencies=[Depends(require_user)],
             )
+            if module.ws_router is not None:
+                # sockets authenticate themselves (cookie + Origin + ticket): see Module.ws_router
+                app.include_router(module.ws_router, prefix=f"/api/m/{manifest['id']}", tags=[f"{manifest['id']}-ws"])
             if module.public_router is not None:
                 # no require_user here: see manifest `public.reason` (checked by hub.check)
                 app.include_router(module.public_router, prefix=f"/api/public/{manifest['id']}", tags=[f"{manifest['id']}-public"])

@@ -55,6 +55,11 @@ Alternatywa: `JARVIS_AI_PROVIDER=openai` z `JARVIS_AI_BASE_URL=https://generativ
 **Prywatność:** na darmowym planie Google może wykorzystywać przesyłane treści do ulepszania usług. Newsy (publiczne nagłówki) idą
 do AI bez pytania; streszczenie poczty wymaga zgody włączanej w module Poczta (domyślnie wyłączona).
 
+**Konsola SSH:** moduł „Konsola SSH” → „Dodaj serwer”. Dla laptopa, na którym działa Jarvis, adres to `host.docker.internal`
+(compose ma `extra_hosts`). Wybierz „Klucz wygenerowany przez Jarvisa”, dopisz pokazany klucz publiczny do `~/.ssh/authorized_keys`,
+zaakceptuj odcisk serwera (porównaj z `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`) i połącz kodem 2FA. Na laptopie musi
+działać `sshd` (`sudo apt install openssh-server`). Asystent AI nie ma dostępu do konsoli.
+
 **Logi:** czytelny tekst na stdout (`make logs`) oraz JSON w `data/logs/jarvis.jsonl` z rotacją (10 MB × 5). Zakładka **Dziennik**
 pokazuje logi (filtr poziomu, loggera, tekstu), dziennik audytu akcji hubu i historię logowań (czas, wynik, IP, przeglądarka).
 Audyt i historia logowań są usuwane po 90 dniach (`JARVIS_RETENTION_DAYS`). Hasła, tokeny i query stringi nie trafiają do logów.

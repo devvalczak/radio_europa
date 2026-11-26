@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [react()],
   // the Markdown editor (TipTap + ProseMirror, ~170 kB gzip) is a lazy chunk loaded only where an editor is shown
   build: { chunkSizeWarningLimit: 600 },
+  // pre-bundle lazily imported deps so the dev server does not reload the page the first time a console/editor opens
+  optimizeDeps: { include: ["@xterm/xterm", "@xterm/addon-fit"] },
   resolve: {
     // module code lives outside this folder (../modules), so pin shared deps here
     alias: {
@@ -23,6 +25,6 @@ export default defineConfig({
     host: true,
     port: 5173,
     fs: { allow: [".."] },
-    proxy: { "/api": process.env.VITE_API_TARGET ?? "http://localhost:8000" },
+    proxy: { "/api": { target: process.env.VITE_API_TARGET ?? "http://localhost:8000", ws: true } },
   },
 });

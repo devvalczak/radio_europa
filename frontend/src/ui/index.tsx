@@ -250,3 +250,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: u
     );
   }
 }
+
+/* --- SSH terminal (xterm.js). Code-split like the editor: loaded the first time a console opens. ------------ */
+const LazyTerminal = lazy(() => import("./terminal/TerminalView"));
+export type { TerminalProps } from "./terminal/TerminalView";
+export const Terminal = (props: import("./terminal/TerminalView").TerminalProps) => (
+  <Suspense fallback={<div className="term"><Skeleton lines={4} /></div>}>
+    <LazyTerminal {...props} />
+  </Suspense>
+);

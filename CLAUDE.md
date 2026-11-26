@@ -75,6 +75,15 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 - Dane zewnętrzne odświeża `@module.periodic` (manifest `tasks`), widgety czytają tylko z bazy. Scheduler ma osobne pętle dla
   przypomnień/alarmów i dla zadań, żeby wolna sieć nie opóźniała alarmów.
 
+## Konsola SSH
+
+Moduł `ssh` (asyncssh + xterm.js): hosty z hasłem lub kluczem (generowany Ed25519 albo wklejony) szyfrowanym `app.crypto`, odcisk
+serwera akceptowany ręcznie (TOFU, zmiana klucza = odmowa), każde otwarcie powłoki wymaga świeżego kodu TOTP (albo hasła konta,
+gdy 2FA wyłączone) → jednorazowy bilet 60 s → WebSocket `/api/m/ssh/ws`, który sam sprawdza ciasteczko, `Origin` i bilet
+(`Module.ws_router`, bo `require_user` nie działa na socketach). Bezczynność 15 min, maks. 3 sesje, w audycie tylko
+otwarcie/zamknięcie (nigdy treść). **Brak akcji hubu** — asystent AI ani żaden moduł nie mają drogi do powłoki; tak ma zostać.
+Bilet w URL jest maskowany w logach (`ticket=***`). Prywatne adresy (LAN, `host.docker.internal`) są dozwolone z wyboru użytkownika.
+
 ## Diagnostyka
 
 Strona **Diagnostyka** (`#/debug`, `core/app/diagnostics.py`, `frontend/src/Debug.tsx`): testy rdzenia (konfiguracja, migracje,
@@ -142,11 +151,13 @@ która może się cicho zepsuć, dostaje test diagnostyczny.
 
 Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), logi aplikacji + Dziennik (logi, audyt,
 historia logowań, retencja 90 dni), pulpit z szybkimi akcjami, paletą ⌘K, widokami i menu kafelków, notatki z edytorem TipTap (Markdown, tytuł = pierwsza linia), 9 motywów z walidatorem kontrastu, Radix w @jarvis/ui, AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
-streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping). ~195 testów backendu.
+streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping), asystent AI (akcje hubu jako
+narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach.
+~260 testów backendu.
 
 Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (Gemini na żywo, gdy będzie klucz; dalszy plan).
-Dalej: CalDAV/Google Calendar, asystent AI używający akcji hubu jako narzędzi, agent hosta (terminal, zadania na komputerze
-z potwierdzeniami, nasłuch tylko lokalnie). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
+Dalej: dwukierunkowy CalDAV/Google Calendar (dziś tylko eksport iCal), weryfikacja na żywo (Gemini z narzędziami, OpenSSH,
+push na telefonie, Open-Meteo, EMMA, IMAP), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 
 Nic z tego nie było jeszcze uruchomione na prawdziwej maszynie w Dockerze ani przeciw prawdziwym usługom (Open-Meteo, EMMA,
 serwery IMAP, dostawcy AI w tym Gemini) — patrz „Pułapki” i `docs/HANDOFF.md`.

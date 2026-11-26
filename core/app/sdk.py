@@ -87,6 +87,9 @@ class Module:
         # Routes WITHOUT login, mounted at /api/public/<id>. Only with manifest `public.reason` (an explicit decision);
         # protect them with an unguessable token in the path and never return more than that token grants.
         self.public_router = public_router
+        # WebSocket routes, mounted at /api/m/<id> WITHOUT require_user (it cannot run on sockets): every endpoint
+        # must authenticate itself — app.auth.user_from_connection + app.auth.same_origin + a short-lived ticket.
+        self.ws_router: APIRouter | None = None
         self.diagnostics: dict[str, tuple[str, bool, Callable]] = {}  # id -> (title, slow, fn)
         self.assistant_gate: Callable | None = None
         self.actions: dict[str, tuple[Callable, type[BaseModel] | None]] = {}

@@ -277,3 +277,7 @@ def test_client_error_flood_is_capped(authed, logfile, fresh_budget):
     got = [e for e in lines(logfile) if e["logger"] == "jarvis.frontend"]
     assert len([e for e in got if e["msg"].startswith("[js] loop")]) == fresh_budget.FLOOD_LIMIT
     assert len([e for e in got if "flood" in e["msg"]]) == 1
+
+
+def test_one_time_tickets_in_urls_are_masked():
+    assert "abc123" not in logs.redact_text('"WebSocket /api/m/ssh/ws?ticket=abc123&cols=100" 403')

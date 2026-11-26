@@ -1,0 +1,20 @@
+{
+  "contract": 1,
+  "id": "ssh",
+  "name": "Konsola SSH",
+  "version": "0.1.0",
+  "description": "Terminal w przeglądarce do Twoich serwerów (laptop, Raspberry, VPS). Otwarcie sesji wymaga kodu 2FA; brak akcji dla AI.",
+  "widgets": [
+    {
+      "id": "console",
+      "title": "Konsola SSH",
+      "sizes": [
+        "2x1",
+        "2x2"
+      ],
+      "default": "2x2",
+      "refresh": 0,
+      "description": "Terminal na pulpicie: wybierz serwer, podaj kod 2FA i pracuj w powłoce."
+    }
+  ]
+}

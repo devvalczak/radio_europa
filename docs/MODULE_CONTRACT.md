@@ -84,6 +84,13 @@ gdzie `Check(status, detail, hint="", title="")`, `status` ∈ `ok | warn | erro
 Wyjątek w teście zamienia się w wynik `error`. Nie zwracaj sekretów (tylko „ustawiony / brak”). Nie ma tego w manifeście:
 diagnostyka nie jest dostępna dla AI ani hubu. Każdy moduł z zewnętrzną usługą ma mieć test „zapisane dane” i test „na żywo”.
 
+## WebSockety (`Module.ws_router`)
+
+`module.ws_router = APIRouter()` montuje się pod `/api/m/<id>` **bez** `require_user` (zależność oparta o `Request` nie działa
+na socketach). Każdy endpoint musi sam sprawdzić: `app.auth.same_origin(ws)` (ochrona przed przejęciem socketu przez inną
+stronę), `app.auth.user_from_connection(ws, db)` (ciasteczko sesji) i krótkotrwały, jednorazowy bilet wydany przez zwykłą
+trasę HTTP (tam działa `require_user`, `X-Jarvis` i ewentualny drugi składnik). Wzorzec: `modules/ssh`.
+
 ## Trasy publiczne (wyjątek)
 
 Domyślnie każda trasa modułu wymaga zalogowania. Gdy zewnętrzny klient nie umie się logować (np. kalendarz w telefonie),

@@ -1,8 +1,10 @@
 import logging
 import secrets
+from urllib.parse import urlsplit
 
 import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from starlette.requests import HTTPConnection
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -22,6 +24,24 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User | None
     token = request.cookies.get(COOKIE)
     uid = read_session(token) if token else None
     return db.get(User, uid) if uid else None
+
+
+def user_from_connection(conn: HTTPConnection, db: Session) -> User | None:
+    """The logged-in user of any connection (also WebSockets, where `require_user` cannot run)."""
+    token = conn.cookies.get(COOKIE)
+    uid = read_session(token) if token else None
+    return db.get(User, uid) if uid else None
+
+
+def same_origin(conn: HTTPConnection) -> bool:
+    """WebSockets are not covered by SameSite cookies + X-Jarvis: require Origin to match the Host (or the proxy's
+    forwarded host), so another site cannot open a socket with the user's cookie."""
+    origin = conn.headers.get("origin", "")
+    if not origin:
+        return False
+    host = urlsplit(origin).netloc
+    allowed = {conn.headers.get("host", ""), conn.headers.get("x-forwarded-host", "")} - {""}
+    return host in allowed
 
 
 def require_user(request: Request, user: User | None = Depends(current_user)) -> User:

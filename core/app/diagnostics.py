@@ -5,6 +5,8 @@ Fast checks only read the database/configuration and run when the page opens. Sl
 Results never contain secrets: they say *whether* something is set, not its value.
 """
 
+import asyncio
+import inspect
 import platform
 import shutil
 import sys
@@ -278,6 +280,8 @@ def run(d: Def, env: Env) -> dict:
     started = time.monotonic()
     try:
         res = d.run(env)
+        if inspect.iscoroutine(res):  # async checks (e.g. SSH): routes run in a worker thread, so no loop is running here
+            res = asyncio.run(res)
         results = res if isinstance(res, list) else [res]
     except Exception as exc:  # noqa: BLE001 — a failing check is a result, not a crash
         env.db.rollback()

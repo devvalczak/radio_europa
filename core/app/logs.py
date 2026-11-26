@@ -18,10 +18,10 @@ from .config import settings
 
 FILE_NAME = "jarvis.jsonl"
 MARK = "_jarvis_handler"
-SECRET_KEY = re.compile(r"pass(word)?|token|secret|api_?key|totp|cookie|authorization|credential", re.I)
+SECRET_KEY = re.compile(r"pass(word)?|token|ticket|secret|api_?key|totp|cookie|authorization|credential", re.I)
 # key=value / key: value / "key": "value" fragments inside free-form messages
 SECRET_TEXT = re.compile(
-    r"""(?P<k>["']?\b[\w-]*(?:password|passwd|token|secret|api_?key|totp|cookie|authorization)[\w-]*["']?\s*[=:]\s*)"""
+    r"""(?P<k>["']?\b[\w-]*(?:password|passwd|token|ticket|secret|api_?key|totp|cookie|authorization)[\w-]*["']?\s*[=:]\s*)"""
     r"""(?P<v>"[^"]*"|'[^']*'|(?:Bearer\s+)?[^\s,;&}]+)""",
     re.I,
 )
