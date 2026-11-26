@@ -207,8 +207,10 @@ automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`
 build, E2E), zadania z terminami, poranny brief (push), wyszukiwanie we wszystkim (Ctrl+K), kalendarze zewnętrzne (CalDAV w obie
 strony, iCal/Google do odczytu). ekran „Dziś”, szybkie dodawanie zdaniem (parser PL `core/app/capture.py`, skróty PWA i udostępnianie), powiadomienia z przyciskami (Zrobione/Drzemka), zadania cykliczne, asystent dodający wpisy z rozmowy, AI jako zapasowy parser zdań. ~376 testów backendu.
 
-Następna sesja: **opinie z używania i Diagnostyka**, gdy użytkownik uruchomi aplikację (jeszcze tego nie zrobił; nie zgaduj wyników),
-potem kolejne rzeczy z `docs/HANDOFF.md` (sekcje 4 i 5). Zmieniając sposób uruchamiania (Makefile, compose, `.env`), aktualizuj też
+Następna sesja: **spójność i integracja modułów** (notatki, kalendarz, zadania i reszta mają korzystać z tych samych danych, nie żyć
+osobno). Tryb ustalony przez użytkownika: bardzo dokładna analiza → propozycje → **pytania do użytkownika** → dopiero implementacja;
+szczegóły i checklista w `docs/HANDOFF.md` (sekcja 4). Opinie z używania i Diagnostyka dopiero, gdy użytkownik uruchomi aplikację
+(jeszcze nie uruchomił; nie zgaduj wyników). Zmieniając sposób uruchamiania (Makefile, compose, `.env`), aktualizuj też
 `docs/URUCHOMIENIE.md`.
 Dalej: weryfikacja na żywo (Gemini z narzędziami, OpenSSH, push na telefonie, Open-Meteo, EMMA, IMAP, CalDAV/iCloud/Google iCal),
 Google Calendar w obie strony (wymaga aplikacji OAuth), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).

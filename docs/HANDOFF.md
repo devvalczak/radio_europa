@@ -4,14 +4,28 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 
 ## 1. Gdzie jesteśmy
 
-- `main` = `claude/personal-dashboard-app-nted7h` = `376fab3` (scalone na prośbę użytkownika po zielonym CI). Do `main` tylko na prośbę.
+- `main` = `claude/personal-dashboard-app-nted7h` (scalone na prośbę użytkownika po zielonych testach, buildzie i E2E; skrót w `git log`).
+  Do `main` tylko na prośbę użytkownika.
 - **Użytkownik NIE uruchomił jeszcze aplikacji** (wcześniejsza wersja tego pliku twierdziła inaczej — to był błąd). Nie ma więc
   wyniku Diagnostyki ani opinii z używania; nie wymyślaj ich i nie naprawiaj „na zapas”. Diagnostyki nie ruszamy, dopóki
   użytkownik sam nie wklei wyniku.
 - **Środowisko pracy użytkownika:** macOS + VS Code, **bez Pythona/Node na hoście** — rozwój w kontenerze (`dev/Dockerfile`,
   `docker-compose.dev.yml`, `.devcontainer/`, `make dev` albo „Reopen in Container” + `make dev-local`). Produkcja: Linux + Docker.
   Instrukcje: `docs/URUCHOMIENIE.md` (punkty 1–10 produkcja, 11 dev).
-- Backend: 314 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0012_calendar_sources`.
+- Backend: 376 testów (`make test`), frontend: `cd frontend && npm run build`, E2E `frontend/scripts/e2e-smoke.mjs`. Ostatnia migracja: `0013_tasks_repeat_snooze`.
+- **Wygoda codziennego użycia (ostatnia sesja, wszystko na `main`):**
+  - **Ekran „Dziś”** (`frontend/src/Today.tsx`, `#/today`): zadania (dziś + po terminie, odhaczanie z „Cofnij”), wydarzenia, pogoda, poczta,
+    zakupy; sekcje ładują się niezależnie przez akcje tylko-do-odczytu hubu. Na telefonie domyślny ekran startowy
+    (`frontend/src/homeRoute.ts`, `localStorage` `jarvis.homeRoute`, przełącznik w Ustawieniach).
+  - **Dodaj zdaniem** (`#/capture`, `frontend/src/Capture.tsx`): parser PL bez AI `core/app/capture.py` (testy tabelaryczne), podgląd i zmiana
+    rodzaju, zapis zwykłymi akcjami hubu; `POST /api/hub/capture/parse`. AI jako zapasowy parser tylko na kliknięcie „Zrozum z AI”
+    (`core/app/capture_ai.py`, `POST /api/hub/capture/ai`, limit 20/min, model bez narzędzi, JSON walidowany). Ctrl+K: „Dodaj zdaniem: …”.
+    PWA: `shortcuts` i `share_target` w `manifest.webmanifest` (`/?share_text=…` → `#/capture?text=…` w `main.tsx`), dyktowanie przez Web Speech.
+  - **Powiadomienia z przyciskami** (`Reminder.actions` w `core/app/push.py`, `frontend/public/sw.js`): zadania „Zrobione” / „Za 1 h”
+    (`POST /api/m/tasks/{id}/snooze`), alarmy „Drzemka 10 min” (`/api/m/alarms/{id}/snooze`); trasy HTTP modułów, idempotentne; iOS bez przycisków.
+  - **Zadania cykliczne** (`modules/tasks/backend/recurrence.py`): `repeat` (daily/weekdays/weekly/monthly/yearly), `repeat_tz`, następne
+    wystąpienie po odhaczeniu (DST, zaległości), cofnięcie je usuwa. Miesięczne z 29–31 dnia przycina do końca miesiąca i nie wraca do pierwotnego dnia.
+  - **Asystent AI dodaje z rozmowy**: prompt z zasadami wyboru narzędzia, `tz` użytkownika wstrzykiwany do akcji z polem `tz`, czytelna karta „Wykonaj”.
 - Moduły: notes, calendar, weather, news, alarms, mail, shopping, assistant, ssh, tasks, brief. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
 - Użytkownik ma **wyłączone 2FA** (konsola SSH prosi wtedy o hasło konta) — w zadaniu B przypomnij o włączeniu.
 - **Logi aplikacji** (`core/app/logs.py`): tekst na stdout + JSON z rotacją w `JARVIS_LOG_DIR/jarvis.jsonl`, filtr maskujący sekrety,
@@ -67,38 +81,54 @@ Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
    wystarcza, format błędu 429 (`RetryInfo.retryDelay`). Popraw `core/app/ai.py`/testy, jeśli rzeczywistość się różni.
 4. Opcjonalnie to samo dla ścieżki zgodnej z OpenAI (`/v1beta/openai`), żeby README mówiło prawdę.
 
-## 4. Zadanie na następną sesję: wygoda codziennego użycia
+## 4. Zadanie na następną sesję: spójność i integracja modułów
 
-Cel użytkownika: „żeby to narzędzie było jak najbardziej wygodne w użytkowaniu”. Kolejność:
+**Intencja użytkownika (jego słowami, sens zachowaj):** przede wszystkim ma być **spójnie**. Poszczególne moduły mają być ze sobą
+**zintegrowane** — np. notatki, kalendarz, zadania (i inne) nie mają „żyć własnym życiem”, tylko być spójne i **móc korzystać z tych
+samych danych**. To tylko przykład, nie musi być zaimplementowane 1:1; chodzi o to, żebyś dokładnie zrozumiał, o co chodzi.
 
-### Krok 1 — rzeczywistość: POMINIĘTY na życzenie użytkownika
-Aplikacja nie była jeszcze uruchomiona u użytkownika, Diagnostyki nie poprawiamy. Gdy kiedyś wklei wynik Diagnostyki albo
-opinie, wtedy to jest pierwsza praca (lista nieweryfikowanych usług: sekcja 2 i 4A). Nie zgaduj wyników.
+**Tryb pracy (obowiązkowy, wynika z polecenia użytkownika):**
+1. Zacznij od **bardzo dokładnej analizy** tego, co już jest (poniżej checklista). Nic nie implementuj.
+2. **Zaproponuj poprawki** (kilka wariantów, koszt, ryzyko, co się zmienia w kontrakcie i w UI).
+3. **PYTAJ użytkownika o zdanie** (AskUserQuestion) przed każdą decyzją architektoniczną i poczekaj na odpowiedź.
+4. **Dopiero po akceptacji planu implementuj**, małymi krokami, z testami i zrzutami we wszystkich motywach i na telefonie.
 
-### Krok 2 — wygoda codziennego użycia: ZROBIONE (wszystkie trzy, na gałęzi `claude/personal-dashboard-app-nted7h`)
-1. **Ekran „Dziś”** (`frontend/src/Today.tsx`, `#/today`): zadania (dziś + po terminie, odhaczanie z „Cofnij”), wydarzenia, pogoda,
-   poczta (liczba + 5), zakupy; każda sekcja ładuje się osobno przez akcje tylko-do-odczytu hubu i ma pusty stan/błąd z ponowieniem.
-   Na telefonie domyślny ekran startowy (przełącznik w Ustawieniach, `localStorage` `jarvis.homeRoute`, `frontend/src/homeRoute.ts`).
-2. **Szybkie dodawanie zdaniem** (`core/app/capture.py` — czysty parser PL, `POST /api/hub/capture/parse`, `frontend/src/Capture.tsx`,
-   `#/capture`): podgląd, zmiana rodzaju (zadanie/wydarzenie/zakupy/notatka), zapis zwykłymi akcjami hubu. Ctrl+K: „Dodaj zdaniem: …”.
-   PWA: `shortcuts` i `share_target` w `manifest.webmanifest` (udostępnianie otwiera `/?share_text=…`, `main.tsx` zamienia to na
-   `#/capture?text=…`). Dyktowanie przez Web Speech tylko gdy przeglądarka je ma. AI jako zapasowy parser: przycisk „Zrozum z AI” w `#/capture`, tylko na kliknięcie, gdy parser nic nie rozpoznał (`core/app/capture_ai.py`, `POST /api/hub/capture/ai`, limit 20/min; model bez narzędzi, JSON walidowany).
-3. **Powiadomienia z przyciskami + zadania cykliczne:** `Reminder.actions` (`core/app/push.py`), `sw.js` wykonuje przycisk jako POST
-   do trasy `/api/m/…` (tasks: „Zrobione”, „Za 1 h” = `/snooze`; alarms: „Drzemka 10 min”), idempotentnie; bez przycisków (iOS) klik
-   otwiera stronę jak wcześniej. Zadania: `repeat` (daily/weekdays/weekly/monthly/yearly) + `repeat_tz`, następne wystąpienie powstaje
-   po odhaczeniu (`modules/tasks/backend/recurrence.py`, DST i zaległości w testach), cofnięcie usuwa następne; migracja `0013`.
-   Parser rozpoznaje „codziennie”, „co tydzień”, „w dni robocze”, „co miesiąc”, „co rok”.
-**Nieweryfikowane na żywo:** przyciski w powiadomieniach i share target (wymagają telefonu przez https), Web Speech, ekran startowy na telefonie.
-Miesięczne powtarzanie z 29–31 dnia przycina do ostatniego dnia miesiąca i nie wraca do pierwotnego dnia (31 stycznia → 28 lutego → 28 marca).
-**Asystent AI dodaje z rozmowy** (zadanie/wydarzenie/zakupy/notatka): prompt z zasadami wyboru narzędzia, `tz` użytkownika wstrzykiwany do akcji z polem `tz`, czytelna karta „Wykonaj” (daty lokalnie, powtarzanie po polsku). Nieweryfikowane u żywego dostawcy AI (testy na nagranych odpowiedziach i fałszywym serwerze).
-Rozszerzenia w kolejce: powtarzające się wydarzenia kalendarza, zadania cykliczne „po wykonaniu” zamiast „po terminie”.
+**Fakty wyjściowe (z poprzedniej sesji, zweryfikuj w kodzie, nie zakładaj):** kontrakt modułu v1 oddziela moduły z założenia (brak
+importów między modułami; komunikacja przez `ctx.call` i zdarzenia `ctx.emit`), każdy moduł ma własne tabele i własny model „elementu”.
+Dane łączą dziś tylko: ekran „Dziś” (agreguje akcje readonly), poranny brief (`BUILDERS` w `modules/brief`), wyszukiwanie Ctrl+K
+(`@module.search`), „Dodaj zdaniem” (parser wybiera moduł i woła akcję hubu), asystent AI (akcje hubu jako narzędzia). Nie ma wspólnych:
+encji/linków między elementami, tagów, osi czasu, relacji (zadanie ↔ wydarzenie ↔ notatka ↔ mail), wspólnej koncepcji terminu,
+projektu, kontaktu ani miejsca. Zadanie z terminem nie pojawia się w kalendarzu, notatka nie wie o zadaniu, mail nie zamienia się w zadanie.
 
-Dalej w kolejce: asystent AI dodający zadania z rozmowy, przypomnienia zależne od miejsca (geolokalizacja), zapis do Google
-Calendar (OAuth w Google Cloud — decyzja użytkownika), agent hosta (zadania na komputerze z potwierdzeniami).
+**Checklista analizy:**
+- Inwentarz modeli danych i API każdego modułu (notes, calendar, tasks, alarms, shopping, mail, weather, news, brief, assistant, ssh)
+  i ich nakładanie się: zadanie z terminem vs wydarzenie vs alarm vs przypomnienie; notatka vs opis wydarzenia/zadania; zakupy vs zadania.
+- Co kontrakt v1 i hub pozwalają, a co blokują; czy potrzebny jest kontrakt v2 (np. wspólna tabela linków/encji w rdzeniu, „referencje”
+  `module:id`, wspólne tagi/projekty, wspólny typ terminu). Wpływ na loader, schemat manifestu, `docs/MODULE_CONTRACT.md`.
+- UI: nawigacja, widgety, wyszukiwanie, deep linki `#/<moduł>?id=N`, szczegóły elementów, ekrany „Pulpit” i „Dziś”, „Dodaj zdaniem”.
+- AI/asystent: co widzi i co może zrobić na wspólnych danych (`readonly`, `confirm`, `assistant: false`, `assistant_access`).
+- Migracje (liniowa historia po `0013`), bezpieczeństwo (uprawnienia, brak sekretów w akcjach hubu, konsola SSH bez akcji hubu), zgodność wsteczna danych.
+
+**Przykładowe kierunki do przedstawienia użytkownikowi (to NIE są decyzje):** linki „powiązane” między elementami (notatka ↔ zadanie ↔
+wydarzenie ↔ mail) z backlinkami; zadania z terminem widoczne w kalendarzu; mail → zadanie/wydarzenie jednym kliknięciem; wspólne
+tagi/projekty; jedna oś czasu (Dziś/Tydzień); notatka jako opis lub załącznik wydarzenia/zadania; lista zakupów wyciągana z zadania lub
+notatki; wspólny „wybieracz elementów” w UI.
+
+**Na później (krótka lista UX z poprzedniej sesji, nie zakres tej):** dwa ekrany startowe (Pulpit i Dziś) się pokrywają; pasek kart
+na telefonie to „Dziś, Pulpit i dwa pierwsze moduły alfabetycznie” (arbitralne); pasek „Dodaj szybko” jest ucięty na telefonie;
+„Dodaj zdaniem”: przykłady, „zapisz i dodaj kolejne”, cofnięcie, „za tydzień”/„w przyszły piątek”; „Dziś”: odkładanie zadań,
+kolejność zależna od pory dnia; karta „Wykonaj” w asystencie (jedno zatwierdzenie dla kilku wpisów); tor pierwszego uruchomienia
+(`make dev` → konto → 2FA → lokalizacja pogody → powiadomienia). Dalej w kolejce: przypomnienia zależne od miejsca, zapis do Google
+Calendar (OAuth, decyzja użytkownika), agent hosta (zadania na komputerze z potwierdzeniami), powtarzające się wydarzenia kalendarza.
+
+**Diagnostyki nie poprawiamy**, dopóki użytkownik sam nie wklei jej wyniku (aplikacji jeszcze nie uruchomił).
 
 Każda zmiana UI: skill `jarvis-design` (9 motywów + telefon, `frontend/scripts/theme-shots.mjs`); nowe moduły: skill `jarvis-module`.
 
 ### A. Weryfikacja na żywo (lista kontrolna, wciąż otwarta)
+Do listy poniżej doszły: przyciski w powiadomieniach (Android/desktop; iOS ich nie pokaże), share target i skróty PWA po instalacji,
+Web Speech (dyktowanie), ekran startowy „Dziś” na telefonie oraz AI w „Dodaj zdaniem” i dodawanie z rozmowy w asystencie
+(sprawdzone tylko na nagranych odpowiedziach i lokalnym fałszywym serwerze zgodnym z OpenAI, nie u żywego dostawcy).
 Instrukcja dla użytkownika krok po kroku: **`docs/URUCHOMIENIE.md`**. Sandbox nie ma Dockera ani dostępu do tych usług:
 - Połączenie z komputerem użytkownika: `list_computer_folders` → `request_computer_folder` (Remote Control); jeśli się nie da —
   komendy do uruchomienia i czekanie na wklejone wyniki.
@@ -113,24 +143,28 @@ Instrukcja dla użytkownika krok po kroku: **`docs/URUCHOMIENIE.md`**. Sandbox n
 Kopie zapasowe (`core/app/backup.py`, Ustawienia → „Kopie zapasowe”, `make backup`/`make restore`; lustro `JARVIS_BACKUP_MIRROR_DIR`
 do wybrania przez użytkownika), baner 2FA (użytkownik musi włączyć sam), CI (`.github/workflows/ci.yml`).
 
-## 5. Zrobione w sesji w chmurze (po B) i dalej w planie
+## 5. Zrobione (przegląd)
 
-Zrobione (użytkownik wybrał punkty 1–4): **zadania z terminami** (`modules/tasks`), **poranny brief jako push** (`modules/brief`),
-**wyszukiwanie we wszystkim w palecie Ctrl+K** (`@module.search`), **kalendarze zewnętrzne** (CalDAV w obie strony + iCal/Google tylko
-do odczytu). Szczegóły w CLAUDE.md. Przyjęte bez dopytywania (do potwierdzenia z użytkownikiem): brief domyślnie 07:00 codziennie,
-sekcje pogoda/kalendarz/zadania/poczta/zakupy (newsy wyłączone), bez AI; w push poczta tylko jako liczba; konflikt CalDAV = wygrywa
-serwer; Google tylko przez tajny adres iCal (zapis do Google wymagałby własnej aplikacji OAuth w Google Cloud — osobna decyzja).
-
-Dalej: weryfikacja na laptopie (sekcja 4A, w tym podłączenie prawdziwego CalDAV), zapis do Google Calendar przez OAuth (jeśli
-użytkownik chce), agent hosta (zadania na komputerze z potwierdzeniami), głos. Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
+Rdzeń i moduły: patrz sekcja 1 i `CLAUDE.md` („Stan i plan”). Ostatnie sesje: zadania z terminami, poranny brief (push), wyszukiwanie
+Ctrl+K, kalendarze zewnętrzne (CalDAV, iCal/Google), kopie zapasowe, a ostatnio ekran „Dziś”, „Dodaj zdaniem” (+ AI na kliknięcie),
+powiadomienia z przyciskami, zadania cykliczne i dodawanie z rozmowy w asystencie. Decyzje przyjęte bez dopytywania, do potwierdzenia:
+brief domyślnie 07:00 codziennie (sekcje pogoda/kalendarz/zadania/poczta/zakupy, newsy wyłączone, bez AI, w push poczta tylko jako
+liczba); konflikt CalDAV = wygrywa serwer; Google tylko przez tajny adres iCal (zapis wymagałby własnej aplikacji OAuth).
+Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
 
 ## 6. Gotowy prompt na start następnej sesji
 
 ```
-Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md i docs/HANDOFF.md. Najpierw git pull, make test
-(albo make dev-local-init) i cd frontend && npm run build — wszystko ma być zielone. [Jeśli już uruchomiłem aplikację:
-napisz gdzie i wklej czerwone/żółte pozycje Diagnostyki oraz co mnie irytowało — to naprawiamy najpierw.] Potem: [wybierz
-kolejną rzecz z sekcji 4/5 handoffu]. Zanim zaczniesz, dopytaj o szczegóły i zaproponuj plan. Pracuję na macOS w VS Code
-bez Pythona/Node na hoście (dev w Dockerze) — komendy dla mnie podawaj w tej formie. Każdy ekran sprawdź we wszystkich
-motywach i na telefonie. Poprawki wypychaj na swoją gałąź; do main tylko gdy poproszę.
+Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md, docs/HANDOFF.md (sekcja 4) i docs/MODULE_CONTRACT.md.
+Najpierw git pull, make test (albo make dev-local-init) i cd frontend && npm run build — wszystko ma być zielone.
+[Jeśli już uruchomiłem aplikację: napisz gdzie (Mac dev / Linux make up) i wklej moje uwagi z używania. Diagnostyki nie
+poprawiamy, dopóki sam nie wkleję jej wyniku.]
+Cel sesji: SPÓJNOŚĆ I INTEGRACJA MODUŁÓW. Najbardziej zależy mi na tym, żeby aplikacja była spójna: żeby notatki, kalendarz,
+zadania (i inne moduły) nie „żyły własnym życiem”, tylko były ze sobą zintegrowane i MOGŁY korzystać z tych samych danych. To tylko
+przykład, nie musi być zaimplementowane 1:1 — chcę, żebyś dokładnie zrozumiał, o co mi chodzi.
+Zacznij od BARDZO DOKŁADNEJ analizy tego, co już mamy (modele danych, API, hub i kontrakt v1, UI, wyszukiwanie, brief, „Dziś”,
+„Dodaj zdaniem”, asystent AI). Potem zaproponuj poprawki (warianty, koszty, ryzyka), PYTAJ MNIE o zdanie i dopiero po mojej akceptacji
+implementuj — nic nie implementuj przed akceptacją planu. Pracuję na macOS w VS Code bez Pythona/Node na hoście (dev w Dockerze) —
+komendy dla mnie podawaj w tej formie (make dev, make dev-test, make dev-build). Każdy ekran sprawdź we wszystkich motywach i na
+telefonie. Poprawki wypychaj na swoją gałąź; do main tylko gdy poproszę.
 ```
