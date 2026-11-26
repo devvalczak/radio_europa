@@ -61,7 +61,7 @@ Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
    wystarcza, format błędu 429 (`RetryInfo.retryDelay`). Popraw `core/app/ai.py`/testy, jeśli rzeczywistość się różni.
 4. Opcjonalnie to samo dla ścieżki zgodnej z OpenAI (`/v1beta/openai`), żeby README mówiło prawdę.
 
-## 4. Zadanie na następną sesję (decyzja użytkownika: punkty 1 i 2)
+## 4. Zadanie na następną sesję (A — laptop — wciąż do zrobienia; B i CI zrobione)
 
 ### A. Uruchomienie na prawdziwym laptopie i weryfikacja na żywo
 Sandbox nie ma Dockera ani dostępu do tych usług, więc potrzebny jest laptop użytkownika:
@@ -78,17 +78,18 @@ Sandbox nie ma Dockera ani dostępu do tych usług, więc potrzebny jest laptop 
   subskrypcja iCal w Google Calendar — czy faktycznie pobiera.
 - Gemini: sekcja 3 (klucz przez `request_credential` albo wpisany przez użytkownika do `.env` na laptopie — nigdy do czatu/repo);
   sprawdź `complete()` i tool calling asystenta (`core/app/ai_chat.py`, `thoughtSignature`).
-- **CI na GitHubie** (`.github/workflows/ci.yml`): `pip install -r core/requirements-dev.txt` + `make test`, `npm ci && npm run build`,
-  opcjonalnie krótki Playwright (logowanie + pulpit). Uruchamiaj na push i PR. Sprawdź, czy przechodzi na GitHubie.
+- CI na GitHubie — zrobione (patrz B).
 
-### B. Bezpieczeństwo danych
-- **Kopie zapasowe**: codzienna kopia bazy (dla SQLite: `sqlite3 .backup` / `VACUUM INTO`, spójna przy działającej aplikacji),
-  rotacja (np. 7 dziennych + 4 tygodniowe), katalog w wolumenie (`data/backups`), test diagnostyczny „ostatnia kopia < 26 h”,
-  w UI: lista kopii, „Zrób kopię teraz”, pobranie pliku, przywracanie z potwierdzeniem (i instrukcją). **Klucz szyfrowania z `.env`
-  nie może leżeć obok kopii bazy** — bez niego hasła skrzynek/hostów SSH są nie do odczytania; zapytaj użytkownika, gdzie ma
-  trzymać kopie poza laptopem (dysk zewnętrzny, chmura) i jak przechowywać `.env` (menedżer haseł?). Nie zgaduj.
-- **2FA**: przypomnij użytkownikowi o włączeniu (Ustawienia); rozważ ostrzeżenie na pulpicie, dopóki wyłączone (Diagnostyka już
-  pokazuje „warn”). Zapytaj, zanim cokolwiek wymusisz.
+### B. Bezpieczeństwo danych — ZROBIONE (sesja w chmurze, bez laptopa)
+- **Kopie zapasowe** (`core/app/backup.py`, `/api/system/backups`, Ustawienia → „Kopie zapasowe”, `make backup`, `make restore`,
+  `scripts/restore_backup.py`, diagnostyka `system.backup`, testy `core/tests/test_backup.py`). Założenia przyjęte z planu (użytkownik
+  nie odpowiedział na pytania, więc zrobione konfigurowalnie): kopie lokalnie w `data/backups` + opcjonalne lustro
+  `JARVIS_BACKUP_MIRROR_DIR` (dysk/NAS/folder chmury do zamontowania w compose); `.env` w menedżerze haseł (tylko dokumentacja
+  i przypomnienia, aplikacja nie eksportuje `.env`). **Do zrobienia na laptopie:** wybrać miejsce lustra, sprawdzić `make backup`
+  i `make restore` w Dockerze (uprawnienia `data/` — kontener działa jako uid 1000).
+- **2FA:** bez wymuszania; baner na pulpicie, dopóki wyłączone („Przypomnij za 7 dni”), link `otpauth://` w Ustawieniach.
+  Użytkownik musi włączyć 2FA sam.
+- **CI:** `.github/workflows/ci.yml` (pytest, build, E2E Playwright).
 
 ## 5. Dalej w planie (po A i B)
 

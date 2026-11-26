@@ -40,6 +40,8 @@ interface Opts {
   method?: string;
   body?: unknown;
   query?: Record<string, string | undefined>;
+  /** Return the response body as a Blob (file downloads) instead of parsing JSON. */
+  blob?: boolean;
 }
 
 /* --- browser error reports ------------------------------------------------------------------------------
@@ -85,6 +87,7 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   }
   if (res.status >= 500) reportError("api", { method, path: url.pathname, status: res.status });
   if (res.status === 204) return undefined as T;
+  if (opts.blob && res.ok) return (await res.blob()) as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     // FastAPI errors: a plain string, or {code, detail} from the hub; expose the string / the code

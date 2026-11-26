@@ -1,19 +1,24 @@
-"""The "Dziennik" page API: application log file, login history, AI status, and browser error reports."""
+"""The "Dziennik" page API: application log file, login history, AI status, browser error reports, and backups."""
 
+import json
 import logging
 import time
 from collections import deque
 from typing import Annotated, Literal
 
+import pyotp
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import ai, logs
+from . import ai, backup, logs
 from .auth import require_user
 from .db import get_db
-from .models import LoginEvent, User
+from .config import settings
+from .models import AuditLog, LoginEvent, User
+from .security import limiter, verify_password
 
 router = APIRouter(prefix="/system", tags=["system"], dependencies=[Depends(require_user)])
 frontend_log = logging.getLogger("jarvis.frontend")
@@ -127,4 +132,78 @@ def client_errors(entries: Annotated[list[ClientError], Body(max_length=20)], re
         _flood_logged[user.id] = time.monotonic()
         frontend_log.warning("frontend error flood: dropped %d entries (limit %d/min)", dropped, FLOOD_LIMIT,
                              extra={"event": "client_error_flood", "user_id": user.id})
+    return Response(status_code=204)
+
+
+# --- backups (core/app/backup.py) ---------------------------------------------------------------------------
+# Not hub actions on purpose: the AI assistant must not be able to download or delete backups.
+def _audit(db: Session, user: User, action: str, data: dict, ok: bool = True, error: str | None = None) -> None:
+    db.add(AuditLog(actor=f"user:{user.username}", action=action, input=json.dumps(data)[:2000], ok=ok, error=error))
+    db.commit()
+
+
+def _backup_error(exc: backup.BackupError) -> HTTPException:
+    return HTTPException(409 if exc.code in ("disabled", "not_sqlite") else 500,
+                         {"code": f"backup_{exc.code}", "detail": exc.message})
+
+
+@router.get("/backups")
+def backups_list(user: User = Depends(require_user)):
+    st = backup.status
+    return {
+        "enabled": backup.backup_dir() is not None,
+        "supported": backup.supported(),
+        "dir": settings.backup_dir,
+        "every_hours": settings.backup_every_hours,
+        "keep_daily": settings.backup_keep_daily,
+        "keep_weekly": settings.backup_keep_weekly,
+        "mirror": settings.backup_mirror_dir or None,
+        "mirror_error": st["mirror_error"],
+        "last_error": st["last_error"],
+        "needs": "totp" if user.totp_enabled else "password",
+        "files": backup.list_backups(),
+    }
+
+
+@router.post("/backups")
+def backups_create(user: User = Depends(require_user), db: Session = Depends(get_db)):
+    try:
+        info = backup.create()
+    except backup.BackupError as exc:
+        _audit(db, user, "system.backup.create", {}, ok=False, error=exc.message)
+        raise _backup_error(exc) from exc
+    _audit(db, user, "system.backup.create", {"name": info["name"]})
+    return info
+
+
+class SecondFactorIn(BaseModel):
+    code: str = Field(min_length=1, max_length=256)  # TOTP code, or the account password when 2FA is off
+
+
+@router.post("/backups/{name}/download")
+def backups_download(name: str, body: SecondFactorIn, user: User = Depends(require_user), db: Session = Depends(get_db)):
+    """The whole database leaves the server: a stolen session cookie alone must not be enough (fresh 2FA/password)."""
+    path = backup.path_for(name)
+    if path is None:
+        raise HTTPException(404, "backup_not_found")
+    key = f"backup:{user.id}"
+    if limiter.locked(key):
+        raise HTTPException(429, "too_many_attempts")
+    ok = (pyotp.TOTP(user.totp_secret).verify(body.code.strip(), valid_window=1) if user.totp_enabled
+          else verify_password(user.password_hash, body.code))
+    if not ok:
+        limiter.fail(key)
+        _audit(db, user, "system.backup.download", {"name": name}, ok=False, error="second factor")
+        raise HTTPException(401, "invalid_totp" if user.totp_enabled else "invalid_credentials")
+    limiter.reset(key)
+    _audit(db, user, "system.backup.download", {"name": name})
+    return FileResponse(path, media_type="application/gzip", filename=name,
+                        headers={"Cache-Control": "no-store"})
+
+
+@router.delete("/backups/{name}", status_code=204)
+def backups_delete(name: str, user: User = Depends(require_user), db: Session = Depends(get_db)):
+    if not backup.delete(name):
+        raise HTTPException(404, "backup_not_found")
+    _audit(db, user, "system.backup.delete", {"name": name})
     return Response(status_code=204)

@@ -126,7 +126,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
         ) : active ? (
           <active.def.Page />
         ) : (
-          <Dashboard />
+          <Dashboard totpEnabled={status.totp_enabled} />
         )}
         </ErrorBoundary>
       </main>

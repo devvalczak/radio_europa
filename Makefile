@@ -1,5 +1,5 @@
 PYTHON ?= python3
-.PHONY: encryption-key init up down logs build up-tunnel up-quick quick-url test migration new-module
+.PHONY: encryption-key init up down logs build up-tunnel up-quick quick-url test migration new-module backup restore
 
 init: ## create .env with fresh secrets (never overwrites an existing .env)
 	@test ! -f .env || (echo ".env already exists, not touching it" && exit 1)
@@ -49,3 +49,12 @@ encryption-key: ## add JARVIS_ENCRYPTION_KEY to an existing .env (needed by the 
 	  KEY=$$($(PYTHON) scripts/gen_secrets.py | grep '^JARVIS_ENCRYPTION_KEY=' | cut -d= -f2-) ; \
 	  test -n "$$KEY" || (echo "needs python3 with 'cryptography' installed" && exit 1) ; \
 	  sed -i '/^JARVIS_ENCRYPTION_KEY=/d' .env && echo "JARVIS_ENCRYPTION_KEY=$$KEY" >> .env && echo "key added to .env" )
+
+backup: ## make a database backup now (into data/backups, same as the button in Ustawienia)
+	docker compose exec core python -c "from app import backup; print(backup.create()['name'])"
+
+restore: ## restore a backup: make restore f=data/backups/jarvis-....db.gz (stops core, keeps the old db aside)
+	@test -n "$(f)" || (echo "usage: make restore f=data/backups/<file>.db.gz" && exit 1)
+	docker compose stop core
+	$(PYTHON) scripts/restore_backup.py "$(f)" --db data/jarvis.db
+	docker compose start core

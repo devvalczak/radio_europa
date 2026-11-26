@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     # audit log and login history older than this are deleted by a daily cleanup
     retention_days: int = 90
 
+    # Database backups (core/app/backup.py). Empty backup_dir = off. mirror_dir: optional second copy (external disk,
+    # NAS, a folder synced to the cloud). The encryption key is never in a backup: keep .env elsewhere.
+    backup_dir: str = "/data/backups"
+    backup_every_hours: float = 24
+    backup_keep_daily: int = 7
+    backup_keep_weekly: int = 4
+    backup_mirror_dir: str = ""
+
     # AI (optional). provider: "" (off) | "anthropic" | "openai" (any OpenAI-compatible API, e.g. Ollama at
     # http://host:11434/v1). The model has no default on purpose: set JARVIS_AI_MODEL explicitly.
     ai_provider: str = ""

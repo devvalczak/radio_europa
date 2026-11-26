@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from sqlalchemy import delete
 
+from . import backup
 from .config import settings
 from .db import SessionLocal
 from .hub import hub
@@ -106,6 +107,7 @@ async def run() -> None:
         while True:
             await asyncio.to_thread(run_tasks)
             await asyncio.to_thread(housekeeping)
+            await asyncio.to_thread(backup.auto)
             await asyncio.sleep(settings.scheduler_interval)
 
     await asyncio.gather(reminders(), tasks())

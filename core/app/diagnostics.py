@@ -22,7 +22,7 @@ from fastapi import Request
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from . import ai, crypto, logs, scheduler
+from . import ai, backup, crypto, logs, scheduler
 from .config import settings
 from .hub import hub
 from .models import PushSubscription, User
@@ -150,6 +150,47 @@ def _storage(env: Env) -> list[Check]:
     free = shutil.disk_usage(target).free / 1_073_741_824
     out.append(Check("ok" if free > 1 else "warn", f"Wolne miejsce: {free:.1f} GB",
                      "" if free > 1 else "Mało miejsca — zwolnij dysk, inaczej baza i logi przestaną się zapisywać.", "Dysk"))
+    return out
+
+
+@core_check("system.backup", "system", "Kopie zapasowe bazy")
+def _backup(env: Env) -> list[Check]:
+    if backup.backup_dir() is None:
+        return [Check("warn", "Kopie wyłączone (JARVIS_BACKUP_DIR puste)",
+                      "Ustaw JARVIS_BACKUP_DIR=/data/backups w .env i zrestartuj core.", "Kopie")]
+    if not backup.supported():
+        return [Check("warn", f"Baza {env.db.get_bind().dialect.name}: automatyczne kopie obsługują tylko SQLite",
+                      "Rób kopie narzędziami tej bazy (np. pg_dump).", "Kopie")]
+    now = utcnow()
+    last = backup.latest()
+    limit = timedelta(hours=max(settings.backup_every_hours, 1) + 2)
+    files = backup.list_backups()
+    if backup.status["last_error"]:
+        out = [Check("error", f"Ostatnia próba się nie udała: {backup.status['last_error']}",
+                     "Szczegóły w Dzienniku → Logi (jarvis.backup). Sprawdź miejsce na dysku i uprawnienia katalogu.", "Ostatnia kopia")]
+    elif last is None:
+        out = [Check("warn", "Jeszcze nie ma żadnej kopii",
+                     "Pierwsza powstaje kilka minut po starcie; możesz też kliknąć „Zrób kopię teraz” w Ustawieniach.", "Ostatnia kopia")]
+    else:
+        old = now - last > limit
+        out = [Check("warn" if old else "ok", f"{_ago(last, now)} · {len(files)} plików · {sum(f['size'] for f in files) / 1_048_576:.1f} MB w {settings.backup_dir}",
+                     "Kopia jest starsza, niż powinna — sprawdź Zadania w tle i logi jarvis.backup." if old else "", "Ostatnia kopia")]
+    if settings.backup_mirror_dir:
+        m = backup.mirror_latest()
+        if backup.status["mirror_error"]:
+            out.append(Check("error", f"Kopia poza laptopem nie zapisała się: {backup.status['mirror_error']}",
+                             "Podłącz dysk / sprawdź montowanie katalogu w docker-compose.yml.", "Kopia poza laptopem"))
+        elif m is None or now - m > limit:
+            out.append(Check("warn", f"Ostatnia kopia w {settings.backup_mirror_dir}: {_ago(m, now)}",
+                             "Sprawdź, czy katalog jest podłączony.", "Kopia poza laptopem"))
+        else:
+            out.append(Check("ok", f"{settings.backup_mirror_dir}: {_ago(m, now)}", title="Kopia poza laptopem"))
+    else:
+        out.append(Check("warn", "Kopie leżą tylko na tym komputerze — awaria dysku zabierze je razem z bazą",
+                         "Ustaw JARVIS_BACKUP_MIRROR_DIR na dysk zewnętrzny lub folder synchronizowany z chmurą (opis w .env.example).",
+                         "Kopia poza laptopem"))
+    out.append(Check("ok", "Kopie nie zawierają klucza szyfrowania — trzymaj .env w menedżerze haseł, nie obok kopii",
+                     title="Klucz szyfrowania"))
     return out
 
 

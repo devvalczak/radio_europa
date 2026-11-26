@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"  # same as core/Dockerfile
+          cache: pip
+          cache-dependency-path: core/requirements*.txt
+      - run: pip install -r core/requirements-dev.txt
+      - run: make test
+
+  frontend:
+    name: Frontend (themes, typecheck, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"  # same as frontend/Dockerfile
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
+  e2e:
+    name: E2E smoke (Playwright)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: ${{ github.workspace }}/core:${{ github.workspace }}
+      JARVIS_MODULES_DIR: ${{ github.workspace }}/modules
+      JARVIS_DATABASE_URL: sqlite:///${{ runner.temp }}/jarvis.db
+      JARVIS_BACKUP_DIR: ${{ runner.temp }}/backups
+      JARVIS_LOG_DIR: ""
+      JARVIS_COOKIE_SECURE: "false"
+      JARVIS_SECRET_KEY: ci-only-secret-key-not-used-anywhere-else-0123456789
+      JARVIS_SETUP_TOKEN: ci-setup-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: core/requirements*.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r core/requirements.txt
+      - name: Install frontend + Playwright
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Build frontend
+        working-directory: frontend
+        run: npx vite build
+      - name: Start core and frontend (vite preview proxies /api to :8000)
+        run: |
+          uvicorn app.main:app --port 8000 > core.log 2>&1 &
+          (cd frontend && npx vite preview --port 5173 --strictPort > ../preview.log 2>&1 &)
+          for i in $(seq 60); do
+            curl -sf http://localhost:8000/api/health >/dev/null && curl -sf http://localhost:5173/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "servers did not start"; cat core.log preview.log; exit 1
+      - name: Smoke test
+        working-directory: frontend
+        run: node scripts/e2e-smoke.mjs
+        env:
+          JARVIS_URL: http://localhost:5173
+      - name: Logs and screenshot on failure
+        if: failure()
+        run: cat core.log preview.log || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-failure
+          path: frontend/e2e-failure.png
+          if-no-files-found: ignore

@@ -255,6 +255,11 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
   background: var(--accent-soft); font-size: 14px; }
 .notice.tip { border-color: var(--line); background: transparent; }
 .notice button { min-height: 32px; }
+.backup-list { list-style: none; margin: 0; padding: 0; }
+.backup-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space); padding: var(--space) 0;
+  border-top: var(--border-width) solid var(--line); overflow-wrap: anywhere; }
+.backup-warn { margin: 0; padding-left: calc(var(--space) * 1.5); border-left: calc(var(--border-width) * 3) solid var(--warn); }
+.backup-warn::before { content: "Uwaga: "; font-weight: 600; }
 .empty-dash { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; max-width: 560px; }
 .palette-btn kbd { margin-left: 4px; }
 .tile-view { font: 500 11.5px/1 var(--font); color: var(--muted); white-space: nowrap; padding-left: 6px; border-left: var(--border-width) solid var(--line); text-transform: none; letter-spacing: 0; }

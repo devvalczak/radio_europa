@@ -92,6 +92,20 @@ testy modułów (`@module.diagnostic`). Sekcja „To urządzenie” sprawdza w p
 (zgoda, service worker, subskrypcja, zgodność klucza VAPID, rejestracja na serwerze, test na to urządzenie). Nowa funkcja,
 która może się cicho zepsuć, dostaje test diagnostyczny.
 
+## Kopie zapasowe
+
+`core/app/backup.py`: `VACUUM INTO` (tylko SQLite) → gzip → rotacja (doba + 7 dni + 4 tyg.) → opcjonalne lustro
+`JARVIS_BACKUP_MIRROR_DIR`; scheduler woła `backup.auto()` w pętli zadań (sprawdza co 10 min, po błędzie odczekuje 1 h).
+API `/api/system/backups` (nie akcje hubu — asystent AI nie ma dostępu), pobranie tylko ze świeżym TOTP/hasłem, audyt
+`system.backup.*`. Przywracanie offline: `scripts/restore_backup.py` / `make restore` (tylko stdlib). Klucz szyfrowania nigdy
+nie trafia do kopii. W testach `JARVIS_BACKUP_DIR=""`; test, który robi kopię, ustawia `settings.backup_dir` na `tmp_path`.
+
+## CI
+
+`.github/workflows/ci.yml`: pytest (Python 3.12), `npm run build` (Node 22), E2E `frontend/scripts/e2e-smoke.mjs`
+(Playwright: konfiguracja konta w UI → pulpit z przypomnieniem 2FA → kopia w Ustawieniach → Diagnostyka) na `vite preview`
++ uvicorn. Lokalnie: świeża baza + `JARVIS_SETUP_TOKEN`, potem `JARVIS_URL=… JARVIS_SETUP_TOKEN=… node scripts/e2e-smoke.mjs`.
+
 ## Logi
 
 - Loguj przez `logging.getLogger("jarvis.<moduł>")`; konfiguracja w `core/app/logs.py` (stdout + JSON z rotacją, `JARVIS_LOG_*`).
@@ -152,11 +166,12 @@ która może się cicho zepsuć, dostaje test diagnostyczny.
 Zrobione: rdzeń (logowanie argon2 + TOTP, hub, kontrakt modułu v1, Alembic, push, scheduler), logi aplikacji + Dziennik (logi, audyt,
 historia logowań, retencja 90 dni), pulpit z szybkimi akcjami, paletą ⌘K, widokami i menu kafelków, notatki z edytorem TipTap (Markdown, tytuł = pierwsza linia), 9 motywów z walidatorem kontrastu, Radix w @jarvis/ui, AI: Anthropic / Gemini / zgodne z OpenAI, moduły: notatki, kalendarz, pogoda, newsy (RSS +
 streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping), asystent AI (akcje hubu jako
-narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach.
-~260 testów backendu.
+narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach,
+automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`), przypomnienie o 2FA na pulpicie, CI na GitHubie (pytest,
+build, E2E). ~275 testów backendu.
 
-Następna sesja (decyzja użytkownika): **uruchomienie na prawdziwym laptopie + weryfikacja na żywo + CI, potem kopie zapasowe
-i 2FA** — szczegóły i gotowy prompt w `docs/HANDOFF.md` (sekcje 4 i 6).
+Następna sesja: **uruchomienie na prawdziwym laptopie + weryfikacja na żywo** (użytkownik odłożył ją; pracujemy w chmurze) —
+szczegóły w `docs/HANDOFF.md` (sekcja 4A). Kopie zapasowe, przypomnienie 2FA i CI są zrobione (sekcja 4B).
 Dalej: dwukierunkowy CalDAV/Google Calendar (dziś tylko eksport iCal), weryfikacja na żywo (Gemini z narzędziami, OpenSSH,
 push na telefonie, Open-Meteo, EMMA, IMAP), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 

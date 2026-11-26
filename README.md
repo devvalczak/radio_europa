@@ -30,7 +30,19 @@ make up       # http://localhost:8080
 
 Przy pierwszym wejściu podaj token z `make init` i wybierz login oraz hasło (min. 12 znaków).
 Dla zwykłego `http://localhost` ustaw w `.env` `JARVIS_COOKIE_SECURE=false`.
-Dane (SQLite) leżą w `./data` — to je trzeba backupować.
+Dane (SQLite) leżą w `./data`.
+
+### Kopie zapasowe i 2FA
+
+- Core sam robi spójną kopię bazy co 24 h (`VACUUM INTO`, działa przy włączonej aplikacji) do `data/backups/jarvis-…db.gz`;
+  zostaje wszystko z ostatniej doby + najnowsza kopia z każdego z 7 dni i 4 tygodni. Ustawienia `JARVIS_BACKUP_*` w `.env.example`.
+- **Kopia poza laptopem:** zamontuj dysk zewnętrzny / NAS / folder synchronizowany z chmurą w kontenerze core
+  (`docker-compose.yml` → `core.volumes`, np. `- /media/usb/jarvis:/backup-mirror`) i ustaw `JARVIS_BACKUP_MIRROR_DIR=/backup-mirror`.
+- **Klucz `.env`:** kopie nie zawierają `JARVIS_ENCRYPTION_KEY` — trzymaj `.env` w menedżerze haseł, nie obok kopii.
+- Ustawienia → Kopie zapasowe: lista, „Zrób kopię teraz”, pobranie (wymaga świeżego kodu 2FA albo hasła), usunięcie.
+  Z terminala: `make backup`. Przywracanie (offline): `make restore f=data/backups/<plik>` — zatrzymuje core, sprawdza kopię
+  (`integrity_check`, wersja schematu), odkłada obecną bazę obok i uruchamia core.
+- Diagnostyka pokazuje wiek ostatniej kopii i stan kopii poza laptopem. Dopóki 2FA jest wyłączone, pulpit przypomina o włączeniu.
 
 ## Moduły (etap 2)
 

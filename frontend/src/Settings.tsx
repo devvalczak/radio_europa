@@ -5,6 +5,7 @@ import type { AuthStatus } from "./App";
 import { errorText, t } from "./i18n";
 import { enablePush, pushSupported } from "./push";
 import type { ModuleInfo } from "./Shell";
+import { Backups } from "./Backups";
 import { applyTheme, currentTheme, listThemes, loadTheme, ThemeInfo } from "./theme";
 
 export function Settings({ status, onChange, modules }: { status: AuthStatus; onChange: () => void; modules: ModuleInfo[] }) {
@@ -83,6 +84,9 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
           <>
             <p className="muted">Dodaj ten sekret w aplikacji uwierzytelniającej, potem wpisz kod.</p>
             <code className="secret">{totp.secret}</code>
+            <small className="muted">
+              Na telefonie: <a href={totp.uri}>otwórz w aplikacji uwierzytelniającej</a>.
+            </small>
             <div className="row">
               <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="000000" inputMode="numeric" />
               <button
@@ -105,6 +109,8 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
           </button>
         )}
       </section>
+
+      <Backups />
 
       <section className="card stack">
         <h2>{t.aiStatus}</h2>

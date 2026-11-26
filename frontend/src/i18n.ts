@@ -131,6 +131,10 @@ const pl = {
     tip: "Menu ⋯ na kafelku zmienia widok i rozmiar. {k} otwiera polecenia.",
     tipTouch: "Menu ⋯ na kafelku zmienia widok i rozmiar widgetu.",
     gotIt: "Rozumiem",
+    twofaTitle: "Weryfikacja dwuetapowa jest wyłączona.",
+    twofaText: "Jarvis jest dostępny z internetu i otwiera konsolę SSH — samo hasło to za mało.",
+    twofaGo: "Włącz 2FA",
+    twofaLater: "Przypomnij za 7 dni",
     emptyTitle: "Pulpit jest pusty",
     emptyText: "Dodaj widgety, które chcesz widzieć na co dzień, albo przywróć układ domyślny ze wszystkimi.",
     catalogHint: "Widgety pokazują dane z modułów. Po dodaniu zmienisz ich widok i rozmiar w menu ⋯.",
@@ -202,6 +206,10 @@ const pl = {
     already_configured: "Konto już istnieje.",
     not_authenticated: "Sesja wygasła.",
     push_not_configured: "Serwer nie ma kluczy VAPID.",
+    backup_not_found: "Nie ma takiej kopii (mogła zostać usunięta przez rotację).",
+    backup_disabled: "Kopie są wyłączone (JARVIS_BACKUP_DIR puste).",
+    backup_not_sqlite: "Automatyczne kopie obsługują tylko bazę SQLite.",
+    backup_failed: "Nie udało się zrobić kopii — szczegóły w Dzienniku.",
   } as Record<string, string>,
 };
 

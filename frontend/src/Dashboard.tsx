@@ -146,7 +146,39 @@ function Catalog({ catalog, layout, onAdd, onClose }: {
   );
 }
 
-export function Dashboard() {
+const TWOFA_KEY = "jarvis.twofa.snooze";
+const twofaSnoozed = () => {
+  try {
+    return Number(localStorage.getItem(TWOFA_KEY) ?? 0) > Date.now();
+  } catch {
+    return false;
+  }
+};
+
+/** Shown while 2FA is off: the app is on the internet and opens SSH shells. "Later" hides it for 7 days. */
+function TwofaNotice() {
+  const [hidden, setHidden] = useState(twofaSnoozed);
+  if (hidden) return null;
+  const snooze = () => {
+    try {
+      localStorage.setItem(TWOFA_KEY, String(Date.now() + 7 * 86400_000));
+    } catch {
+      /* private mode: hide for this visit only */
+    }
+    setHidden(true);
+  };
+  return (
+    <div className="notice" role="note">
+      <b>{t.dash.twofaTitle}</b>
+      <span className="muted">{t.dash.twofaText}</span>
+      <span className="grow" />
+      <Button variant="primary" onClick={() => (window.location.hash = "#/settings")}>{t.dash.twofaGo}</Button>
+      <Button variant="ghost" onClick={snooze}>{t.dash.twofaLater}</Button>
+    </div>
+  );
+}
+
+export function Dashboard({ totpEnabled = true }: { totpEnabled?: boolean }) {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [layout, setLayout] = useState<LayoutItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -268,6 +300,8 @@ export function Dashboard() {
           ))}
         </nav>
       )}
+
+      {!editing && !totpEnabled && <TwofaNotice />}
 
       {editing && (
         <div className="notice" role="status">
