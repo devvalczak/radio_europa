@@ -275,6 +275,10 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .brief-days input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--accent); }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 fieldset legend { padding: 0; margin-bottom: var(--space); font-size: 13px; color: var(--muted); }
+.source-list { list-style: none; margin: 0; padding: 0; }
+.source-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space); padding: var(--space) 0;
+  border-top: var(--border-width) solid var(--line); overflow-wrap: anywhere; }
+.stack-tight { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .backup-list { list-style: none; margin: 0; padding: 0; }
 .backup-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space); padding: var(--space) 0;
   border-top: var(--border-width) solid var(--line); overflow-wrap: anywhere; }

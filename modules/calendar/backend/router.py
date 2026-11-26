@@ -4,6 +4,7 @@ import logging
 import secrets
 import time
 from collections import deque
+from urllib.parse import urlsplit
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -12,12 +13,13 @@ from pydantic import AwareDatetime, BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import crypto
 from app.db import get_db
 from app.sdk import ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
-from . import ical
-from .models import CalendarFeed, Event
+from . import caldav, ical, sync
+from .models import CalendarFeed, CalendarPendingDelete, CalendarSource, Event
 
 router = APIRouter()
 public_router = APIRouter()
@@ -52,7 +54,14 @@ def _out(e: Event) -> dict:
         "end": iso_z(e.end),
         "all_day": e.all_day,
         "remind_minutes": e.remind_minutes,
+        "source": {"id": e.source_id, "label": e.source.label if e.source else ""} if e.source_id else None,
+        "read_only": e.read_only,
+        "recurring": e.recurring,
     }
+
+
+READ_ONLY = ("Tego wydarzenia nie da się zmienić w Jarvisie: pochodzi z kalendarza tylko do odczytu albo jest częścią "
+             "serii powtarzających się wydarzeń. Zmień je w oryginalnym kalendarzu.")
 
 
 def _apply(event: Event, body: EventIn) -> None:
@@ -61,6 +70,8 @@ def _apply(event: Event, body: EventIn) -> None:
     event.end = to_utc_naive(body.end) if body.end else None
     event.all_day, event.remind_minutes = body.all_day, body.remind_minutes
     event.reminded = False  # editing re-arms the reminder
+    if event.source_id is not None:
+        event.dirty = True  # sent to the server by the next sync
 
 
 def _get(db: Session, event_id: int) -> Event:
@@ -165,7 +176,9 @@ def public_feed(token: str, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(404, "not_found")
     now = utcnow()
     events = db.scalars(
-        select(Event).where(Event.start >= now - FEED_PAST, Event.start < now + FEED_FUTURE).order_by(Event.start)
+        # Jarvis' own events only: synced ones already live in their original calendar (no duplicates in Google)
+        select(Event).where(Event.source_id.is_(None), Event.start >= now - FEED_PAST, Event.start < now + FEED_FUTURE)
+        .order_by(Event.start)
     ).all()
     feed.last_fetch_at, feed.fetch_count = now, feed.fetch_count + 1
     feed.last_fetch_ua = request.headers.get("user-agent", "")[:200]
@@ -175,8 +188,140 @@ def public_feed(token: str, request: Request, db: Session = Depends(get_db)):
                     headers={"Cache-Control": "private, max-age=300", "Content-Disposition": 'inline; filename="jarvis.ics"'})
 
 
+# --- external calendars (CalDAV two-way, iCal read-only) ------------------------------------------------------
+# declared before the /{event_id} routes. Passwords and iCal addresses are encrypted (app.crypto) and never returned.
+class DiscoverIn(BaseModel):
+    url: str = Field(min_length=8, max_length=1000, pattern=r"^https?://")
+    username: str = Field(default="", max_length=255)
+    password: str = Field(default="", max_length=1000)
+
+
+class SourceIn(BaseModel):
+    kind: str = Field(pattern=r"^(caldav|ics)$")
+    label: str = Field(min_length=1, max_length=80)
+    url: str = Field(min_length=8, max_length=1000, pattern=r"^https?://")
+    username: str = Field(default="", max_length=255)
+    password: str = Field(default="", max_length=1000)
+    writable: bool = False
+    push_new: bool = False
+    tz: str = Field(default="UTC", max_length=64)
+
+
+class SourcePatch(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+    enabled: bool = True
+    writable: bool = False
+    push_new: bool = False
+
+
+def _source_out(s: CalendarSource) -> dict:
+    return {"id": s.id, "kind": s.kind, "label": s.label, "host": s.url_host, "username": s.username,
+            "writable": s.writable and s.kind == "caldav", "push_new": s.push_new, "enabled": s.enabled,
+            "last_sync_at": iso_z(s.last_sync_at), "last_ok_at": iso_z(s.last_ok_at), "last_error": s.last_error,
+            "events": s.last_count}
+
+
+def _private_ok(url: str) -> bool:
+    """LAN servers (Nextcloud at home, Radicale) only with JARVIS_ALLOW_PRIVATE_HOSTS=true, like mail."""
+    from app.config import settings
+
+    return settings.allow_private_hosts
+
+
+def _caldav_error(exc: caldav.CalDavError) -> HTTPException:
+    status = 401 if exc.code == "auth" else 502 if exc.code in ("network", "bad_response") else 422
+    return HTTPException(status, {"code": f"caldav_{exc.code}", "detail": exc.message})
+
+
+@router.get("/sources")
+def list_sources(db: Session = Depends(get_db)):
+    return [_source_out(s) for s in db.scalars(select(CalendarSource).order_by(CalendarSource.id)).all()]
+
+
+@router.post("/sources/discover")
+def discover_sources(body: DiscoverIn):
+    """CalDAV: which calendars does this account have? (the user then picks one). Nothing is stored."""
+    auth = (body.username, body.password) if body.username else None
+    try:
+        return caldav.discover(body.url.strip(), auth, _private_ok(body.url))
+    except caldav.CalDavError as exc:
+        raise _caldav_error(exc) from exc
+
+
+@router.post("/sources", status_code=201)
+def create_source(body: SourceIn, db: Session = Depends(get_db)):
+    """Adds the calendar and syncs it once right away (an explicit user action may use the network)."""
+    if not crypto.available():
+        raise HTTPException(409, {"code": "encryption_key_missing",
+                                  "detail": "Brak klucza szyfrowania (JARVIS_ENCRYPTION_KEY) — uruchom `make encryption-key`."})
+    try:
+        ZoneInfo(body.tz)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(422, "invalid_timezone") from exc
+    url = body.url.strip()
+    src = CalendarSource(kind=body.kind, label=body.label.strip(), url_enc=crypto.encrypt(url),
+                         url_host=urlsplit(url).hostname or "", username=body.username.strip() if body.kind == "caldav" else "",
+                         password_enc=crypto.encrypt(body.password) if body.kind == "caldav" and body.password else "",
+                         writable=body.writable and body.kind == "caldav", tz=body.tz, created_at=utcnow(),
+                         private_host=_private_ok(url))
+    src.push_new = body.push_new and src.writable
+    if src.push_new:
+        for other in db.scalars(select(CalendarSource).where(CalendarSource.push_new.is_(True))).all():
+            other.push_new = False
+    db.add(src)
+    db.commit()
+    result = sync.sync_source(db, src)
+    if not result["ok"]:  # a wrong address or password: do not keep a broken source
+        sync.remove_source(db, db.get(CalendarSource, src.id))
+        raise HTTPException(422, {"code": "caldav_first_sync_failed", "detail": result["error"]})
+    log.info("calendar source added", extra={"kind": src.kind, "events": result["events"]})
+    return _source_out(db.get(CalendarSource, src.id))
+
+
+def _source(db: Session, source_id: int) -> CalendarSource:
+    s = db.get(CalendarSource, source_id)
+    if s is None:
+        raise HTTPException(404, "source_not_found")
+    return s
+
+
+@router.put("/sources/{source_id}")
+def update_source(source_id: int, body: SourcePatch, db: Session = Depends(get_db)):
+    s = _source(db, source_id)
+    s.label, s.enabled = body.label.strip(), body.enabled
+    s.writable = body.writable and s.kind == "caldav"
+    s.push_new = body.push_new and s.writable
+    if s.push_new:
+        for other in db.scalars(select(CalendarSource).where(CalendarSource.push_new.is_(True), CalendarSource.id != s.id)).all():
+            other.push_new = False
+    db.commit()
+    return _source_out(s)
+
+
+@router.post("/sources/{source_id}/sync")
+def sync_source_now(source_id: int, db: Session = Depends(get_db)):
+    s = _source(db, source_id)
+    result = sync.sync_source(db, s)
+    return {**_source_out(db.get(CalendarSource, source_id)), "result": result}
+
+
+@router.delete("/sources/{source_id}", status_code=204)
+def delete_source(source_id: int, db: Session = Depends(get_db)):
+    """Removes the calendar and its copies in Jarvis; nothing is deleted on the server."""
+    sync.remove_source(db, _source(db, source_id))
+
+
+@module.periodic("sync")
+def task_sync(ctx: Ctx) -> None:
+    sync.sync_all(ctx.db)
+
+
 def _create(ctx_db: Session, body: EventIn, emit=None) -> dict:
     event = Event()
+    target = ctx_db.scalar(select(CalendarSource).where(CalendarSource.push_new.is_(True), CalendarSource.enabled.is_(True),
+                                                        CalendarSource.writable.is_(True), CalendarSource.kind == "caldav"))
+    if target is not None:  # new events go to the chosen external calendar too
+        event.source_id, event.remote_uid = target.id, sync.new_uid()
     _apply(event, body)
     ctx_db.add(event)
     ctx_db.commit()
@@ -199,6 +344,8 @@ def get_event(event_id: int, db: Session = Depends(get_db)):
 @router.put("/{event_id}")
 def update_event(event_id: int, body: EventIn, db: Session = Depends(get_db)):
     event = _get(db, event_id)
+    if event.read_only:
+        raise HTTPException(409, {"code": "event_read_only", "detail": READ_ONLY})
     _apply(event, body)
     db.commit()
     return _out(event)
@@ -206,7 +353,12 @@ def update_event(event_id: int, body: EventIn, db: Session = Depends(get_db)):
 
 @router.delete("/{event_id}", status_code=204)
 def delete_event(event_id: int, db: Session = Depends(get_db)):
-    db.delete(_get(db, event_id))
+    event = _get(db, event_id)
+    if event.read_only:
+        raise HTTPException(409, {"code": "event_read_only", "detail": READ_ONLY})
+    if event.source_id is not None and event.remote_href:  # already on the server: delete it there on the next sync
+        db.add(CalendarPendingDelete(source_id=event.source_id, href=event.remote_href, etag=event.etag))
+    db.delete(event)
     db.commit()
 
 
@@ -333,3 +485,24 @@ def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
                           .limit(max(0, limit - len(future)))).all()
     return [ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href=f"#/calendar?id={e.id}")
             for e in [*future, *past]]
+
+
+@module.diagnostic("sources", "Kalendarze zewnętrzne (CalDAV / iCal)")
+def diag_sources(ctx: Ctx) -> list[Check]:
+    rows = ctx.db.scalars(select(CalendarSource).order_by(CalendarSource.id)).all()
+    if not rows:
+        return [Check("skip", "Brak — wydarzenia są tylko w Jarvisie", "Podłącz kalendarz w module Kalendarz → „Kalendarze zewnętrzne”.")]
+    out = []
+    for s in rows:
+        kind = "CalDAV, zapis" if s.writable else "CalDAV, odczyt" if s.kind == "caldav" else "iCal, odczyt"
+        if not s.enabled:
+            out.append(Check("skip", "Wyłączony", title=f"{s.label} ({kind})"))
+        elif s.last_error:
+            out.append(Check("error", f"Ostatnia synchronizacja {_ago(s.last_sync_at)}: {s.last_error}",
+                             f"Ostatnio udana: {_ago(s.last_ok_at)}. Sprawdź hasło aplikacji i adres w module Kalendarz.",
+                             f"{s.label} ({kind})"))
+        else:
+            late = s.last_ok_at is None or utcnow() - s.last_ok_at > timedelta(hours=2)
+            out.append(Check("warn" if late else "ok", f"{s.last_count} wydarzeń · synchronizacja {_ago(s.last_ok_at)}",
+                             "Synchronizacja stoi — sprawdź Zadania w tle." if late else "", f"{s.label} ({kind})"))
+    return out

@@ -92,6 +92,25 @@ testy modułów (`@module.diagnostic`). Sekcja „To urządzenie” sprawdza w p
 (zgoda, service worker, subskrypcja, zgodność klucza VAPID, rejestracja na serwerze, test na to urządzenie). Nowa funkcja,
 która może się cicho zepsuć, dostaje test diagnostyczny.
 
+## Zadania, brief, wyszukiwanie, kalendarze zewnętrzne
+
+- **Zadania** (`modules/tasks`): termin z godziną (push `remind_minutes` przed) albo na cały dzień (bez własnego push — pokazuje je
+  brief); akcje `add_task`/`list_tasks` (readonly)/`complete_task` dla asystenta.
+- **Poranny brief** (`modules/brief`): raz dziennie o godzinie lokalnej (strefa z przeglądarki, dni tygodnia, okno 3 h po godzinie,
+  nigdy dwa razy na dzień; zapis ustawień po godzinie briefu = pierwszy jutro). Składany **bez AI** z akcji tylko-do-odczytu innych
+  modułów (`ctx.call`, uprawnienie `hub.call`), wysyłany z zadania w tle `brief.send` (nie z pętli przypomnień — pogoda może raz
+  sięgnąć do sieci). W push poczta to tylko liczba (ekran blokady); nadawcy/tematy tylko na stronie. Nowa sekcja = funkcja w `BUILDERS`.
+- **Wyszukiwanie** (Ctrl+K): hak `@module.search` (poza manifestem, jak diagnostyka — nie dla AI), `GET /api/hub/search`, filtr
+  `text_match` z `app.sdk`; wynik ma `href` `#/<moduł>?id=N`, strona czyta go `useHashParam` i woła `clearHashParams` (`@jarvis/sdk`).
+- **Kalendarze zewnętrzne** (`modules/calendar/backend/caldav.py`, `sync.py`): CalDAV w obie strony (odkrywanie principal →
+  calendar-home-set, REPORT z zakresem −30/+366 dni, PUT z `If-Match`/`If-None-Match: *`, DELETE z `If-Match`; konflikt = wygrywa
+  serwer) i adres iCal tylko do odczytu (Google: tajny adres; Google CalDAV wymaga OAuth — nie obsługujemy). Hasło i URL szyfrowane
+  `app.crypto`, nigdy w API. Powtarzające się wydarzenia rozwijane lokalnie (`recurring_ical_events`) i tylko do odczytu; edycja
+  pojedynczego zachowuje pozostałe pola zasobu (`remote_ics`). Zsynchronizowane wydarzenia nie trafiają do eksportu iCal.
+  Sieć przez `app.http.request` (SSRF jak `get`, LAN tylko z `JARVIS_ALLOW_PRIVATE_HOSTS`, bez poświadczeń po przekierowaniu na inny
+  host). Testy: atrapa serwera `core/tests/fake_caldav.py` (`http._transport = httpx.MockTransport(...)`). **Nieweryfikowane na
+  żywo** (iCloud, Nextcloud, Fastmail, Google iCal) — patrz Pułapki.
+
 ## Kopie zapasowe
 
 `core/app/backup.py`: `VACUUM INTO` (tylko SQLite) → gzip → rotacja (doba + 7 dni + 4 tyg.) → opcjonalne lustro
@@ -139,6 +158,9 @@ nie trafia do kopii. W testach `JARVIS_BACKUP_DIR=""`; test, który robi kopię,
   `PYTHONPATH=core:. python scripts/emma_probe.py mleko`, popraw `parse_search`/`parse_delivery` i zamień zapisane strony na fixture'y testów.
   Koszyk to lista linków (EMMA nie ma API koszyka), termin dostawy jest heurystyką tekstową.
 
+- **CalDAV/iCal nieweryfikowane na żywo**: sandbox nie ma dostępu do iCloud/Nextcloud/Fastmail/Google. Odkrywanie i REPORT
+  według RFC 4791 i testów na atrapie; prawdziwe serwery bywają kapryśne (iCloud: przekierowania na `pXX-caldav.icloud.com`,
+  wymagane hasło aplikacji; Nextcloud: `/remote.php/dav`). Pierwsze podłączenie na prawdziwej maszynie sprawdź ręcznie.
 - **Open-Meteo jest nieweryfikowane na żywo**: z sandboxa nie ma do niego dostępu, więc parsowanie (`modules/weather/backend/service.py`)
   opiera się na dokumentacji z pamięci, a testy używają atrapy. Pierwsze uruchomienie na prawdziwej maszynie trzeba sprawdzić ręcznie.
 - Środowisko chmurowe Claude Code nie ma działającego demona Dockera: obrazów nie da się tu zbudować. Weryfikuj przez pytest,
@@ -168,12 +190,13 @@ historia logowań, retencja 90 dni), pulpit z szybkimi akcjami, paletą ⌘K, wi
 streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA, scraping), asystent AI (akcje hubu jako
 narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach,
 automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`), przypomnienie o 2FA na pulpicie, CI na GitHubie (pytest,
-build, E2E). ~275 testów backendu.
+build, E2E), zadania z terminami, poranny brief (push), wyszukiwanie we wszystkim (Ctrl+K), kalendarze zewnętrzne (CalDAV w obie
+strony, iCal/Google do odczytu). ~315 testów backendu.
 
 Następna sesja: **uruchomienie na prawdziwym laptopie + weryfikacja na żywo** (użytkownik odłożył ją; pracujemy w chmurze) —
 szczegóły w `docs/HANDOFF.md` (sekcja 4A). Kopie zapasowe, przypomnienie 2FA i CI są zrobione (sekcja 4B).
-Dalej: dwukierunkowy CalDAV/Google Calendar (dziś tylko eksport iCal), weryfikacja na żywo (Gemini z narzędziami, OpenSSH,
-push na telefonie, Open-Meteo, EMMA, IMAP), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
+Dalej: weryfikacja na żywo (Gemini z narzędziami, OpenSSH, push na telefonie, Open-Meteo, EMMA, IMAP, CalDAV/iCloud/Google iCal),
+Google Calendar w obie strony (wymaga aplikacji OAuth), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 
 Nic z tego nie było jeszcze uruchomione na prawdziwej maszynie w Dockerze ani przeciw prawdziwym usługom (Open-Meteo, EMMA,
 serwery IMAP, dostawcy AI w tym Gemini) — patrz „Pułapki” i `docs/HANDOFF.md`.

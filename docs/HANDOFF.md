@@ -5,8 +5,8 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 ## 1. Gdzie jesteśmy
 
 - `main` = `claude/personal-dashboard-app-nted7h` (scalone na prośbę użytkownika, `8a77a1a` + ten handoff). Do `main` tylko na prośbę.
-- Backend: 260 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0009_ssh_hosts`.
-- Moduły: notes, calendar, weather, news, alarms, mail, shopping, assistant, ssh. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
+- Backend: 260 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0012_calendar_sources`.
+- Moduły: notes, calendar, weather, news, alarms, mail, shopping, assistant, ssh, tasks, brief. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
 - Użytkownik ma **wyłączone 2FA** (konsola SSH prosi wtedy o hasło konta) — w zadaniu B przypomnij o włączeniu.
 - **Logi aplikacji** (`core/app/logs.py`): tekst na stdout + JSON z rotacją w `JARVIS_LOG_DIR/jarvis.jsonl`, filtr maskujący sekrety,
   middleware z logiem żądań (ścieżka bez query stringa). Historia logowań w tabeli `login_events` (`core/app/auth.py: record_login`),
@@ -48,7 +48,7 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 
 `make up` w Dockerze (obrazów nigdy nie zbudowano), Cloudflare Tunnel/Access (w tym wyjątek Bypass dla `/api/public/calendar/*`),
 push na telefon, subskrypcja iCal w Google/iPhonie, Open-Meteo, EMMA (scraping), serwery IMAP (w tym Gmail, TLS),
-**prawdziwe API Gemini** (także tool calling asystenta) i inni dostawcy AI, prawdziwy OpenSSH (konsola SSH), WebSocket przez Caddy + cloudflared. Testy używają atrap. Jeśli użytkownik zgłosi błąd z prawdziwej maszyny, zacznij od tej listy.
+**prawdziwe API Gemini** (także tool calling asystenta) i inni dostawcy AI, prawdziwy OpenSSH (konsola SSH), WebSocket przez Caddy + cloudflared, serwery CalDAV (iCloud, Nextcloud, Fastmail) i tajny adres iCal Google. Testy używają atrap. Jeśli użytkownik zgłosi błąd z prawdziwej maszyny, zacznij od tej listy.
 
 ## 3. Gemini na żywo — gdy użytkownik będzie miał klucz
 
@@ -91,11 +91,16 @@ Sandbox nie ma Dockera ani dostępu do tych usług, więc potrzebny jest laptop 
   Użytkownik musi włączyć 2FA sam.
 - **CI:** `.github/workflows/ci.yml` (pytest, build, E2E Playwright).
 
-## 5. Dalej w planie (po A i B)
+## 5. Zrobione w sesji w chmurze (po B) i dalej w planie
 
-Poranny brief jako push (pogoda, wydarzenia, ważne maile, zakupy), zadania z terminami (asystent je dodaje), wyszukiwanie we
-wszystkim w palecie Ctrl+K, dwukierunkowy Google Calendar/CalDAV, agent hosta (zadania na komputerze z potwierdzeniami), głos.
-Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
+Zrobione (użytkownik wybrał punkty 1–4): **zadania z terminami** (`modules/tasks`), **poranny brief jako push** (`modules/brief`),
+**wyszukiwanie we wszystkim w palecie Ctrl+K** (`@module.search`), **kalendarze zewnętrzne** (CalDAV w obie strony + iCal/Google tylko
+do odczytu). Szczegóły w CLAUDE.md. Przyjęte bez dopytywania (do potwierdzenia z użytkownikiem): brief domyślnie 07:00 codziennie,
+sekcje pogoda/kalendarz/zadania/poczta/zakupy (newsy wyłączone), bez AI; w push poczta tylko jako liczba; konflikt CalDAV = wygrywa
+serwer; Google tylko przez tajny adres iCal (zapis do Google wymagałby własnej aplikacji OAuth w Google Cloud — osobna decyzja).
+
+Dalej: weryfikacja na laptopie (sekcja 4A, w tym podłączenie prawdziwego CalDAV), zapis do Google Calendar przez OAuth (jeśli
+użytkownik chce), agent hosta (zadania na komputerze z potwierdzeniami), głos. Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
 
 ## 6. Gotowy prompt na start następnej sesji
 

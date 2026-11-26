@@ -2,8 +2,8 @@
   "contract": 1,
   "id": "calendar",
   "name": "Kalendarz",
-  "version": "0.3.0",
-  "description": "Wydarzenia i przypomnienia z powiadomieniami push.",
+  "version": "0.4.0",
+  "description": "Wydarzenia i przypomnienia z powiadomieniami push; synchronizacja z CalDAV (iCloud, Nextcloud, Fastmail…) i import iCal (np. Google).",
   "permissions": [
     "push.send"
   ],
@@ -86,5 +86,11 @@
   ],
   "public": {
     "reason": "Adres subskrypcji iCal dla telefonu i Google Calendar: aplikacje kalendarza nie umieją się zalogować; dostęp chroni tajny token w ścieżce (tylko odczyt, można go zmienić lub wyłączyć)."
-  }
+  },
+  "tasks": [
+    {
+      "id": "sync",
+      "every": 900
+    }
+  ]
 }
