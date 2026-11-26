@@ -4,3 +4,7 @@ data
 **/node_modules
 **/dist
 **/__pycache__
+.env.*
+data-dev
+.venv
+emma-pages

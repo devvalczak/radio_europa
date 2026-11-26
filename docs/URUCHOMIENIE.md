@@ -1,6 +1,10 @@
-# Uruchomienie Jarvisa na laptopie (krok po kroku)
+# Uruchomienie Jarvisa (krok po kroku)
 
-Dla laptopa z Linuxem (Ubuntu/Debian/Mint; ≤ 8 GB RAM wystarczy). Całość działa w Dockerze: nie instalujesz Pythona ani Node.js.
+Dwa tryby:
+- **Produkcja: Linux + Docker** (punkty 1–10) — docelowy laptop, działa 24/7, dostęp z telefonu przez Cloudflare.
+- **Rozwój: macOS bez Dockera** ([punkt 11](#11-tryb-deweloperski-na-macos-bez-dockera)) — `make dev`, przeładowanie po każdej zmianie kodu.
+
+Produkcja: dla laptopa z Linuxem (Ubuntu/Debian/Mint; ≤ 8 GB RAM wystarczy). Całość działa w Dockerze: nie instalujesz Pythona ani Node.js.
 Czas: ok. 15 minut, z czego większość to pierwsze budowanie obrazów.
 
 > Uwaga: to pierwsze uruchomienie w historii projektu. Testy, build i E2E przechodzą w CI, ale samych obrazów Dockera
@@ -127,3 +131,42 @@ tajny adres iCal Google, Gemini (`JARVIS_AI_PROVIDER=gemini` w `.env`).
 - Logowanie wraca do ekranu logowania: `JARVIS_COOKIE_SECURE` (punkt 3).
 
 Z takim opisem nowa sesja Claude (prompt w `docs/HANDOFF.md`, sekcja 6) wie, od czego zacząć.
+
+## 11. Tryb deweloperski na macOS (bez Dockera)
+
+Do pisania i testowania zmian. Backend i frontend działają wprost na Macu, z automatycznym przeładowaniem; dane w osobnym
+katalogu `data-dev/` (nie mieszają się z produkcyjnym `data/`). Działa tak samo na Linuxie.
+
+**Raz:**
+```bash
+xcode-select --install                 # git i make (jeśli jeszcze nie ma)
+brew install python@3.12 node@22       # Python >= 3.12, Node 22 (jak w Dockerze); albo pyenv/nvm/uv
+git clone https://github.com/devvalczak/radio_europa.git jarvis && cd jarvis
+make dev-init                          # .venv z zależnościami, npm ci, .env.dev z sekretami deweloperskimi; wypisze token
+```
+
+**Na co dzień:**
+```bash
+make dev        # backend :8000 + frontend :5173; otwórz http://localhost:5173 (Ctrl+C zatrzymuje oba)
+```
+Pierwsze wejście: token z `make dev-init` (jest też w `.env.dev`). Zmiana w `core/app` albo `modules/*/backend` przeładowuje
+backend (i wykonuje nowe migracje), zmiana w frontendzie odświeża stronę sama. Push działa też lokalnie: `localhost` to dla
+przeglądarki bezpieczny kontekst (Chrome, Safari 16+ na macOS 13+).
+
+**Przed commitem** (to samo sprawdza CI):
+```bash
+make test                               # pytest backendu (używa .venv)
+cd frontend && npm run build            # motywy + typecheck + build
+```
+Zrzuty wszystkich ekranów we wszystkich motywach (skill `jarvis-design`): `cd frontend && npm install --no-save playwright@1.63.0 &&
+npx playwright install chromium`, potem `JARVIS_URL=http://localhost:5173 JARVIS_USER=… JARVIS_PASSWORD=… node scripts/theme-shots.mjs shots`.
+
+**Czysta baza deweloperska:** zatrzymaj `make dev`, usuń `data-dev/jarvis.db`, uruchom ponownie (znów poprosi o token z `.env.dev`).
+AI w trybie dev: dopisz `JARVIS_AI_*` do `.env.dev` (jak w `.env.example`). Serwer CalDAV/IMAP w sieci domowej:
+`JARVIS_ALLOW_PRIVATE_HOSTS=true` w `.env.dev`.
+
+**Wersja „jak na produkcji” na Macu (opcjonalnie):** Docker Desktop albo OrbStack, potem te same `make init` / `make up` co na
+Linuxie (punkty 3–4). Obrazy są wieloarchitekturowe (Apple Silicon działa), `host.docker.internal` działa od razu. To dobry
+test Dockerfile'i przed wdrożeniem na laptopa, ale docelowa maszyna to Linux.
+
+`.env.dev`, `.venv/` i `data-dev/` są w `.gitignore` i `.dockerignore` — nie trafiają do repo ani do obrazów.

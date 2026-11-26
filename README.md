@@ -110,14 +110,15 @@ Port 8080 jest wystawiony tylko na `127.0.0.1`, a z internetu nic nie wchodzi be
 („Dodaj do ekranu głównego"), wejdź w Ustawienia → „Włącz powiadomienia" i „Wyślij testowe".
 Na iOS push działa tylko z aplikacji dodanej do ekranu głównego (iOS 16.4+).
 
-## Rozwój
+## Rozwój (macOS albo Linux, bez Dockera)
 
 ```bash
-pip install -r core/requirements-dev.txt && make test     # testy backendu
-cd frontend && npm ci && npm run build                    # typecheck + build
-# dev: uvicorn z core/ (PYTHONPATH=core:., JARVIS_MODULES_DIR=$PWD/modules, JARVIS_DATABASE_URL=sqlite:///./dev.db)
-#      + `npm run dev` w frontend/ (proxy /api → :8000)
+make dev-init     # raz: .venv (Python >= 3.12), npm ci, .env.dev (sekrety deweloperskie, dane w ./data-dev)
+make dev          # backend :8000 z przeładowaniem + Vite :5173 → http://localhost:5173
+make test         # pytest; cd frontend && npm run build — typecheck + build (to samo co CI)
 ```
+Szczegóły (Homebrew, push lokalnie, zrzuty motywów, Docker Desktop/OrbStack): [docs/URUCHOMIENIE.md, punkt 11](docs/URUCHOMIENIE.md#11-tryb-deweloperski-na-macos-bez-dockera).
+Produkcja to Docker na Linuxie (`make init` / `make up`).
 
 ## Stan i znane ograniczenia
 

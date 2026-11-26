@@ -1,7 +1,8 @@
 # Jarvis (radio_europa)
 
-Osobisty dashboard „do daily użycia": rdzeń (hub) + moduły. Działa na laptopie z Linuxem w Dockerze,
-wystawiony przez Cloudflare Tunnel. Interfejs i teksty **po polsku**. Użytkownik jest devem (Python/TypeScript).
+Osobisty dashboard „do daily użycia": rdzeń (hub) + moduły. Produkcja: laptop z Linuxem w Dockerze, wystawiony przez
+Cloudflare Tunnel. Rozwój: użytkownik pracuje na **macOS** bez Dockera (`make dev`) — Makefile i skrypty muszą działać na BSD
+(macOS) i GNU (Linux): `sed -i.bak` zamiast `sed -i`, `$(PYTHON)` zamiast `python`, bez `readlink -f`/`grep -P`. Interfejs i teksty **po polsku**. Użytkownik jest devem (Python/TypeScript).
 
 ## Architektura w skrócie
 
@@ -23,7 +24,8 @@ Przepływ: przeglądarka → Caddy → `/api` (core) lub frontend. Core ładuje 
 make init                         # .env z sekretami (nie nadpisuje istniejącego)
 make up | down | logs             # Docker compose; make up-quick / up-tunnel dla Cloudflare (krok po kroku: docs/URUCHOMIENIE.md)
 make backup | restore f=…         # kopia bazy teraz / przywrócenie (offline, odkłada obecną bazę obok)
-make test                         # pytest backendu (cd core && python -m pytest -q)
+make dev-init / make dev          # rozwój bez Dockera (macOS/Linux): .venv + .env.dev + data-dev/, backend :8000 + Vite :5173
+make test                         # pytest backendu ($(PYTHON) = .venv, jeśli jest, inaczej python3)
 make migration m="opis"           # nowa migracja z różnic modeli (wymaga alembic w PATH)
 make new-module name=pogoda       # szkielet modułu zgodny z kontraktem
 cd frontend && npm run build      # tsc + vite build; npm run dev = serwer dev z proxy /api → :8000
@@ -166,8 +168,8 @@ nie trafia do kopii. W testach `JARVIS_BACKUP_DIR=""`; test, który robi kopię,
 - **Open-Meteo jest nieweryfikowane na żywo**: z sandboxa nie ma do niego dostępu, więc parsowanie (`modules/weather/backend/service.py`)
   opiera się na dokumentacji z pamięci, a testy używają atrapy. Pierwsze uruchomienie na prawdziwej maszynie trzeba sprawdzić ręcznie.
 - Środowisko chmurowe Claude Code nie ma działającego demona Dockera: obrazów nie da się tu zbudować. Weryfikuj przez pytest,
-  `npm run build` i uruchomienie `uvicorn` + `vite` lokalnie (PYTHONPATH=core:., JARVIS_MODULES_DIR=$PWD/modules,
-  JARVIS_DATABASE_URL=sqlite:///…, JARVIS_COOKIE_SECURE=false). Pierwszy `make up` na prawdziwej maszynie może wykazać błędy Dockerfile.
+  `npm run build` i `make dev-init && make dev` (to samo, czego używa użytkownik na Macu), E2E: `node frontend/scripts/e2e-smoke.mjs`
+  z tokenem z `.env.dev` na świeżej bazie. Proces `make dev` zatrzymuj po porcie (8000, 5173), nie przez `pkill -f`. Pierwszy `make up` na prawdziwej maszynie może wykazać błędy Dockerfile.
 - `docker compose` z `${VAR:?}` w serwisie z nieaktywnym profilem i tak wywala się — używaj `${VAR:-}`.
 - Nie zabijaj procesów przez `pkill -f`/`pgrep -f <wzorzec>`: cała komenda to linia poleceń własnej powłoki, więc wzorzec (nawet
   w formie `[v]ite`), który pojawia się gdziekolwiek w tej samej komendzie, ubija powłokę (exit 144). Zapisuj PID-y przy starcie

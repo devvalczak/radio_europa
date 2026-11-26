@@ -111,8 +111,8 @@ make test                              # wszystkie testy backendu, w tym zgodno�
 cd frontend && npm run build           # typecheck + build (łapie błędy stron modułów)
 ```
 
-Dla zmian widocznych w UI uruchom `uvicorn` (PYTHONPATH=core:., JARVIS_MODULES_DIR=$PWD/modules, JARVIS_DATABASE_URL=sqlite:///…,
-JARVIS_COOKIE_SECURE=false, JARVIS_SECRET_KEY/JARVIS_SETUP_TOKEN ustawione) i `npm run dev` w `frontend/`, sprawdź w przeglądarce:
+Dla zmian widocznych w UI uruchom `make dev-init` (raz) i `make dev` (backend :8000 z przeładowaniem + Vite :5173; token pierwszej
+konfiguracji w `.env.dev`; nowy moduł wymaga restartu `make dev`, bo Vite wczytuje listę modułów przy starcie), sprawdź w przeglądarce:
 moduł w menu z ikoną, widgety w „Edytuj układ → Dodaj widget", stronę modułu, stan pusty i błąd — **w każdym zainstalowanym
 motywie** (`node frontend/scripts/theme-shots.mjs`, patrz skill `jarvis-design` krok 5) i obejrzyj zrzuty. Jeśli czegoś nie dało się
 uruchomić (np. Docker), napisz to wprost w podsumowaniu, zamiast twierdzić, że działa.

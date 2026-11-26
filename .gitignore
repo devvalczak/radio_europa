@@ -9,3 +9,6 @@ __pycache__/
 .mig.db
 e2e-failure.png
 emma-pages/
+data-dev/
+.env.dev
+.env.bak
