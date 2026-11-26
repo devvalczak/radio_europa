@@ -203,3 +203,54 @@ def test_schema_cleaning():
     assert gem["properties"]["maybe"]["nullable"] is True and "format" not in gem["properties"]["when"]
     assert ai_chat.clean_schema({}) == {"type": "object", "properties": {}}
     assert ai_chat.tool_name("notes.create") == "notes__create"
+
+
+def _system_prompt(seen):
+    msgs = seen[0]["body"]["messages"]
+    return next(m["content"] for m in msgs if m["role"] == "system")
+
+
+def test_add_task_from_conversation_gets_the_users_zone(authed, model):
+    script, seen, use = model
+    use("openai")
+    script += [oa_call("tasks__add_task", {"title": "Zapłacić za prąd", "due": "2026-11-27T00:00:00+01:00", "all_day": True,
+                                           "repeat": "monthly"}, "t1")]
+    state = send(authed, "co miesiąc w piątek zapłacić za prąd")
+    call = state["messages"][-1]["calls"][0]
+    assert call["state"] == "pending" and call["input"]["tz"] == "Europe/Warsaw"  # injected, not guessed by the model
+    assert authed.get("/api/m/tasks").json() == []
+    script += [oa_text("Dodane.")]
+    authed.post("/api/m/assistant/chat/calls/t1", json={"approve": True, "tz": "Europe/Warsaw"})
+    [task] = authed.get("/api/m/tasks").json()
+    assert (task["title"], task["repeat"], task["all_day"]) == ("Zapłacić za prąd", "monthly", True)
+
+
+def test_the_models_own_zone_is_kept(authed, model):
+    script, seen, use = model
+    use("openai")
+    script += [oa_call("tasks__add_task", {"title": "x", "tz": "UTC"}, "t1")]
+    assert send(authed, "dodaj x")["messages"][-1]["calls"][0]["input"]["tz"] == "UTC"
+
+
+def test_several_things_in_one_message_are_separate_confirmations(authed, model):
+    script, seen, use = model
+    use("openai")
+    reply = {"choices": [{"message": {"content": None, "tool_calls": [
+        {"id": "a", "type": "function", "function": {"name": "calendar__create_event", "arguments": json.dumps(
+            {"title": "Dentysta", "start": "2026-11-27T09:00:00+01:00"})}},
+        {"id": "b", "type": "function", "function": {"name": "shopping__add_item", "arguments": json.dumps({"query": "mleko", "quantity": 2})}},
+    ]}}]}
+    script += [reply]
+    calls = send(authed, "jutro 9 dentysta i kup 2 mleka")["messages"][-1]["calls"]
+    assert [c["state"] for c in calls] == ["pending", "pending"]
+    assert [c["action"] for c in calls] == ["calendar.create_event", "shopping.add_item"]
+    assert "tz" not in calls[0]["input"] and "tz" not in calls[1]["input"]  # those actions have no zone field
+
+
+def test_prompt_explains_how_to_pick_the_tool_for_adding(authed, model):
+    script, seen, use = model
+    use("openai")
+    script += [oa_text("ok")]
+    send(authed, "cześć")
+    prompt = _system_prompt(seen)
+    assert "calendar__create_event" in prompt and "tasks__add_task" in prompt and "all_day=true" in prompt

@@ -12,6 +12,7 @@ interface Parsed {
   all_day: boolean;
   important: boolean;
   repeat: string | null;
+  ai: boolean;
   found: string[];
   action: string;
   input: Record<string, unknown>;
@@ -41,6 +42,8 @@ export function Capture() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  const [aiMode, setAiMode] = useState(false); // the preview comes from the AI, not from the local parser
+  const [aiBusy, setAiBusy] = useState(false);
   const seq = useRef(0);
   const Rec = speech();
 
@@ -49,6 +52,7 @@ export function Capture() {
   }, [shared, kindParam]);
 
   useEffect(() => {
+    if (aiMode) return; // an AI result stays until the text changes
     if (!text.trim()) {
       setParsed(null);
       setError("");
@@ -61,7 +65,23 @@ export function Capture() {
         .catch((e) => mine === seq.current && setError(e instanceof ApiError ? errorText(e.detail) : t.today.noNetwork));
     }, 250);
     return () => clearTimeout(id);
-  }, [text, kind]);
+  }, [text, kind, aiMode]);
+
+  const runAi = async (k: Kind | null) => {
+    setAiBusy(true);
+    setError("");
+    try {
+      const p = await api<Parsed>("/hub/capture/ai", { method: "POST", body: { text, tz: tz(), kind: k } });
+      seq.current++; // drop any local-parser answer still on its way
+      setParsed(p);
+      setAiMode(true);
+    } catch (e) {
+      // the server's message is already Polish and safe to show (not configured, rate limit, unreadable answer)
+      setError(e instanceof ApiError && e.detail.includes(" ") ? e.detail : t.today.noNetwork);
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   const save = async () => {
     if (!parsed || parsed.problem) return;
@@ -75,6 +95,7 @@ export function Capture() {
       setText("");
       setKind(null);
       setParsed(null);
+      setAiMode(false);
     } catch (e) {
       setError(e instanceof ApiError ? errorText(e.detail) : t.today.noNetwork);
     } finally {
@@ -98,7 +119,7 @@ export function Capture() {
       <form className="stack" onSubmit={(e) => { e.preventDefault(); void save(); }}>
         <label>
           {t.capture.label}
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t.capture.placeholder} autoFocus maxLength={500} />
+          <input value={text} onChange={(e) => { setText(e.target.value); setAiMode(false); }} placeholder={t.capture.placeholder} autoFocus maxLength={500} />
         </label>
         <div className="row">
           {Rec && <Button type="button" onClick={dictate} disabled={listening}>{listening ? t.capture.listening : t.capture.dictate}</Button>}
@@ -110,7 +131,7 @@ export function Capture() {
             <Tabs
               label={t.capture.kindLabel}
               value={parsed.kind}
-              onChange={(k) => setKind(k)}
+              onChange={(k) => { setKind(k); if (aiMode) void runAi(k); }}
               items={(["task", "event", "shopping", "note"] as Kind[]).map((k) => ({ value: k, label: t.capture.kinds[k] }))}
             />
             <p><b>{parsed.title}</b></p>
@@ -118,6 +139,15 @@ export function Capture() {
             {!parsed.due && parsed.important && <p className="muted">{t.today.important}</p>}
             {parsed.input.quantity != null && Number(parsed.input.quantity) > 1 && <p className="muted">{t.capture.quantity(Number(parsed.input.quantity))}</p>}
             {parsed.problem && <p className="error">{t.capture.noDate}</p>}
+            {aiMode && <p className="muted">{t.capture.fromAi}</p>}
+            {parsed.ai && !aiMode && (parsed.found.length === 0 || parsed.problem) && (
+              <div className="stack">
+                <p className="muted">{t.capture.unsure}</p>
+                <div className="row">
+                  <Button type="button" onClick={() => void runAi(kind)} disabled={aiBusy}>{aiBusy ? t.capture.aiBusy : t.capture.aiButton}</Button>
+                </div>
+              </div>
+            )}
             <div className="row">
               <Button type="submit" disabled={busy || !!parsed.problem}>{t.capture.save}</Button>
             </div>

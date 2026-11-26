@@ -33,7 +33,25 @@ const SUGGESTIONS = ["s1", "s2", "s3", "s4"];
 
 /** "Tworzy notatkę: treść w Markdownie (…)" -> "Tworzy notatkę" */
 const short = (d: string) => d.split(/[:(]|\. /)[0].replace(/\.$/, "").trim().slice(0, 70);
-const fmtValue = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v));
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+const HIDDEN = new Set(["tz"]); // filled in by the app, not worth the user's attention
+
+/** One value of a pending call as the user reads it: dates local, booleans and repeat words in Polish. */
+function fmtValue(key: string, v: unknown, allDay: boolean): string {
+  if (typeof v === "boolean") return v ? t("yes") : t("no");
+  if (key === "repeat" && typeof v === "string") return t(`repeat.${v}`);
+  if (typeof v === "string" && ISO.test(v) && !Number.isNaN(Date.parse(v))) {
+    const d = new Date(v);
+    return allDay
+      ? d.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })
+      : d.toLocaleString("pl-PL", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  }
+  return typeof v === "string" ? v : JSON.stringify(v);
+}
+const fieldLabel = (k: string) => {
+  const label = t(`field.${k}`);
+  return label === `field.${k}` ? k : label;
+};
 
 function CallLine({ c, busy, decide }: { c: Call; busy: boolean; decide: (id: string, ok: boolean) => void }) {
   const what = `${c.module ?? "?"}: ${short(c.description)}`;
@@ -42,7 +60,9 @@ function CallLine({ c, busy, decide }: { c: Call; busy: boolean; decide: (id: st
     const label = c.state === "done" && c.readonly ? t("state.auto") : t(`state.${c.state}`);
     return <div className={`chat-tool st-${c.state}`}>{mark} {label} — {what}</div>;
   }
-  const entries = Object.entries(c.input ?? {});
+  const input = c.input ?? {};
+  const allDay = input.all_day === true;
+  const entries = Object.entries(input).filter(([k, v]) => !HIDDEN.has(k) && !(k === "all_day" && v === false) && v !== null && v !== "");
   return (
     <div className="chat-confirm" role="group" aria-label={t("confirmTitle")}>
       <b>{t("confirmTitle")}</b>
@@ -50,7 +70,7 @@ function CallLine({ c, busy, decide }: { c: Call; busy: boolean; decide: (id: st
       {entries.length > 0 && (
         <dl>
           {entries.map(([k, v]) => (
-            <div key={k}><dt>{k}</dt><dd>{fmtValue(v)}</dd></div>
+            <div key={k}><dt>{fieldLabel(k)}</dt><dd>{fmtValue(k, v, allDay)}</dd></div>
           ))}
         </dl>
       )}

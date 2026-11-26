@@ -161,6 +161,8 @@ nie trafia do kopii. W testach `JARVIS_BACKUP_DIR=""`; test, który robi kopię,
 
 ## Pułapki
 
+- **AI w „Dodaj zdaniem”** (`POST /api/hub/capture/ai`) i dodawanie z rozmowy w asystencie nie były sprawdzone u żywego dostawcy AI (tylko
+  nagrane kształty odpowiedzi i lokalny fałszywy serwer). Zdanie trafia do AI wyłącznie po kliknięciu „Zrozum z AI”; model bez narzędzi.
 - **Przyciski w powiadomieniach, share target i dyktowanie nie były sprawdzone na telefonie** (sandbox: tylko testy backendu i Chromium bez push).
   Przyciski wywołują trasy `/api/m/…` z `sw.js` (`credentials: "same-origin"`, `X-Jarvis`); serwer wysyła tylko takie ścieżki.
 
@@ -203,7 +205,7 @@ streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA
 narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach,
 automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`), przypomnienie o 2FA na pulpicie, CI na GitHubie (pytest,
 build, E2E), zadania z terminami, poranny brief (push), wyszukiwanie we wszystkim (Ctrl+K), kalendarze zewnętrzne (CalDAV w obie
-strony, iCal/Google do odczytu). ekran „Dziś”, szybkie dodawanie zdaniem (parser PL `core/app/capture.py`, skróty PWA i udostępnianie), powiadomienia z przyciskami (Zrobione/Drzemka), zadania cykliczne. ~355 testów backendu.
+strony, iCal/Google do odczytu). ekran „Dziś”, szybkie dodawanie zdaniem (parser PL `core/app/capture.py`, skróty PWA i udostępnianie), powiadomienia z przyciskami (Zrobione/Drzemka), zadania cykliczne, asystent dodający wpisy z rozmowy, AI jako zapasowy parser zdań. ~376 testów backendu.
 
 Następna sesja: **opinie z używania i Diagnostyka**, gdy użytkownik uruchomi aplikację (jeszcze tego nie zrobił; nie zgaduj wyników),
 potem kolejne rzeczy z `docs/HANDOFF.md` (sekcje 4 i 5). Zmieniając sposób uruchamiania (Makefile, compose, `.env`), aktualizuj też

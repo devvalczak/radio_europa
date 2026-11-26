@@ -82,7 +82,7 @@ opinie, wtedy to jest pierwsza praca (lista nieweryfikowanych usług: sekcja 2 i
 2. **Szybkie dodawanie zdaniem** (`core/app/capture.py` — czysty parser PL, `POST /api/hub/capture/parse`, `frontend/src/Capture.tsx`,
    `#/capture`): podgląd, zmiana rodzaju (zadanie/wydarzenie/zakupy/notatka), zapis zwykłymi akcjami hubu. Ctrl+K: „Dodaj zdaniem: …”.
    PWA: `shortcuts` i `share_target` w `manifest.webmanifest` (udostępnianie otwiera `/?share_text=…`, `main.tsx` zamienia to na
-   `#/capture?text=…`). Dyktowanie przez Web Speech tylko gdy przeglądarka je ma. **AI jako fallback parsera nie zrobione** (świadomie).
+   `#/capture?text=…`). Dyktowanie przez Web Speech tylko gdy przeglądarka je ma. AI jako zapasowy parser: przycisk „Zrozum z AI” w `#/capture`, tylko na kliknięcie, gdy parser nic nie rozpoznał (`core/app/capture_ai.py`, `POST /api/hub/capture/ai`, limit 20/min; model bez narzędzi, JSON walidowany).
 3. **Powiadomienia z przyciskami + zadania cykliczne:** `Reminder.actions` (`core/app/push.py`), `sw.js` wykonuje przycisk jako POST
    do trasy `/api/m/…` (tasks: „Zrobione”, „Za 1 h” = `/snooze`; alarms: „Drzemka 10 min”), idempotentnie; bez przycisków (iOS) klik
    otwiera stronę jak wcześniej. Zadania: `repeat` (daily/weekdays/weekly/monthly/yearly) + `repeat_tz`, następne wystąpienie powstaje
@@ -90,7 +90,8 @@ opinie, wtedy to jest pierwsza praca (lista nieweryfikowanych usług: sekcja 2 i
    Parser rozpoznaje „codziennie”, „co tydzień”, „w dni robocze”, „co miesiąc”, „co rok”.
 **Nieweryfikowane na żywo:** przyciski w powiadomieniach i share target (wymagają telefonu przez https), Web Speech, ekran startowy na telefonie.
 Miesięczne powtarzanie z 29–31 dnia przycina do ostatniego dnia miesiąca i nie wraca do pierwotnego dnia (31 stycznia → 28 lutego → 28 marca).
-Rozszerzenia w kolejce: powtarzające się wydarzenia kalendarza, AI jako fallback parsera, zadania cykliczne „po wykonaniu” zamiast „po terminie”.
+**Asystent AI dodaje z rozmowy** (zadanie/wydarzenie/zakupy/notatka): prompt z zasadami wyboru narzędzia, `tz` użytkownika wstrzykiwany do akcji z polem `tz`, czytelna karta „Wykonaj” (daty lokalnie, powtarzanie po polsku). Nieweryfikowane u żywego dostawcy AI (testy na nagranych odpowiedziach i fałszywym serwerze).
+Rozszerzenia w kolejce: powtarzające się wydarzenia kalendarza, zadania cykliczne „po wykonaniu” zamiast „po terminie”.
 
 Dalej w kolejce: asystent AI dodający zadania z rozmowy, przypomnienia zależne od miejsca (geolokalizacja), zapis do Google
 Calendar (OAuth w Google Cloud — decyzja użytkownika), agent hosta (zadania na komputerze z potwierdzeniami).

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -12,7 +13,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import capture
+from . import ai, capture, capture_ai
 from .auth import require_user
 from .config import settings
 from .db import get_db
@@ -25,6 +26,8 @@ from .widgets import Block, ListItem
 
 _blocks = TypeAdapter(list[Block])
 search_log = logging.getLogger("jarvis.search")
+AI_CAPTURE_PER_MINUTE = 20
+ai_calls: dict[int, list[float]] = {}  # per user, in memory: recent /hub/capture/ai calls (monotonic seconds)
 
 
 class ActionCall(BaseModel):
@@ -151,7 +154,30 @@ def build_router(hub: Hub) -> APIRouter:
             tz = ZoneInfo(body.tz)
         except (ZoneInfoNotFoundError, ValueError):
             raise HTTPException(422, "bad_timezone") from None
-        return capture.parse(body.text, tz, datetime.now(UTC), body.kind)
+        return {**capture.parse(body.text, tz, datetime.now(UTC), body.kind), "ai": ai.configured()}
+
+    @router.post("/hub/capture/ai")
+    def capture_with_ai(body: CaptureIn, user: User = Depends(require_user)):
+        """The same preview as /hub/capture/parse, understood by the AI. Only on an explicit click (the sentence leaves the
+        app); the model has no tools and its JSON is validated. Nothing about the sentence or the answer is logged."""
+        try:
+            tz = ZoneInfo(body.tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise HTTPException(422, "bad_timezone") from None
+        if not ai.configured():
+            raise HTTPException(503, "AI nie jest skonfigurowane (ustaw JARVIS_AI_* w .env).")
+        now_ts = time.monotonic()
+        recent = [t for t in ai_calls.get(user.id, []) if now_ts - t < 60]
+        if len(recent) >= AI_CAPTURE_PER_MINUTE:
+            raise HTTPException(429, "Za dużo zapytań do AI w ciągu minuty. Spróbuj za chwilę.")
+        ai_calls[user.id] = [*recent, now_ts]
+        try:
+            out = capture_ai.parse_with_ai(body.text, tz, datetime.now(UTC), body.kind)
+        except ai.AIError as exc:
+            raise HTTPException(429 if exc.code == "rate_limited" else 502, exc.user_message()) from None
+        except capture_ai.BadOutput:
+            raise HTTPException(422, "AI nie zwróciło czytelnej odpowiedzi. Spróbuj przeformułować zdanie.") from None
+        return {**out, "ai": True}
 
     @router.get("/hub/search")
     def search(q: str = Query("", max_length=200), limit: int = Query(5, ge=1, le=20), db: Session = Depends(get_db)):
