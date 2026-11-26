@@ -1,8 +1,9 @@
 import { api, ApiError } from "@jarvis/sdk";
-import { PageTitle } from "@jarvis/ui";
+import { PageTitle, Switch } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { errorText, t } from "./i18n";
+import { getHome, setHome } from "./homeRoute";
 import { enablePush, pushSupported } from "./push";
 import type { ModuleInfo } from "./Shell";
 import { Backups } from "./Backups";
@@ -12,6 +13,7 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
   const [themes, setThemes] = useState<(ThemeInfo & { tok: Record<string, string> })[]>([]);
   const [theme, setTheme] = useState(currentTheme());
   const [msg, setMsg] = useState("");
+  const [homeToday, setHomeToday] = useState(getHome() === "today");
   const [totp, setTotp] = useState<{ secret: string; uri: string } | null>(null);
   const [code, setCode] = useState("");
   const [ai, setAi] = useState<{ configured: boolean; provider: string | null; model: string | null; host: string | null } | null>(null);
@@ -37,6 +39,18 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
   return (
     <>
       <PageTitle>{t.settings}</PageTitle>
+      <section className="card stack">
+        <h2>{t.today.home}</h2>
+        <Switch
+          checked={homeToday}
+          onChange={(v) => {
+            setHomeToday(v);
+            setHome(v ? "today" : "dashboard");
+          }}
+          label={t.today.homeToday}
+        />
+        <p className="muted">{t.today.homeHint}</p>
+      </section>
       <section className="card stack">
         <h2>{t.theme}</h2>
         <div className="theme-grid" role="radiogroup" aria-label={t.theme}>

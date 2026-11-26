@@ -11,6 +11,8 @@ import { openPalette, Palette, paletteKeys } from "./Palette";
 import { QuickHost } from "./quick";
 import { Settings } from "./Settings";
 import { System } from "./System";
+import { Today } from "./Today";
+import { homeRoute } from "./homeRoute";
 
 export interface ModuleInfo {
   id: string;
@@ -24,7 +26,7 @@ export interface ModuleInfo {
 
 const useRoute = () => {
   // "#/notes?id=5" -> "notes" (the page reads its parameters with useHashParam from @jarvis/sdk)
-  const read = () => window.location.hash.replace(/^#\/?/, "").split("?")[0] || "dashboard";
+  const read = () => window.location.hash.replace(/^#\/?/, "").split("?")[0] || homeRoute();
   const [route, setRoute] = useState(read);
   useEffect(() => {
     const on = () => setRoute(read());
@@ -71,9 +73,9 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
     .filter((x): x is { m: ModuleInfo; def: ModuleDef } => !!x.def);
   const active = mods.find((x) => x.m.id === route);
   const icon = (m: ModuleInfo) => <ModuleIcon id={m.has_icon ? m.id : ""} />;
-  // phone tab bar: dashboard + first three apps + "more" (app drawer with everything)
-  const tabMods = mods.slice(0, 3);
-  const inDrawer = !["dashboard", ...tabMods.map((x) => x.m.id)].includes(route);
+  // phone tab bar: today + dashboard + first two apps + "more" (app drawer with everything)
+  const tabMods = mods.slice(0, 2);
+  const inDrawer = !["dashboard", "today", ...tabMods.map((x) => x.m.id)].includes(route);
 
   return (
     <div className="shell">
@@ -84,6 +86,10 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
           <span className="grow">{t.palette.searchShort}</span>
           <Kbd>{paletteKeys()}</Kbd>
         </button>
+        <a href="#/today" className={`nav-link ${route === "today" ? "on" : ""}`} aria-current={route === "today" ? "page" : undefined}>
+          <span className="glyph" aria-hidden>☀</span>
+          {t.today.title}
+        </a>
         <a href="#/dashboard" className={`nav-link ${route === "dashboard" ? "on" : ""}`} aria-current={route === "dashboard" ? "page" : undefined}>
           <span className="glyph" aria-hidden>◎</span>
           {t.dashboard}
@@ -122,6 +128,8 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
           <Settings status={status} onChange={onChange} modules={modules} />
         ) : route === "system" ? (
           <System />
+        ) : route === "today" ? (
+          <Today />
         ) : route === "debug" ? (
           <Debug />
         ) : active ? (
@@ -133,6 +141,10 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       </main>
 
       <nav className="tabbar" aria-label={t.apps}>
+        <a href="#/today" className={route === "today" ? "on" : ""}>
+          <span className="glyph" aria-hidden>☀</span>
+          <span className="lbl">{t.today.title}</span>
+        </a>
         <a href="#/dashboard" className={route === "dashboard" ? "on" : ""}>
           <span className="glyph" aria-hidden>◎</span>
           <span className="lbl">{t.dashboard}</span>

@@ -105,6 +105,7 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 }
 .card > header { min-height: var(--control-height); }
 .card > header h2 { font-size: 16px; }
+.today-date { margin: -6px 0 14px; }
 .eyebrow { font: 600 11.5px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 
 /* --- page header ------------------------------------------------------------------------------ */

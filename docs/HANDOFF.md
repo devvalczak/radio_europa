@@ -5,8 +5,9 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 ## 1. Gdzie jesteśmy
 
 - `main` = `claude/personal-dashboard-app-nted7h` = `376fab3` (scalone na prośbę użytkownika po zielonym CI). Do `main` tylko na prośbę.
-- **Użytkownik uruchomił aplikację** („apka się uruchamia”) — nie wiemy jeszcze, czy w trybie dev na Macu (`make dev` /
-  devcontainer VS Code), czy produkcyjnie (`make up`), ani co pokazuje Diagnostyka. Zapytaj na starcie (sekcja 4, krok 1).
+- **Użytkownik NIE uruchomił jeszcze aplikacji** (wcześniejsza wersja tego pliku twierdziła inaczej — to był błąd). Nie ma więc
+  wyniku Diagnostyki ani opinii z używania; nie wymyślaj ich i nie naprawiaj „na zapas”. Diagnostyki nie ruszamy, dopóki
+  użytkownik sam nie wklei wyniku.
 - **Środowisko pracy użytkownika:** macOS + VS Code, **bez Pythona/Node na hoście** — rozwój w kontenerze (`dev/Dockerfile`,
   `docker-compose.dev.yml`, `.devcontainer/`, `make dev` albo „Reopen in Container” + `make dev-local`). Produkcja: Linux + Docker.
   Instrukcje: `docs/URUCHOMIENIE.md` (punkty 1–10 produkcja, 11 dev).
@@ -70,13 +71,9 @@ Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
 
 Cel użytkownika: „żeby to narzędzie było jak najbardziej wygodne w użytkowaniu”. Kolejność:
 
-### Krok 1 — najpierw rzeczywistość (zanim nowe funkcje)
-Aplikacja pierwszy raz działa poza sandboxem. Poproś użytkownika o:
-- gdzie działa (Mac dev / Linux `make up`) i czy przez tunel (telefon, push),
-- wynik **Diagnostyki** (`#/debug`, także wolne testy) — każdy czerwony/żółty wynik to poprawka,
-- co go irytowało albo czego szukał przy pierwszym użyciu.
-Napraw to w pierwszej kolejności. Lista rzeczy dotąd sprawdzanych tylko na atrapach: sekcja 2 i 4A niżej (Open-Meteo, EMMA,
-IMAP, push, CalDAV, Gemini, SSH, Cloudflare). Nie zgaduj wyników — proś o wklejenie (bez `.env`).
+### Krok 1 — rzeczywistość: POMINIĘTY na życzenie użytkownika
+Aplikacja nie była jeszcze uruchomiona u użytkownika, Diagnostyki nie poprawiamy. Gdy kiedyś wklei wynik Diagnostyki albo
+opinie, wtedy to jest pierwsza praca (lista nieweryfikowanych usług: sekcja 2 i 4A). Nie zgaduj wyników.
 
 ### Krok 2 — propozycje wygody (użytkownik wybiera; przedstawione mu w poprzedniej sesji, jeszcze bez decyzji)
 1. **Szybkie dodawanie zdaniem, z każdego miejsca.** Jedno pole: „jutro 9 dentysta”, „w piątek zapłacić za prąd !”, „mleko 2 szt”
@@ -133,12 +130,10 @@ użytkownik chce), agent hosta (zadania na komputerze z potwierdzeniami), głos.
 ## 6. Gotowy prompt na start następnej sesji
 
 ```
-Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md i docs/HANDOFF.md (sekcja 4). Najpierw git pull,
-make test (albo make dev-local-init, jeśli brak zależności) i cd frontend && npm run build — wszystko ma być zielone.
-Aplikacja u mnie się uruchamia: [napisz: Mac w trybie dev / Linux make up; przez tunel czy lokalnie]. Wynik Diagnostyki:
-[wklej czerwone i żółte pozycje]. Co mnie irytowało przy używaniu: [lista]. Najpierw napraw to, co z tego wynika.
-Potem robimy wygodę codziennego użycia z sekcji 4 handoffu: [wybierz: 1 szybkie dodawanie zdaniem + skróty PWA i udostępnianie,
-2 powiadomienia z przyciskami + zadania cykliczne, 3 ekran „Dziś”]. Zanim zaczniesz, dopytaj o szczegóły, których nie wiesz,
-i zaproponuj plan. Pracuję na macOS w VS Code bez Pythona/Node na hoście (dev w Dockerze) — komendy dla mnie podawaj w tej
-formie. Każdy ekran sprawdź we wszystkich motywach i na telefonie. Poprawki wypychaj na swoją gałąź; do main tylko gdy poproszę.
+Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md i docs/HANDOFF.md. Najpierw git pull, make test
+(albo make dev-local-init) i cd frontend && npm run build — wszystko ma być zielone. [Jeśli już uruchomiłem aplikację:
+napisz gdzie i wklej czerwone/żółte pozycje Diagnostyki oraz co mnie irytowało — to naprawiamy najpierw.] Potem: [wybierz
+kolejną rzecz z sekcji 4/5 handoffu]. Zanim zaczniesz, dopytaj o szczegóły i zaproponuj plan. Pracuję na macOS w VS Code
+bez Pythona/Node na hoście (dev w Dockerze) — komendy dla mnie podawaj w tej formie. Każdy ekran sprawdź we wszystkich
+motywach i na telefonie. Poprawki wypychaj na swoją gałąź; do main tylko gdy poproszę.
 ```
