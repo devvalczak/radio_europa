@@ -155,7 +155,8 @@ streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA
 narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach.
 ~260 testów backendu.
 
-Następna sesja: **szczegóły i gotowy prompt w `docs/HANDOFF.md`** (Gemini na żywo, gdy będzie klucz; dalszy plan).
+Następna sesja (decyzja użytkownika): **uruchomienie na prawdziwym laptopie + weryfikacja na żywo + CI, potem kopie zapasowe
+i 2FA** — szczegóły i gotowy prompt w `docs/HANDOFF.md` (sekcje 4 i 6).
 Dalej: dwukierunkowy CalDAV/Google Calendar (dziś tylko eksport iCal), weryfikacja na żywo (Gemini z narzędziami, OpenSSH,
 push na telefonie, Open-Meteo, EMMA, IMAP), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 

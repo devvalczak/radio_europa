@@ -4,9 +4,10 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 
 ## 1. Gdzie jesteśmy
 
-- `main` = stan sprzed tej sesji. Praca z tej sesji jest na `claude/personal-dashboard-app-nted7h` (do `main` tylko na prośbę).
-- Backend: ~195 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0006_login_events_and_mail_settings`.
-- Moduły: notes, calendar, weather, news, alarms, mail, shopping. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
+- `main` = `claude/personal-dashboard-app-nted7h` (scalone na prośbę użytkownika, `8a77a1a` + ten handoff). Do `main` tylko na prośbę.
+- Backend: 260 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0009_ssh_hosts`.
+- Moduły: notes, calendar, weather, news, alarms, mail, shopping, assistant, ssh. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
+- Użytkownik ma **wyłączone 2FA** (konsola SSH prosi wtedy o hasło konta) — w zadaniu B przypomnij o włączeniu.
 - **Logi aplikacji** (`core/app/logs.py`): tekst na stdout + JSON z rotacją w `JARVIS_LOG_DIR/jarvis.jsonl`, filtr maskujący sekrety,
   middleware z logiem żądań (ścieżka bez query stringa). Historia logowań w tabeli `login_events` (`core/app/auth.py: record_login`),
   limiter prób liczony po `client_ip` (Cf-Connecting-Ip → X-Forwarded-For → adres połączenia). API tylko do odczytu:
@@ -45,8 +46,9 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 
 ## 2. Nigdy niezweryfikowane na żywo (sandbox nie miał dostępu)
 
-`make up` w Dockerze, Cloudflare Tunnel/Access, push na telefon, Open-Meteo, EMMA (scraping), serwery IMAP (w tym Gmail, TLS),
-**prawdziwe API Gemini** i inni dostawcy AI. Testy używają atrap. Jeśli użytkownik zgłosi błąd z prawdziwej maszyny, zacznij od tej listy.
+`make up` w Dockerze (obrazów nigdy nie zbudowano), Cloudflare Tunnel/Access (w tym wyjątek Bypass dla `/api/public/calendar/*`),
+push na telefon, subskrypcja iCal w Google/iPhonie, Open-Meteo, EMMA (scraping), serwery IMAP (w tym Gmail, TLS),
+**prawdziwe API Gemini** (także tool calling asystenta) i inni dostawcy AI, prawdziwy OpenSSH (konsola SSH), WebSocket przez Caddy + cloudflared. Testy używają atrap. Jeśli użytkownik zgłosi błąd z prawdziwej maszyny, zacznij od tej listy.
 
 ## 3. Gemini na żywo — gdy użytkownik będzie miał klucz
 
@@ -59,16 +61,50 @@ Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
    wystarcza, format błędu 429 (`RetryInfo.retryDelay`). Popraw `core/app/ai.py`/testy, jeśli rzeczywistość się różni.
 4. Opcjonalnie to samo dla ścieżki zgodnej z OpenAI (`/v1beta/openai`), żeby README mówiło prawdę.
 
-## 4. Dalej w planie
+## 4. Zadanie na następną sesję (decyzja użytkownika: punkty 1 i 2)
 
-CalDAV/Google Calendar, asystent AI używający akcji hubu jako narzędzi (uwaga: akcje z `confirm`, zgoda poczty, treść niezaufana),
-agent hosta (terminal, zadania na komputerze z potwierdzeniami, nasłuch tylko lokalnie). Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
+### A. Uruchomienie na prawdziwym laptopie i weryfikacja na żywo
+Sandbox nie ma Dockera ani dostępu do tych usług, więc potrzebny jest laptop użytkownika:
+- Najpierw `list_computer_folders` → `request_computer_folder` (Remote Control w aplikacji Claude na laptopie, folder z repo).
+  Jeśli się nie da — poproś użytkownika o uruchomienie komend i wklejenie wyniku (nie zgaduj wyników).
+- `git pull`, `make init` (jeśli brak `.env`; istniejący `.env` bez klucza szyfrowania: `make encryption-key`), `make up`.
+  Napraw błędy Dockerfile/compose (pierwszy build w historii projektu: zależności `asyncssh`, fonty fontsource, xterm, TipTap).
+- Sprawdź: logowanie, pulpit, **Diagnostyka** (`#/debug`) — każdy czerwony/żółty wynik to zadanie. W szczególności:
+  Open-Meteo (`modules/weather/backend/service.py`, parsowanie z pamięci), EMMA (`scripts/emma_probe.py mleko`, popraw selektory
+  i zamień syntetyczne fixture'y na prawdziwe strony), IMAP Gmail (hasło aplikacji, TLS), push na telefonie (sekcja „To urządzenie”),
+  WebSocket konsoli SSH przez Caddy (i przez cloudflared, jeśli tunel działa), OpenSSH na laptopie (`host.docker.internal`,
+  `sudo apt install openssh-server`).
+- Cloudflare: `make up-quick` (szybki tunel) albo `up-tunnel` z tokenem; Access z wyjątkiem dla `/api/public/calendar/*`;
+  subskrypcja iCal w Google Calendar — czy faktycznie pobiera.
+- Gemini: sekcja 3 (klucz przez `request_credential` albo wpisany przez użytkownika do `.env` na laptopie — nigdy do czatu/repo);
+  sprawdź `complete()` i tool calling asystenta (`core/app/ai_chat.py`, `thoughtSignature`).
+- **CI na GitHubie** (`.github/workflows/ci.yml`): `pip install -r core/requirements-dev.txt` + `make test`, `npm ci && npm run build`,
+  opcjonalnie krótki Playwright (logowanie + pulpit). Uruchamiaj na push i PR. Sprawdź, czy przechodzi na GitHubie.
 
-## 5. Gotowy prompt na start następnej sesji
+### B. Bezpieczeństwo danych
+- **Kopie zapasowe**: codzienna kopia bazy (dla SQLite: `sqlite3 .backup` / `VACUUM INTO`, spójna przy działającej aplikacji),
+  rotacja (np. 7 dziennych + 4 tygodniowe), katalog w wolumenie (`data/backups`), test diagnostyczny „ostatnia kopia < 26 h”,
+  w UI: lista kopii, „Zrób kopię teraz”, pobranie pliku, przywracanie z potwierdzeniem (i instrukcją). **Klucz szyfrowania z `.env`
+  nie może leżeć obok kopii bazy** — bez niego hasła skrzynek/hostów SSH są nie do odczytania; zapytaj użytkownika, gdzie ma
+  trzymać kopie poza laptopem (dysk zewnętrzny, chmura) i jak przechowywać `.env` (menedżer haseł?). Nie zgaduj.
+- **2FA**: przypomnij użytkownikowi o włączeniu (Ustawienia); rozważ ostrzeżenie na pulpicie, dopóki wyłączone (Diagnostyka już
+  pokazuje „warn”). Zapytaj, zanim cokolwiek wymusisz.
+
+## 5. Dalej w planie (po A i B)
+
+Poranny brief jako push (pogoda, wydarzenia, ważne maile, zakupy), zadania z terminami (asystent je dodaje), wyszukiwanie we
+wszystkim w palecie Ctrl+K, dwukierunkowy Google Calendar/CalDAV, agent hosta (zadania na komputerze z potwierdzeniami), głos.
+Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
+
+## 6. Gotowy prompt na start następnej sesji
 
 ```
 Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md i docs/HANDOFF.md. Najpierw zrób git pull,
-make test i cd frontend && npm ci && npm run build, żeby potwierdzić, że wszystko jest zielone. Potem zapytaj mnie,
-czym się zajmujemy (np. test Gemini na żywo z sekcji 3, jeśli mam już klucz, albo kolejny punkt z sekcji 4) i zaproponuj plan.
-Nie zgaduj — jeśli czegoś nie wiesz, pytaj. Na koniec wypchnij zmiany na swoją gałąź (do main tylko jeśli poproszę).
+make test i cd frontend && npm ci && npm run build, żeby potwierdzić, że wszystko jest zielone. Potem realizujemy sekcję 4
+handoffu: (A) uruchomienie na moim laptopie w Dockerze i weryfikacja na żywo wszystkiego, co dotąd sprawdzane było tylko
+na atrapach (Diagnostyka, Open-Meteo, EMMA, IMAP, push, SSH, Cloudflare, Gemini) + CI na GitHubie; (B) automatyczne kopie
+zapasowe i włączenie 2FA. Do laptopa połącz się przez Remote Control (request_computer_folder); jeśli się nie da, daj mi
+komendy do uruchomienia. Zanim zaczniesz, dopytaj mnie o to, czego nie wiesz (np. gdzie trzymać kopie zapasowe, czy mam
+klucz Gemini, czy mam domenę w Cloudflare) i zaproponuj plan. Nie zgaduj. Na koniec wypchnij zmiany na swoją gałąź
+(do main tylko jeśli poproszę).
 ```
