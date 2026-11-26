@@ -1,4 +1,4 @@
-import { ApiError, createT, moduleApi, ModuleDef, notifyChanged } from "@jarvis/sdk";
+import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
 import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Skeleton, Switch, Tabs, Tag, toast } from "@jarvis/ui";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
@@ -93,6 +93,20 @@ function Page() {
       .catch(() => setError(t("loadFailed")));
   }, []);
   useEffect(load, [load]);
+
+  // deep link from search: #/tasks?id=5 opens it for editing
+  const deep = useHashParam("id");
+  useEffect(() => {
+    if (!deep) return;
+    clearHashParams();
+    api.get<Task>(`/${deep}`)
+      .then((x) => {
+        setFormError("");
+        setTab(x.done ? "done" : "open");
+        setDraft(toDraft(x));
+      })
+      .catch(() => toast(t("notFound"), { tone: "error" }));
+  }, [deep]);
 
   const changed = () => {
     notifyChanged("tasks");

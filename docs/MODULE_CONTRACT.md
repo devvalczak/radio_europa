@@ -84,6 +84,15 @@ gdzie `Check(status, detail, hint="", title="")`, `status` ∈ `ok | warn | erro
 Wyjątek w teście zamienia się w wynik `error`. Nie zwracaj sekretów (tylko „ustawiony / brak”). Nie ma tego w manifeście:
 diagnostyka nie jest dostępna dla AI ani hubu. Każdy moduł z zewnętrzną usługą ma mieć test „zapisane dane” i test „na żywo”.
 
+## Wyszukiwanie (`@module.search`)
+
+`@module.search` → `fn(ctx, q, limit) -> list[ListItem]`: wyniki modułu w globalnym wyszukiwaniu (paleta Ctrl/⌘+K,
+`GET /api/hub/search?q=&limit=`, min. 2 znaki). Tylko baza (bez sieci), szybko, najwyżej `limit` pozycji, każda z `href`,
+który otwiera ten element: `#/<moduł>?id=<id>` (strona czyta go `useHashParam("id")` z `@jarvis/sdk` i woła
+`clearHashParams()`), albo `https://…` (otwierany w nowej karcie). Filtr przez `text_match(q, kol1, kol2…)` z `app.sdk`
+(każde słowo musi wystąpić w którejś kolumnie, `%`/`_` są dosłowne). Jak diagnostyka — **poza manifestem**: służy tylko
+zalogowanemu użytkownikowi, nie jest akcją hubu ani narzędziem AI. Błąd jednego modułu jest logowany i pomijany.
+
 ## WebSockety (`Module.ws_router`)
 
 `module.ws_router = APIRouter()` montuje się pod `/api/m/<id>` **bez** `require_user` (zależność oparta o `Request` nie działa

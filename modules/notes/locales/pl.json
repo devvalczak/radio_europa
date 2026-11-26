@@ -20,5 +20,6 @@
   "saved": "Zapisano",
   "saveHint": "Ctrl+S zapisuje od razu",
   "retry": "Spróbuj ponownie",
-  "deleted": "Usunięto notatkę"
+  "deleted": "Usunięto notatkę",
+  "notFound": "Nie ma już tej notatki."
 }

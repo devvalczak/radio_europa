@@ -1,4 +1,4 @@
-import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
+import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, useHashParam } from "@jarvis/sdk";
 import { Button, Card, ErrorText, Field, Muted, PageTitle, Row, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
@@ -72,6 +72,22 @@ function Page() {
       all_day: e.all_day,
       remind: e.remind_minutes === null ? "" : String(e.remind_minutes),
     });
+
+  // deep link from search: #/calendar?id=5 -> show its month and day, open it
+  const deep = useHashParam("id");
+  useEffect(() => {
+    if (!deep) return;
+    clearHashParams();
+    api.get<CalEvent>(`/${deep}`)
+      .then((e) => {
+        const d = new Date(e.start);
+        setAnchor(new Date(d.getFullYear(), d.getMonth(), 1));
+        setDay(d);
+        edit(e);
+      })
+      .catch(() => toast(t("notFound"), { tone: "error" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deep]);
 
   async function save() {
     if (!draft) return;

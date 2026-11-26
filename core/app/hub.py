@@ -54,6 +54,7 @@ class Hub:
         self.tasks: list[tuple[str, str, int, Callable]] = []  # (module, task id, every seconds, fn)
         self.diagnostics: list[tuple[str, str, str, bool, Callable]] = []  # (module, id, title, slow, fn)
         self.assistant_gates: dict[str, Callable] = {}  # module -> fn(ctx) -> bool
+        self.searchers: list[tuple[str, Callable]] = []  # (module, fn(ctx, q, limit)) for the global search
 
     # --- registration -------------------------------------------------------------
     def check(self, manifest: dict, module: Module) -> None:
@@ -120,6 +121,8 @@ class Hub:
             self.reminder_hooks.append((mid, module.reminder_hook))
         if module.assistant_gate:
             self.assistant_gates[mid] = module.assistant_gate
+        if module.search_hook:
+            self.searchers.append((mid, module.search_hook))
         for did, (title, slow, fn) in module.diagnostics.items():
             self.diagnostics.append((mid, did, title, slow, fn))
 

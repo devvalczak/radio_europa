@@ -1,9 +1,10 @@
 """HTTP surface of the hub: actions, widgets, dashboard layout, audit log."""
 
 import json
+import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from sqlalchemy import select
@@ -17,9 +18,10 @@ from .logs import redact_text
 from .models import AuditLog, User, UserLayout
 from .sdk import AUTO_FIELDS, ActionError, Ctx
 from .timeutil import utcnow
-from .widgets import Block
+from .widgets import Block, ListItem
 
 _blocks = TypeAdapter(list[Block])
+search_log = logging.getLogger("jarvis.search")
 
 
 class ActionCall(BaseModel):
@@ -131,6 +133,29 @@ def build_router(hub: Hub) -> APIRouter:
         except ValidationError as e:
             raise HTTPException(500, "widget_returned_invalid_blocks") from e
         return {"blocks": blocks, "updated_at": utcnow().isoformat() + "Z"}
+
+    @router.get("/hub/search")
+    def search(q: str = Query("", max_length=200), limit: int = Query(5, ge=1, le=20), db: Session = Depends(get_db)):
+        """Global search (Ctrl+K palette): each module's @module.search hook, grouped by module in menu order.
+        A failing module is skipped (logged), so one broken hook never empties the palette."""
+        q = q.strip()
+        if len(q) < 2:
+            return []
+        names = {m["id"]: m["name"] for m in hub.modules if m["status"] == "ok"}
+        out = []
+        for mid, fn in hub.searchers:
+            if mid not in names:
+                continue
+            try:
+                items = [ListItem.model_validate(x) if isinstance(x, dict) else x for x in fn(Ctx(db, mid, hub), q, limit)]
+            except Exception:
+                search_log.exception("search hook of %s failed", mid)
+                db.rollback()
+                continue
+            if items:
+                out.append({"module": mid, "module_name": names[mid],
+                            "items": [i.model_dump(exclude_none=True) for i in items[:limit]]})
+        return out
 
     @router.get("/hub/quick")
     def quick():

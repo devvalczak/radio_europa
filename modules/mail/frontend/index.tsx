@@ -1,5 +1,5 @@
-import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
-import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Row, Switch, Tag } from "@jarvis/ui";
+import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, useHashParam } from "@jarvis/sdk";
+import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Row, Switch, Tag, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -162,6 +162,15 @@ function Page() {
       setOpen({ msg: m, body: null, error: e instanceof ApiError && e.detail ? e.detail : t("messageFailed") });
     }
   }
+
+  // deep link from search: #/mail?id=5 opens the message
+  const deep = useHashParam("id");
+  useEffect(() => {
+    if (!deep) return;
+    clearHashParams();
+    api.get<Msg>(`/messages/${deep}`).then((m) => openMessage(m)).catch(() => toast(t("notFound"), { tone: "error" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deep]);
 
   async function summarize() {
     if (!window.confirm(t("summaryConfirm"))) return;

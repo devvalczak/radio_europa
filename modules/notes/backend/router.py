@@ -4,7 +4,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.sdk import ButtonsBlock, ButtonSpec, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts
+from app.sdk import ButtonsBlock, ButtonSpec, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z
 
 from .models import Note
@@ -141,3 +141,11 @@ def widget_recent(ctx: Ctx, opts: WidgetOpts):
         ListItem(title=("📌 " if n.pinned and opts.view != "pinned" else "") + (n.title or "(bez tytułu)"),
                  subtitle=None if opts.small else (snippet(n.content, 80) or None), time=iso_z(n.updated_at), href="#/notes")
         for n in notes])]
+
+
+@module.search
+def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
+    cond = text_match(q, Note.title, Note.content, Note.tags)
+    rows = ctx.db.scalars(select(Note).where(cond).order_by(Note.pinned.desc(), Note.updated_at.desc()).limit(limit)).all()
+    return [ListItem(title=n.title or "(bez tytułu)", subtitle=", ".join(t for t in n.tags.split(",") if t) or None,
+                     time=iso_z(n.updated_at), href=f"#/notes?id={n.id}") for n in rows]

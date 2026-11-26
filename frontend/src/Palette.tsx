@@ -1,4 +1,4 @@
-import { openQuick } from "@jarvis/sdk";
+import { api, openQuick } from "@jarvis/sdk";
 import { Dialog, Kbd } from "@jarvis/ui";
 import { KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { t } from "./i18n";
@@ -12,7 +12,20 @@ interface Command {
   label: string;
   hint?: string;
   run: () => void;
+  found?: boolean; // a search result: already matched by the server, not filtered again here
 }
+interface SearchGroup {
+  module: string;
+  module_name: string;
+  items: { title: string; subtitle?: string; badge?: string; href?: string; time?: string; all_day?: boolean }[];
+}
+
+const when = (iso?: string, allDay?: boolean) =>
+  iso ? new Date(iso).toLocaleString("pl-PL", allDay ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+const openHref = (href: string) => {
+  if (href.startsWith("https://")) window.open(href, "_blank", "noopener");
+  else window.location.hash = href.replace(/^#/, "");
+};
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l");
 export const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform);
@@ -26,6 +39,8 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
   const [sel, setSel] = useState(0);
   const quick = useQuick();
   const [themes, setThemes] = useState<ThemeInfo[]>([]);
+  const [found, setFound] = useState<SearchGroup[]>([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     const typing = (el: EventTarget | null) =>
@@ -56,6 +71,28 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
     }
   }, [open]);
 
+  // server search in notes, calendar, tasks, mail, … (debounced; stale answers are dropped)
+  useEffect(() => {
+    const term = q.trim();
+    if (!open || term.length < 2) {
+      setFound([]);
+      setSearching(false);
+      return;
+    }
+    let live = true;
+    setSearching(true);
+    const id = setTimeout(() => {
+      api<SearchGroup[]>("/hub/search", { query: { q: term, limit: "5" } })
+        .then((r) => live && setFound(r))
+        .catch(() => live && setFound([]))
+        .finally(() => live && setSearching(false));
+    }, 180);
+    return () => {
+      live = false;
+      clearTimeout(id);
+    };
+  }, [q, open]);
+
   const commands = useMemo<Command[]>(() => {
     const go = (route: string) => () => (window.location.hash = `#/${route}`);
     return [
@@ -72,8 +109,19 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
 
   const shown = useMemo(() => {
     const words = norm(q).split(/\s+/).filter(Boolean);
-    return commands.filter((c) => words.every((w) => norm(`${c.group} ${c.label} ${c.hint ?? ""}`).includes(w)));
-  }, [commands, q]);
+    const local = commands.filter((c) => words.every((w) => norm(`${c.group} ${c.label} ${c.hint ?? ""}`).includes(w)));
+    const results: Command[] = found.flatMap((g) =>
+      g.items.map((it, i) => ({
+        id: `s:${g.module}:${i}`,
+        group: `${t.palette.found}: ${g.module_name}`,
+        label: it.title,
+        hint: [it.badge, it.subtitle, when(it.time, it.all_day)].filter(Boolean).join(" · "),
+        run: () => it.href && openHref(it.href),
+        found: true,
+      })),
+    );
+    return [...local, ...results];
+  }, [commands, q, found]);
 
   const run = (c: Command | undefined) => {
     if (!c) return;
@@ -109,7 +157,7 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
         onKeyDown={onKeyDown}
       />
       <ul id="palette-list" role="listbox" className="palette-list">
-        {shown.length === 0 && <li className="muted palette-empty">{t.palette.none}</li>}
+        {shown.length === 0 && <li className="muted palette-empty">{searching ? t.palette.searching : t.palette.none}</li>}
         {shown.map((c, i) => {
           const header = c.group !== lastGroup ? (lastGroup = c.group) : null;
           return (

@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { type ComponentType, useEffect, useState } from "react";
 
 /**
  * What a frontend module (modules/<id>/frontend/index.tsx) exports as default.
@@ -106,3 +106,26 @@ export const moduleApi = (id: string) => ({
   put: <T>(p: string, body: unknown) => api<T>(`/m/${id}${p}`, { method: "PUT", body }),
   del: (p: string) => api<void>(`/m/${id}${p}`, { method: "DELETE" }),
 });
+
+/** A parameter of the current hash route: "#/notes?id=5" -> hashParam("id") === "5". */
+export const hashParam = (name: string): string | null => {
+  const q = window.location.hash.split("?")[1];
+  return q ? new URLSearchParams(q).get(name) : null;
+};
+
+/** Same, re-read on every hash change (deep links from search results, notifications, widgets). */
+export function useHashParam(name: string): string | null {
+  const [value, setValue] = useState(() => hashParam(name));
+  useEffect(() => {
+    const on = () => setValue(hashParam(name));
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, [name]);
+  return value;
+}
+
+/** Drop the parameters from the hash once the page has used them (so a reload does not reopen the item). */
+export const clearHashParams = () => {
+  const [route] = window.location.hash.split("?");
+  if (window.location.hash !== route) history.replaceState(null, "", route || "#/");
+};

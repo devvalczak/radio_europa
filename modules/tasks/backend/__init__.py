@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.sdk import (ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, StatBlock,
-                     TextBlock, WidgetOpts)
+                     TextBlock, WidgetOpts, text_match)
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from .models import Task
@@ -117,6 +117,11 @@ def list_tasks(done: bool = False, limit: int = Query(200, ge=1, le=500), db: Se
 @router.post("", status_code=201)
 def create_task(body: TaskIn, db: Session = Depends(get_db)):
     return _create(db, body)
+
+
+@router.get("/{task_id}")
+def get_task(task_id: int, db: Session = Depends(get_db)):
+    return _out(_get(db, task_id))
 
 
 @router.put("/{task_id}")
@@ -246,3 +251,13 @@ def diag_reminders(ctx: Ctx) -> Check:
         return Check("error", f"{pending} przypomnień czeka, ale serwer nie może wysyłać push",
                      "Ustaw klucze VAPID (grupa Powiadomienia push).")
     return Check("ok", f"{pending} przypomnień w ciągu 7 dni")
+
+
+@module.search
+def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
+    """Open tasks first, then done ones."""
+    now = utcnow()
+    rows = ctx.db.scalars(select(Task).where(text_match(q, Task.title, Task.notes))
+                          .order_by(Task.done, Task.due.is_(None), Task.due, Task.id.desc()).limit(limit)).all()
+    return [ListItem(title=t.title, time=iso_z(t.due), all_day=t.all_day, href=f"#/tasks?id={t.id}",
+                     badge="zrobione" if t.done else "po terminie" if _overdue(t, now) else None) for t in rows]

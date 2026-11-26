@@ -1,4 +1,4 @@
-import { ApiError, createT, moduleApi, ModuleDef, notifyChanged } from "@jarvis/sdk";
+import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
 import { Button, Card, ErrorText, MarkdownEditor, Muted, PageTitle, Row, Switch, Tag, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import pl from "../locales/pl.json";
@@ -107,6 +107,15 @@ function Page() {
     setStatus("idle");
     setEditorKey((k) => k + 1); // fresh editor (own undo history) per note
   };
+
+  // deep link from search: #/notes?id=5
+  const deep = useHashParam("id");
+  useEffect(() => {
+    if (!deep) return;
+    clearHashParams();
+    api.get<Note>(`/${deep}`).then((n) => void open(n)).catch(() => toast(t("notFound"), { tone: "error" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deep]);
 
   async function remove() {
     if (!sel || !window.confirm(t("confirmDelete"))) return;

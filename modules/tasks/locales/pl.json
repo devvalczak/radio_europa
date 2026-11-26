@@ -45,5 +45,6 @@
   "retry": "Spróbuj ponownie",
   "saveFailed": "Nie udało się zapisać",
   "allDayNoRemind": "Zadania na cały dzień nie mają własnego przypomnienia — pojawią się w porannym briefie.",
-  "fTime": "Godzina"
+  "fTime": "Godzina",
+  "notFound": "Nie ma już tego zadania."
 }

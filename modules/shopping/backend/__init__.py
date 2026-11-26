@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_user
 from app.db import get_db
 from app.models import User
-from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z
 
 from . import emma, service
@@ -277,3 +277,11 @@ def diag_emma(ctx: Ctx) -> Check:
                      "Selektory w modules/shopping/backend/emma.py mogą być nieaktualne — uruchom scripts/emma_probe.py.")
     priced = sum(1 for p in found if p.get("price_cents") is not None)
     return Check("ok", f"{len(found)} produktów, {priced} z ceną (np. {found[0].get('name', '?')[:50]})")
+
+
+@module.search
+def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
+    rows = ctx.db.scalars(select(ShoppingItem).where(text_match(q, ShoppingItem.query, ShoppingItem.product_name))
+                          .order_by(ShoppingItem.done, ShoppingItem.updated_at.desc()).limit(limit)).all()
+    return [ListItem(title=i.product_name or i.query, subtitle=i.query if i.product_name else None,
+                     badge="kupione" if i.done else None, href="#/shopping") for i in rows]

@@ -23,7 +23,8 @@ export interface ModuleInfo {
 }
 
 const useRoute = () => {
-  const read = () => window.location.hash.replace(/^#\/?/, "") || "dashboard";
+  // "#/notes?id=5" -> "notes" (the page reads its parameters with useHashParam from @jarvis/sdk)
+  const read = () => window.location.hash.replace(/^#\/?/, "").split("?")[0] || "dashboard";
   const [route, setRoute] = useState(read);
   useEffect(() => {
     const on = () => setRoute(read());

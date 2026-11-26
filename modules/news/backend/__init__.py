@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app import http
 from app.db import get_db
 from app.hub import hub
-from app.sdk import ActionError, Check, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts
+from app.sdk import ActionError, Check, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z
 
 from . import service
@@ -210,3 +210,12 @@ def diag_fetch(ctx: Ctx) -> list[Check]:
         except (http.FetchError, ValueError) as exc:
             out.append(Check("error", str(exc)[:200], title=f.title or f.url[:60]))
     return out
+
+
+@module.search
+def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
+    """Article titles and snippets; the result opens the article itself (http(s) links only, else the module)."""
+    rows = ctx.db.scalars(select(Article).where(text_match(q, Article.title, Article.snippet))
+                          .order_by(Article.published.desc()).limit(limit)).all()
+    return [ListItem(title=a.title, time=iso_z(a.published),
+                     href=a.link if (a.link or "").startswith("https://") else "#/news") for a in rows]

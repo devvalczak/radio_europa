@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app import crypto
 from app.db import get_db
 from app.hub import hub
-from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts
+from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, StatBlock, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z
 
 from . import imap, service
@@ -138,6 +138,14 @@ def list_messages(account_id: int | None = None, unread: bool = False, limit: in
     if unread:
         stmt = stmt.where(MailMessage.seen.is_(False))
     return [service.message_out(m, label) for m, label in db.execute(stmt).all()]
+
+
+@router.get("/messages/{message_id}")
+def get_message(message_id: int, db: Session = Depends(get_db)):
+    row = db.execute(select(MailMessage, MailAccount.label).join(MailAccount).where(MailMessage.id == message_id)).first()
+    if row is None:
+        raise HTTPException(404, "message_not_found")
+    return service.message_out(*row)
 
 
 @router.get("/accounts/{account_id}/messages/{uid}")
@@ -301,3 +309,12 @@ def diag_imap(ctx: Ctx) -> list[Check]:
 def assistant_gate(ctx: Ctx) -> bool:
     """Mail goes to the AI assistant only with the same consent as summaries (off by default)."""
     return service.ai_allowed(ctx.db)
+
+
+@module.search
+def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
+    """Subject and sender of stored messages (the user's own search; never offered to the AI assistant)."""
+    rows = ctx.db.scalars(select(MailMessage).where(text_match(q, MailMessage.subject, MailMessage.from_name, MailMessage.from_addr))
+                          .order_by(MailMessage.received.desc()).limit(limit)).all()
+    return [ListItem(title=m.subject or "(bez tematu)", subtitle=m.from_name or m.from_addr, time=iso_z(m.received),
+                     href=f"#/mail?id={m.id}") for m in rows]

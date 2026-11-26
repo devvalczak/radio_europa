@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Module", "Ctx", "ActionError", "Reminder", "ListBlock", "ListItem", "StatBlock", "TextBlock",
-    "ProgressBlock", "ButtonsBlock", "ButtonSpec", "WidgetOpts", "Check",
+    "ProgressBlock", "ButtonsBlock", "ButtonSpec", "WidgetOpts", "Check", "text_match",
 ]
 
 # Fields a quick-action form fills in by itself (the shell sends the browser's values), so a quick action
@@ -97,6 +97,7 @@ class Module:
         self.subscriptions: dict[str, Callable] = {}
         self.tasks: dict[str, Callable] = {}
         self.reminder_hook: Callable | None = None
+        self.search_hook: Callable | None = None
 
     def action(self, name: str, input: type[BaseModel] | None = None):
         def deco(fn: Callable) -> Callable:
@@ -148,6 +149,14 @@ class Module:
         self.assistant_gate = fn
         return fn
 
+    def search(self, fn: Callable) -> Callable:
+        """`fn(ctx, q, limit) -> list[ListItem]`: this module's results for the global search (Ctrl+K palette).
+        Database only (no network), fast, at most `limit` items, each with an `href` that opens it (e.g.
+        "#/notes?id=5"; the page reads it with useHashParam from @jarvis/sdk). Like diagnostics it is not in the
+        manifest: it serves the logged-in user only, never the hub or the AI assistant. Use `text_match` for the filter."""
+        self.search_hook = fn
+        return fn
+
     def reminders(self, fn: Callable) -> Callable:
         """fn(db, now) -> list[Reminder]; polled by the scheduler. Needs the push.send permission."""
         self.reminder_hook = fn
@@ -186,3 +195,18 @@ class Ctx:
     def push(self, reminder: Reminder) -> int:
         self._need("push.send")
         return send_push(self.db, reminder)
+
+
+def text_match(q: str, *columns):
+    """SQL condition: every word of `q` occurs (case-insensitive substring) in at least one of `columns`.
+    LIKE wildcards in the query are escaped. Empty query -> None (callers return no results)."""
+    from sqlalchemy import and_, or_
+
+    words = [w for w in q.split() if w][:8]
+    if not words:
+        return None
+
+    def pat(w: str) -> str:
+        return "%" + w.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+    return and_(*[or_(*[c.ilike(pat(w), escape="\\") for c in columns]) for w in words])

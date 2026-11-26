@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.sdk import ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
+from app.sdk import ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from . import ical
@@ -191,6 +191,11 @@ def create_event(body: EventIn, db: Session = Depends(get_db)):
     return _create(db, body)
 
 
+@router.get("/{event_id}")
+def get_event(event_id: int, db: Session = Depends(get_db)):
+    return _out(_get(db, event_id))
+
+
 @router.put("/{event_id}")
 def update_event(event_id: int, body: EventIn, db: Session = Depends(get_db)):
     event = _get(db, event_id)
@@ -314,3 +319,15 @@ def diag_reminders(ctx: Ctx) -> Check:
         return Check("error", f"{len(pending)} przypomnień czeka, ale serwer nie może wysyłać push",
                      "Ustaw klucze VAPID (grupa Powiadomienia push).")
     return Check("ok", f"{len(pending)} w ciągu 7 dni; najbliższe „{nxt.title}” o {when:%Y-%m-%d %H:%M} UTC")
+
+
+@module.search
+def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
+    """Upcoming matches first (soonest), then past ones (most recent)."""
+    cond = text_match(q, Event.title, Event.description)
+    now = utcnow()
+    future = ctx.db.scalars(select(Event).where(cond, Event.start >= now - timedelta(days=1)).order_by(Event.start).limit(limit)).all()
+    past = ctx.db.scalars(select(Event).where(cond, Event.start < now - timedelta(days=1)).order_by(Event.start.desc())
+                          .limit(max(0, limit - len(future)))).all()
+    return [ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href=f"#/calendar?id={e.id}")
+            for e in [*future, *past]]

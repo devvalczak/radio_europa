@@ -48,5 +48,6 @@
   "feed.lastFetch": "Ostatnie pobranie: {when} ({n} łącznie) · klient: {client}",
   "feed.neverFetched": "Adres aktywny, ale żaden kalendarz go jeszcze nie pobrał.",
   "feed.loadFailed": "Nie udało się wczytać stanu subskrypcji.",
-  "feed.saveFailed": "Nie udało się utworzyć adresu."
+  "feed.saveFailed": "Nie udało się utworzyć adresu.",
+  "notFound": "Nie ma już tego wydarzenia."
 }
