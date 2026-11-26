@@ -1,0 +1,30 @@
+{
+  "contract": 1,
+  "id": "brief",
+  "name": "Poranny brief",
+  "version": "0.1.0",
+  "description": "Codziennie rano jedno powiadomienie: pogoda, wydarzenia, zadania, poczta, zakupy.",
+  "permissions": [
+    "push.send",
+    "hub.call"
+  ],
+  "widgets": [
+    {
+      "id": "today",
+      "title": "Dzisiaj",
+      "sizes": [
+        "2x1",
+        "2x2"
+      ],
+      "default": "2x2",
+      "refresh": 300,
+      "description": "Skrót dnia z porannego briefu: pogoda, wydarzenia, zadania, poczta, zakupy."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "send",
+      "every": 60
+    }
+  ]
+}

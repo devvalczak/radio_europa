@@ -101,3 +101,11 @@ def test_notes_without_title_use_the_content(authed):
     assert explicit["title"] == "Od AI"  # an explicit title (hub/AI callers) still wins
     quick = {q["id"]: q for q in authed.get("/api/hub/quick").json()}["notes.new"]
     assert [f["name"] for f in quick["fields"]] == ["content"] and quick["fields"][0]["format"] == "markdown"
+
+
+def test_all_day_event_stays_upcoming_during_its_day(authed):
+    now = datetime.now(UTC)
+    authed.post("/api/m/calendar", json={"title": "Urlop", "all_day": True, "start": iso(now - timedelta(hours=5))})
+    authed.post("/api/m/calendar", json={"title": "Wczoraj", "all_day": True, "start": iso(now - timedelta(hours=30))})
+    titles = [e["title"] for e in authed.post("/api/hub/actions/calendar.list_events", json={"input": {"days": 1}}).json()["result"]]
+    assert titles == ["Urlop"]

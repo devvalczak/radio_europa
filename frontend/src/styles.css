@@ -267,6 +267,14 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 .task-list li.done .task-title { text-decoration: line-through; color: var(--muted); }
 .task-list .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space); font-size: 13px; }
 .task-overdue { color: var(--danger); font-weight: 600; }
+.brief-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: calc(var(--space) * 1.5); }
+.brief-list li { display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.brief-list .eyebrow { text-decoration: none; }
+.brief-days { display: flex; flex-wrap: wrap; gap: var(--space) calc(var(--space) * 1.5); }
+.brief-days label { display: inline-flex; align-items: center; gap: 6px; flex-direction: row; }
+.brief-days input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--accent); }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+fieldset legend { padding: 0; margin-bottom: var(--space); font-size: 13px; color: var(--muted); }
 .backup-list { list-style: none; margin: 0; padding: 0; }
 .backup-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space); padding: var(--space) 0;
   border-top: var(--border-width) solid var(--line); overflow-wrap: anywhere; }

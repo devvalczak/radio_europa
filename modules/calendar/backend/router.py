@@ -238,7 +238,9 @@ def _upcoming(db: Session, days: int) -> list[Event]:
     now = utcnow()
     stmt = (
         select(Event)
-        .where((Event.end >= now) | ((Event.end.is_(None)) & (Event.start >= now)))
+        # still going: has an end in the future; no end = a point in time, except all-day events (they last the day)
+        .where((Event.end >= now) | ((Event.end.is_(None)) & (Event.start >= now))
+               | ((Event.end.is_(None)) & Event.all_day.is_(True) & (Event.start > now - timedelta(days=1))))
         .where(Event.start < now + timedelta(days=days))
         .order_by(Event.start)
     )
