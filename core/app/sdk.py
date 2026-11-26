@@ -88,6 +88,7 @@ class Module:
         # protect them with an unguessable token in the path and never return more than that token grants.
         self.public_router = public_router
         self.diagnostics: dict[str, tuple[str, bool, Callable]] = {}  # id -> (title, slow, fn)
+        self.assistant_gate: Callable | None = None
         self.actions: dict[str, tuple[Callable, type[BaseModel] | None]] = {}
         self.widgets: dict[str, Callable] = {}
         self.subscriptions: dict[str, Callable] = {}
@@ -137,6 +138,12 @@ class Module:
             return fn
 
         return deco
+
+    def assistant_access(self, fn: Callable) -> Callable:
+        """`fn(ctx) -> bool`: may the AI assistant use this module's actions now? (e.g. only with the user's consent).
+        Without it, every action not marked `"assistant": false` in the manifest is offered."""
+        self.assistant_gate = fn
+        return fn
 
     def reminders(self, fn: Callable) -> Callable:
         """fn(db, now) -> list[Reminder]; polled by the scheduler. Needs the push.send permission."""

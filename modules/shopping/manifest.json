@@ -45,7 +45,8 @@
     },
     {
       "name": "list_items",
-      "description": "Zwraca listę zakupów z produktami, cenami i podsumowaniem (suma, najbliższy termin dostawy)."
+      "description": "Zwraca listę zakupów z produktami, cenami i podsumowaniem (suma, najbliższy termin dostawy).",
+      "readonly": true
     },
     {
       "name": "update_item",
@@ -58,11 +59,13 @@
     },
     {
       "name": "search_products",
-      "description": "Szuka produktów w sklepie EMMA po frazie (z cache) i zwraca nazwy, ceny i linki."
+      "description": "Szuka produktów w sklepie EMMA po frazie (z cache) i zwraca nazwy, ceny i linki.",
+      "readonly": true
     },
     {
       "name": "build_cart",
-      "description": "Generuje koszyk z otwartych pozycji: produkty z linkami do EMMA, ilościami, sumą i terminem dostawy; pozycje bez dopasowania są osobno."
+      "description": "Generuje koszyk z otwartych pozycji: produkty z linkami do EMMA, ilościami, sumą i terminem dostawy; pozycje bez dopasowania są osobno.",
+      "readonly": true
     },
     {
       "name": "refresh_prices",

@@ -30,7 +30,8 @@ Generuje `modules/<id>/` z manifestem, ikoną, `locales/pl.json`, backendem i st
 ## 3. Manifest (`manifest.json`)
 
 Edytuj tak, by odpowiadał kodowi 1:1: `permissions`, `widgets[]` (`id`, `title`, `sizes`, `default` ∈ `sizes`, `refresh`),
-`actions[]` (`name`, `description`, `confirm`), `events.emits` / `events.subscribes` (pełna nazwa `<modul>.<zdarzenie>`).
+`actions[]` (`name`, `description`, `confirm`, `readonly` dla akcji tylko czytających — asystent AI wykona je bez pytania;
+`assistant: false` dla akcji wołających AI), `events.emits` / `events.subscribes` (pełna nazwa `<modul>.<zdarzenie>`).
 Podbij `version` przy zmianach. Opisy akcji pisz konkretnie: jaki efekt, jakie argumenty mają sens.
 
 ## 4. Backend (`backend/__init__.py`, `backend/models.py`)

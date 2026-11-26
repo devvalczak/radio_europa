@@ -27,7 +27,7 @@ Zły moduł nie przeszkadza w starcie core'a ani innych modułów.
 | `permissions` | `push.send` (powiadomienia, przypomnienia), `hub.call` (wywoływanie akcji innych modułów), `ai.complete` (`ctx.ai(...)`) |
 | `widgets[]` | `id`, `title`, `sizes` (`1x1`/`2x1`/`2x2`), `default` (musi być w `sizes`), `refresh` (sekundy, 0 = bez odświeżania), `description` (co pokazuje — widać w katalogu widgetów; pisz zawsze), `views` (opcjonalnie 2–6 × `{id, title}`, pierwszy = domyślny) |
 | `quick[]` | szybkie akcje na pulpicie i w palecie ⌘K: `id`, `title` (krótko, np. „Notatka”), `action` (akcja modułu bez `confirm`), `fields[]` (`{name, label, placeholder?}` — pola wejścia akcji, po polsku), `success` (komunikat po zapisie) |
-| `actions[]` | `name`, `description`, `confirm` (true = wymaga potwierdzenia przy wywołaniu) |
+| `actions[]` | `name`, `description`, `confirm` (true = wymaga potwierdzenia przy wywołaniu), `readonly` (true = tylko czyta: asystent AI wykona ją bez pytania; domyślnie false = każde wywołanie przez asystenta czeka na kliknięcie „Wykonaj”), `assistant` (false = niedostępna dla asystenta, np. akcja, która sama woła AI) |
 | `tasks[]` | zadania w tle: `id`, `every` (sekundy, 60–86400); kod: `@module.periodic("id")` |
 | `events` | `emits`: nazwy zdarzeń modułu; `subscribes`: pełne nazwy `<modul>.<zdarzenie>` |
 
@@ -66,6 +66,14 @@ Hub zamienia go na odpowiedź HTTP; trasy modułu mogą go przechwycić i zwróc
 `Ctx` daje: `ctx.db` (sesja SQLAlchemy), `ctx.actor` (kto wywołał akcję: `user:<login>` / `module:<id>`, w widgetach i zadaniach puste), `ctx.call("modul.akcja", {...})`, `ctx.emit("zdarzenie", {...})`, `ctx.push(Reminder(...))`, `ctx.ai(system, prompt)` (uprawnienie `ai.complete`, zgłasza `AIError`), `ctx.ai_available`.
 Przy zagnieżdżonym `ctx.call` używana jest ta sama sesja, więc commit zostaje po stronie wywołującego.
 Błąd subskrybenta zdarzenia jest logowany i nie psuje emitenta.
+
+## Asystent AI (akcje jako narzędzia)
+
+Moduł `assistant` daje modelowi akcje hubu jako narzędzia (`app/ai_chat.py`: Anthropic, OpenAI-zgodne, Gemini; nazwy
+`<moduł>__<akcja>`). `readonly: true` → wykonanie od razu; reszta → karta „Jarvis chce wykonać akcję” i dopiero „Wykonaj”
+uruchamia akcję (`confirmed=True`, aktor `module:assistant` w audycie). Opis akcji jest tym, co widzi model — pisz go dla
+człowieka i dla modelu jednocześnie. Moduł z danymi prywatnymi ukrywa się przed asystentem `@module.assistant_access`
+(`fn(ctx) -> bool`, np. poczta tylko ze zgodą). Hasła/tokeny nigdy nie są akcjami — więc nigdy nie trafią do modelu.
 
 ## Diagnostyka
 

@@ -295,3 +295,9 @@ def diag_imap(ctx: Ctx) -> list[Check]:
         except imap.MailError as exc:
             out.append(Check("error", str(exc), title=a.label))
     return out
+
+
+@module.assistant_access
+def assistant_gate(ctx: Ctx) -> bool:
+    """Mail goes to the AI assistant only with the same consent as summaries (off by default)."""
+    return service.ai_allowed(ctx.db)

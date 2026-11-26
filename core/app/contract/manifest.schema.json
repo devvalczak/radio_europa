@@ -139,6 +139,12 @@
           },
           "confirm": {
             "type": "boolean"
+          },
+          "readonly": {
+            "type": "boolean"
+          },
+          "assistant": {
+            "type": "boolean"
           }
         }
       }

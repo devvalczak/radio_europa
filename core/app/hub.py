@@ -32,6 +32,8 @@ class ActionDef:
     confirm: bool
     handler: Callable
     input_model: type[BaseModel] | None
+    readonly: bool = False  # only reads: the assistant may run it without asking
+    assistant: bool = True  # offered to the AI assistant as a tool
 
     @property
     def full_name(self) -> str:
@@ -51,6 +53,7 @@ class Hub:
         self.reminder_hooks: list[tuple[str, Callable]] = []
         self.tasks: list[tuple[str, str, int, Callable]] = []  # (module, task id, every seconds, fn)
         self.diagnostics: list[tuple[str, str, str, bool, Callable]] = []  # (module, id, title, slow, fn)
+        self.assistant_gates: dict[str, Callable] = {}  # module -> fn(ctx) -> bool
 
     # --- registration -------------------------------------------------------------
     def check(self, manifest: dict, module: Module) -> None:
@@ -104,7 +107,8 @@ class Hub:
         for a in manifest.get("actions", []):
             handler, model = module.actions[a["name"]]
             self.actions[f"{mid}.{a['name']}"] = ActionDef(
-                mid, a["name"], a["description"], a.get("confirm", False), handler, model
+                mid, a["name"], a["description"], a.get("confirm", False), handler, model,
+                a.get("readonly", False), a.get("assistant", True),
             )
         for wid, fn in module.widgets.items():
             self.widgets[(mid, wid)] = fn
@@ -114,8 +118,26 @@ class Hub:
             self.tasks.append((mid, t["id"], t["every"], module.tasks[t["id"]]))
         if module.reminder_hook:
             self.reminder_hooks.append((mid, module.reminder_hook))
+        if module.assistant_gate:
+            self.assistant_gates[mid] = module.assistant_gate
         for did, (title, slow, fn) in module.diagnostics.items():
             self.diagnostics.append((mid, did, title, slow, fn))
+
+    # --- assistant --------------------------------------------------------------------
+    def assistant_actions(self, db: Session) -> list[ActionDef]:
+        """Actions the AI assistant may use right now: manifest `assistant` not false, module loaded, and the module's
+        gate (e.g. mail: user consent) open. A gate that fails closes its module."""
+        open_modules = set()
+        for m in self.modules:
+            if m["status"] != "ok":
+                continue
+            gate = self.assistant_gates.get(m["id"])
+            try:
+                if gate is None or gate(Ctx(db, m["id"], self)):
+                    open_modules.add(m["id"])
+            except Exception:  # noqa: BLE001
+                log.exception("assistant gate of %s failed", m["id"])
+        return [a for a in self.actions.values() if a.assistant and a.module in open_modules]
 
     # --- widgets --------------------------------------------------------------------
     def widget_spec(self, module: str, widget: str) -> dict | None:

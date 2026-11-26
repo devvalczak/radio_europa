@@ -35,7 +35,8 @@
     },
     {
       "name": "search",
-      "description": "Szuka notatek po tekście w tytule lub treści."
+      "description": "Szuka notatek po tekście w tytule lub treści.",
+      "readonly": true
     }
   ],
   "quick": [

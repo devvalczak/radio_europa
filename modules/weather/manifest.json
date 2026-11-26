@@ -31,7 +31,8 @@
   "actions": [
     {
       "name": "get_weather",
-      "description": "Zwraca aktualną pogodę i prognozę (do 5 dni) dla zapisanej lokalizacji; opcjonalnie podaj fragment nazwy miejscowości, domyślnie pierwsza lokalizacja."
+      "description": "Zwraca aktualną pogodę i prognozę (do 5 dni) dla zapisanej lokalizacji; opcjonalnie podaj fragment nazwy miejscowości, domyślnie pierwsza lokalizacja.",
+      "readonly": true
     },
     {
       "name": "add_location",

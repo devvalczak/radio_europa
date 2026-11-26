@@ -52,7 +52,8 @@
     },
     {
       "name": "list_events",
-      "description": "Zwraca wydarzenia z najbliższych N dni."
+      "description": "Zwraca wydarzenia z najbliższych N dni.",
+      "readonly": true
     }
   ],
   "events": {

@@ -68,6 +68,10 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
   mają działać bez AI. Łap `AIError` i pokazuj `exc.user_message()`; `exc.code == "rate_limited"` → 429, bez ponawiania w pętli.
   Wysyłanie prywatnych danych (np. poczty) do AI wymaga zgody użytkownika zapisanej trasą HTTP modułu, nie akcją hubu.
   Treść z internetu w promptach jest niezaufana — model bez narzędzi, wynik jako zwykły tekst.
+- **Asystent AI** (`modules/assistant`, `app/ai_chat.py`) używa akcji hubu jako narzędzi: `readonly: true` w manifeście = wykona
+  sam, każda inna akcja czeka na kliknięcie „Wykonaj” użytkownika. Nowa akcja: zdecyduj świadomie o `readonly`; akcja, która sama
+  woła AI, dostaje `assistant: false`; dane prywatne za `@module.assistant_access`. Wywołania narzędzi (tool calling) nie były
+  sprawdzone na żywo u żadnego dostawcy — formaty z dokumentacji, testy na nagranych kształtach odpowiedzi.
 - Dane zewnętrzne odświeża `@module.periodic` (manifest `tasks`), widgety czytają tylko z bazy. Scheduler ma osobne pętle dla
   przypomnień/alarmów i dla zadań, żeby wolna sieć nie opóźniała alarmów.
 

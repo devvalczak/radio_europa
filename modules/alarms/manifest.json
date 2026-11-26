@@ -27,7 +27,8 @@
     },
     {
       "name": "list",
-      "description": "Zwraca wszystkie alarmy wraz z czasem najbliższego uruchomienia."
+      "description": "Zwraca wszystkie alarmy wraz z czasem najbliższego uruchomienia.",
+      "readonly": true
     },
     {
       "name": "set_enabled",
