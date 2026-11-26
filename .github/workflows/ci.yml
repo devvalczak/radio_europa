@@ -50,8 +50,6 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/core:${{ github.workspace }}
       JARVIS_MODULES_DIR: ${{ github.workspace }}/modules
-      JARVIS_DATABASE_URL: sqlite:///${{ runner.temp }}/jarvis.db
-      JARVIS_BACKUP_DIR: ${{ runner.temp }}/backups
       JARVIS_LOG_DIR: ""
       JARVIS_COOKIE_SECURE: "false"
       JARVIS_SECRET_KEY: ci-only-secret-key-not-used-anywhere-else-0123456789
@@ -69,6 +67,10 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: pip install -r core/requirements.txt
+      - name: Fresh database and backup dir in the runner's temp dir
+        run: |
+          echo "JARVIS_DATABASE_URL=sqlite:///$RUNNER_TEMP/jarvis.db" >> "$GITHUB_ENV"
+          echo "JARVIS_BACKUP_DIR=$RUNNER_TEMP/backups" >> "$GITHUB_ENV"
       - name: Install frontend + Playwright
         working-directory: frontend
         run: |
