@@ -11,6 +11,7 @@ interface Parsed {
   due: string | null;
   all_day: boolean;
   important: boolean;
+  repeat: string | null;
   found: string[];
   action: string;
   input: Record<string, unknown>;
@@ -113,7 +114,7 @@ export function Capture() {
               items={(["task", "event", "shopping", "note"] as Kind[]).map((k) => ({ value: k, label: t.capture.kinds[k] }))}
             />
             <p><b>{parsed.title}</b></p>
-            {parsed.due && <p className="muted">{when(parsed)}{parsed.important ? ` · ${t.today.important}` : ""}</p>}
+            {parsed.due && <p className="muted">{when(parsed)}{parsed.important ? ` · ${t.today.important}` : ""}{parsed.repeat ? ` · ${t.capture.repeats[parsed.repeat] ?? ""}` : ""}</p>}
             {!parsed.due && parsed.important && <p className="muted">{t.today.important}</p>}
             {parsed.input.quantity != null && Number(parsed.input.quantity) > 1 && <p className="muted">{t.capture.quantity(Number(parsed.input.quantity))}</p>}
             {parsed.problem && <p className="error">{t.capture.noDate}</p>}

@@ -85,3 +85,16 @@ def test_forced_kind_and_missing_date():
     day = parse("w piątek urlop", WAW, NOW, "event")
     assert day["problem"] is None and day["input"]["all_day"] is True
     assert parse("mleko", WAW, NOW, "shopping")["input"] == {"query": "Mleko", "quantity": 1}
+
+
+def test_repeat_phrases():
+    r = run("co tydzień w piątek zapłacić za prąd")
+    assert (r["kind"], r["repeat"], r["title"], r["all_day"]) == ("task", "weekly", "Zapłacić za prąd", True)
+    assert r["input"]["repeat"] == "weekly" and r["input"]["tz"] == "Europe/Warsaw"
+    d = run("codziennie o 8 leki")
+    assert (d["kind"], d["repeat"], d["title"]) == ("task", "daily", "Leki")  # a repeating item is a task, not an event
+    assert d["due"] == "2026-11-27T07:00:00Z"  # already past 8:00 today: tomorrow
+    assert run("codziennie wyrzucić śmieci")["due"] == "2026-11-25T23:00:00Z"  # from today, all day
+    assert run("w dni robocze raport")["repeat"] == "weekdays"
+    assert run("co miesiąc 1 czynsz")["repeat"] == "monthly"
+    assert run("jutro 9 dentysta")["repeat"] is None

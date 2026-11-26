@@ -75,27 +75,23 @@ Cel użytkownika: „żeby to narzędzie było jak najbardziej wygodne w użytko
 Aplikacja nie była jeszcze uruchomiona u użytkownika, Diagnostyki nie poprawiamy. Gdy kiedyś wklei wynik Diagnostyki albo
 opinie, wtedy to jest pierwsza praca (lista nieweryfikowanych usług: sekcja 2 i 4A). Nie zgaduj wyników.
 
-### Krok 2 — propozycje wygody (użytkownik wybiera; przedstawione mu w poprzedniej sesji, jeszcze bez decyzji)
-1. **Szybkie dodawanie zdaniem, z każdego miejsca.** Jedno pole: „jutro 9 dentysta”, „w piątek zapłacić za prąd !”, „mleko 2 szt”
-   → wydarzenie / zadanie / zakupy / notatka z rozpoznaną datą, z podglądem przed zapisem.
-   - Parser po polsku bez AI w czystym Pythonie (testy tabelaryczne!): „dziś/jutro/pojutrze”, dni tygodnia („w piątek”, „we wtorek”),
-     „15 grudnia”, „15.12”, „o 9”, „9:30”, „za 2 h/30 min”, „rano/wieczorem” (stałe godziny), „!” = ważne, „co tydzień…” (jeśli
-     wejdą zadania cykliczne). Strefa z przeglądarki (`tz` jak w szybkich akcjach). AI (`ctx.ai`) tylko jako opcjonalny fallback
-     dla niejasnych zdań, z podglądem; bez AI wszystko działa.
-   - Zapis zwykłymi akcjami hubu (`calendar.create_event`, `tasks.add_task`, `shopping.add_item`, `notes.create`) → audyt i toasty
-     jak dziś. Miejsce: nowe pole w palecie Ctrl+K / przycisk na pulpicie i w „Dziś”.
-   - PWA: `frontend/public/manifest.webmanifest` → `shortcuts` (Nowe zadanie, Notatka, Zakupy) i `share_target` (udostępnij z innej
-     aplikacji → formularz z tekstem/linkiem); `frontend/public/sw.js` obsługuje share target (GET z parametrami → `#/capture?…`).
-   - Opcjonalnie dyktowanie (Web Speech API, `lang: "pl-PL"`, tylko gdy przeglądarka wspiera; Safari słabo).
-2. **Powiadomienia z przyciskami + zadania cykliczne.**
-   - `Reminder` (`core/app/push.py`) z listą akcji; `sw.js` → `notificationclick` z `event.action` woła API (`fetch` z
-     `credentials: "same-origin"` i `X-Jarvis`). „Zrobione” i „Przypomnij za 1 h” dla zadań, „Drzemka 10 min” dla alarmów.
-     Trasy HTTP modułów (nie akcje hubu), idempotentne. Android pokazuje przyciski, iOS (PWA) prawie nie — bez akcji ma działać jak dziś.
-   - Zadania cykliczne: kolumna `repeat` (codziennie / dni robocze / co tydzień / co miesiąc / co rok; migracja), po odhaczeniu
-     tworzy następne wystąpienie; liczenie dat w strefie użytkownika (zmiana czasu!) w czystych funkcjach z testami.
-3. **Ekran „Dziś” jako start na telefonie.** Jedna strona: pogoda, wydarzenia dziś, zadania dziś i po terminie (odhaczanie
-   w miejscu), nieprzeczytane maile (liczba + lista), zakupy, przycisk szybkiego dodawania. Może korzystać z `compose()` briefu
-   (`modules/brief/backend/__init__.py`) albo z akcji tylko-do-odczytu; na telefonie domyślna trasa zamiast pulpitu (ustawienie).
+### Krok 2 — wygoda codziennego użycia: ZROBIONE (wszystkie trzy, na gałęzi `claude/personal-dashboard-app-nted7h`)
+1. **Ekran „Dziś”** (`frontend/src/Today.tsx`, `#/today`): zadania (dziś + po terminie, odhaczanie z „Cofnij”), wydarzenia, pogoda,
+   poczta (liczba + 5), zakupy; każda sekcja ładuje się osobno przez akcje tylko-do-odczytu hubu i ma pusty stan/błąd z ponowieniem.
+   Na telefonie domyślny ekran startowy (przełącznik w Ustawieniach, `localStorage` `jarvis.homeRoute`, `frontend/src/homeRoute.ts`).
+2. **Szybkie dodawanie zdaniem** (`core/app/capture.py` — czysty parser PL, `POST /api/hub/capture/parse`, `frontend/src/Capture.tsx`,
+   `#/capture`): podgląd, zmiana rodzaju (zadanie/wydarzenie/zakupy/notatka), zapis zwykłymi akcjami hubu. Ctrl+K: „Dodaj zdaniem: …”.
+   PWA: `shortcuts` i `share_target` w `manifest.webmanifest` (udostępnianie otwiera `/?share_text=…`, `main.tsx` zamienia to na
+   `#/capture?text=…`). Dyktowanie przez Web Speech tylko gdy przeglądarka je ma. **AI jako fallback parsera nie zrobione** (świadomie).
+3. **Powiadomienia z przyciskami + zadania cykliczne:** `Reminder.actions` (`core/app/push.py`), `sw.js` wykonuje przycisk jako POST
+   do trasy `/api/m/…` (tasks: „Zrobione”, „Za 1 h” = `/snooze`; alarms: „Drzemka 10 min”), idempotentnie; bez przycisków (iOS) klik
+   otwiera stronę jak wcześniej. Zadania: `repeat` (daily/weekdays/weekly/monthly/yearly) + `repeat_tz`, następne wystąpienie powstaje
+   po odhaczeniu (`modules/tasks/backend/recurrence.py`, DST i zaległości w testach), cofnięcie usuwa następne; migracja `0013`.
+   Parser rozpoznaje „codziennie”, „co tydzień”, „w dni robocze”, „co miesiąc”, „co rok”.
+**Nieweryfikowane na żywo:** przyciski w powiadomieniach i share target (wymagają telefonu przez https), Web Speech, ekran startowy na telefonie.
+Miesięczne powtarzanie z 29–31 dnia przycina do ostatniego dnia miesiąca i nie wraca do pierwotnego dnia (31 stycznia → 28 lutego → 28 marca).
+Rozszerzenia w kolejce: powtarzające się wydarzenia kalendarza, AI jako fallback parsera, zadania cykliczne „po wykonaniu” zamiast „po terminie”.
+
 Dalej w kolejce: asystent AI dodający zadania z rozmowy, przypomnienia zależne od miejsca (geolokalizacja), zapis do Google
 Calendar (OAuth w Google Cloud — decyzja użytkownika), agent hosta (zadania na komputerze z potwierdzeniami).
 

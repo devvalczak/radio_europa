@@ -1,6 +1,6 @@
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,6 +23,9 @@ class Reminder:
     title: str
     body: str = ""
     url: str = "/"
+    # buttons under the notification (Android/desktop; iOS ignores them). Each: {"id", "title", "url", "body"}: the service
+    # worker POSTs `body` to `url` (a /api/m/… route of the same origin, never a hub action) when the button is tapped.
+    actions: list[dict] = field(default_factory=list)
 
 
 class SubscriptionIn(BaseModel):
@@ -67,7 +70,7 @@ def send_push_detailed(db: Session, reminder: Reminder, endpoint: str | None = N
     """Like send_push, with a result per device (for Diagnostyka). `endpoint` limits it to one device."""
     if not settings.vapid_private_key:
         return []
-    payload = json.dumps({"title": reminder.title, "body": reminder.body, "url": reminder.url})
+    payload = json.dumps({"title": reminder.title, "body": reminder.body, "url": reminder.url, "actions": reminder.actions})
     stmt = select(PushSubscription)
     if endpoint:
         stmt = stmt.where(PushSubscription.endpoint == endpoint)

@@ -144,3 +144,27 @@ def test_actions_and_widget(authed):
     missing = authed.post("/api/hub/actions/alarms.set_enabled", json={"input": {"id": 999, "enabled": True}})
     assert (missing.status_code, missing.json()["detail"]["code"]) == (404, "alarm_not_found")
     assert authed.post("/api/hub/actions/alarms.create", json={"input": payload(time="nope")}).status_code == 422
+
+
+def test_snooze_rings_again_even_for_a_switched_off_one_off(authed):
+    aid = authed.post("/api/m/alarms", json=payload()).json()["id"]
+    with SessionLocal() as db:
+        db.get(Alarm, aid).created_at = utc(2026, 10, 20)
+        db.commit()
+        ring = collect_reminders(db, utc(2026, 10, 21, 5, 1))[0]
+        assert ring.actions == [{"id": "snooze", "title": "Drzemka 10 min", "url": f"/api/m/alarms/{aid}/snooze", "body": {"minutes": 10}}]
+        assert db.get(Alarm, aid).enabled is False
+    assert authed.post(f"/api/m/alarms/{aid}/snooze", json={"minutes": 10}).status_code == 200
+    with SessionLocal() as db:
+        db.get(Alarm, aid).snoozed_until = utc(2026, 10, 21, 5, 11)
+        db.commit()
+        assert collect_reminders(db, utc(2026, 10, 21, 5, 5)) == []
+        again = collect_reminders(db, utc(2026, 10, 21, 5, 12))
+        assert [r.title for r in again] == ["⏰ Pobudka"]
+        assert collect_reminders(db, utc(2026, 10, 21, 5, 13)) == []  # the snooze is used up
+
+
+def test_snooze_validation_and_unknown_alarm(authed):
+    assert authed.post("/api/m/alarms/999/snooze", json={"minutes": 10}).status_code == 404
+    aid = authed.post("/api/m/alarms", json=payload()).json()["id"]
+    assert authed.post(f"/api/m/alarms/{aid}/snooze", json={"minutes": 0}).status_code == 422

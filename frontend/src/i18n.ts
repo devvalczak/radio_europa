@@ -19,6 +19,7 @@ const pl = {
     noDate: "Wydarzenie potrzebuje daty, np. „jutro 9 spotkanie”.",
     dictate: "Podyktuj",
     listening: "Słucham…",
+    repeats: { daily: "codziennie", weekdays: "w dni robocze", weekly: "co tydzień", monthly: "co miesiąc", yearly: "co rok" } as Record<string, string>,
     quantity: (n: number) => `Ilość: ${n}`,
     open: "Dodaj zdaniem",
     saved: { task: "Dodano zadanie", event: "Dodano wydarzenie", shopping: "Dodano do zakupów", note: "Dodano notatkę" },

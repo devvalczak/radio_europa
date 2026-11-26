@@ -16,6 +16,10 @@ class Task(Base):
     all_day: Mapped[bool] = mapped_column(Boolean, default=False)  # due is a date (midnight in the user's zone)
     important: Mapped[bool] = mapped_column(Boolean, default=False)
     remind_minutes: Mapped[int | None] = mapped_column(Integer, default=None)  # before `due`; None = no reminder
+    repeat: Mapped[str | None] = mapped_column(String(10), default=None)  # daily|weekdays|weekly|monthly|yearly
+    repeat_tz: Mapped[str] = mapped_column(String(64), default="Europe/Warsaw")  # zone the repeat is computed in
+    next_id: Mapped[int | None] = mapped_column(Integer, default=None)  # follow-up created when this one was done
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # "remind me again" from a notification
     reminded: Mapped[bool] = mapped_column(Boolean, default=False)
     done: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     done_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)

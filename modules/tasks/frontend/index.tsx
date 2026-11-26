@@ -11,6 +11,7 @@ interface Task {
   all_day: boolean;
   important: boolean;
   remind_minutes: number | null;
+  repeat: string | null;
   done: boolean;
   done_at: string | null;
   overdue: boolean;
@@ -24,6 +25,7 @@ interface Draft {
   date: string; // yyyy-mm-dd
   time: string; // hh:mm
   remind: string; // "" = none, else minutes
+  repeat: string; // "" = does not repeat
   important: boolean;
 }
 
@@ -35,7 +37,7 @@ const localTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 function blank(): Draft {
   const d = new Date(Date.now() + 86400_000);
-  return { id: null, title: "", notes: "", hasDue: false, allDay: true, date: localDate(d), time: "09:00", remind: "0", important: false };
+  return { id: null, title: "", notes: "", hasDue: false, allDay: true, date: localDate(d), time: "09:00", remind: "0", repeat: "", important: false };
 }
 
 function toDraft(x: Task): Draft {
@@ -44,7 +46,7 @@ function toDraft(x: Task): Draft {
   return {
     id: x.id, title: x.title, notes: x.notes, hasDue: !!d, allDay: d ? x.all_day : b.allDay,
     date: d ? localDate(d) : b.date, time: d && !x.all_day ? localTime(d) : b.time,
-    remind: x.remind_minutes === null ? (d && !x.all_day ? "" : "0") : String(x.remind_minutes), important: x.important,
+    remind: x.remind_minutes === null ? (d && !x.all_day ? "" : "0") : String(x.remind_minutes), repeat: x.repeat ?? "", important: x.important,
   };
 }
 
@@ -56,7 +58,8 @@ function toBody(d: Draft) {
     due = new Date(y, m - 1, day, hh, mm).toISOString(); // local midnight / local time, sent as UTC
   }
   return { title: d.title, notes: d.notes, due, all_day: d.hasDue && d.allDay, important: d.important,
-    remind_minutes: d.remind === "" ? null : Number(d.remind) };
+    remind_minutes: d.remind === "" ? null : Number(d.remind),
+    repeat: d.hasDue && d.repeat ? d.repeat : null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone };
 }
 
 /** "jutro 09:00", "pt 14 lis", … in the viewer's timezone. */
@@ -218,6 +221,7 @@ function Page() {
                       <span className={x.overdue ? "task-overdue" : "muted"}>{x.overdue ? `${t("overdue")} · ` : ""}{fmtDue(x)}</span>
                     )}
                     {x.important && !x.done && <Tag>{t("important")}</Tag>}
+                    {x.repeat && !x.done && <Tag>{t("repeatTag_" + x.repeat)}</Tag>}
                   </span>
                 </button>
               </li>
@@ -263,6 +267,16 @@ function Page() {
                     </Field>
                   )}
                 </div>
+                <Field label={t("fRepeat")}>
+                  <select value={draft.repeat} onChange={(e) => set({ repeat: e.target.value })}>
+                    <option value="">{t("repeatNone")}</option>
+                    <option value="daily">{t("repeatDaily")}</option>
+                    <option value="weekdays">{t("repeatWeekdays")}</option>
+                    <option value="weekly">{t("repeatWeekly")}</option>
+                    <option value="monthly">{t("repeatMonthly")}</option>
+                    <option value="yearly">{t("repeatYearly")}</option>
+                  </select>
+                </Field>
                 {draft.allDay ? (
                   <Muted>{t("allDayNoRemind")}</Muted>
                 ) : (

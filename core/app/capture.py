@@ -31,6 +31,9 @@ NUM_DATE = re.compile(r"\b(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?(?![\d:])")
 CLOCK = re.compile(r"(?:\b(?:o|godz\.?)\s*)?\b(\d{1,2}):(\d{2})\b")
 AT_HOUR = re.compile(r"\bo\s+(\d{1,2})\b(?!\s*(?:szt|zł|x\b|kg))")
 PERIOD_RE = re.compile(rf"\b({_PERIOD})\b")
+REPEATS = {"codziennie": "daily", "co dzień": "daily", "w dni robocze": "weekdays", "co tydzień": "weekly",
+           "co miesiąc": "monthly", "co rok": "yearly", "co roku": "yearly"}
+REPEAT_RE = re.compile(r"\b(codziennie|co\s+dzień|w\s+dni\s+robocze|co\s+tydzień|co\s+miesiąc|co\s+roku?)\b")
 IMPORTANT = re.compile(r"(?:^|\s)!+(?=\s|$)|\bpilne\b|\bważne\b")
 SHOP_QTY = re.compile(r"^(?P<name>.+?)\s+(?P<q>\d{1,2})\s*(?:szt\.?|sztuk\w*|x|op\.?)?$")
 SHOP_QTY_ALT = re.compile(r"^(?P<q>\d{1,2})\s*(?:x|szt\.?)\s+(?P<name>.+)$")
@@ -94,6 +97,11 @@ def parse(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> di
             found.append(h.group(0).strip())
             span = (match.start(), match.start() + h.end())
             low, raw = _cut(low, span), _cut(raw, span)
+
+    repeat: str | None = None
+    if (r := REPEAT_RE.search(low)):
+        repeat = REPEATS[" ".join(r.group(1).split())]
+        take(r)
 
     if (r := RELATIVE.search(low)):
         n = int(r.group(1))
@@ -167,6 +175,8 @@ def parse(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> di
             if day is None and due < local_now:  # "o 9" said in the evening means tomorrow
                 due = datetime.combine(d + timedelta(days=1), at, tzinfo=tz)
 
+    if repeat and due is None and forced in (None, "task"):
+        all_day, due = True, datetime.combine(today, time(0), tzinfo=tz)  # "codziennie wyrzucić śmieci": from today
     if due is None and forced in (None, "shopping"):
         alt = SHOP_QTY_ALT.match(raw)
         s = alt or SHOP_QTY.match(raw)
@@ -176,12 +186,13 @@ def parse(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> di
                 return _result("shopping", s.group("name").strip().capitalize(), None, False, False, found, raw, int(s.group("q")))
             return _result("shopping", raw.capitalize(), None, False, False, found, raw)
 
-    chosen = forced or ("event" if (due is not None and not all_day and relative is None) else "task")
-    return _result(chosen, title or text.strip(), due, all_day, important, found, raw)
+    chosen = forced or ("event" if (due is not None and not all_day and relative is None and not repeat) else "task")
+    return _result(chosen, title or text.strip(), due, all_day, important, found, raw,
+                   repeat=repeat if chosen == "task" else None, tz=tz.key)
 
 
 def _result(kind: str, title: str, due: datetime | None, all_day: bool, important: bool, found: list[str], raw: str,
-            quantity: int = 1) -> dict:
+            quantity: int = 1, repeat: str | None = None, tz: str = "Europe/Warsaw") -> dict:
     due_iso = _iso(due) if due else None
     if kind == "event":
         action, payload = "calendar.create_event", {"title": title, "start": due_iso, "all_day": all_day}
@@ -192,6 +203,8 @@ def _result(kind: str, title: str, due: datetime | None, all_day: bool, importan
     else:
         action = "tasks.add_task"
         payload = {"title": title, "due": due_iso, "all_day": all_day, "important": important}
+        if repeat:
+            payload.update(repeat=repeat, tz=tz)
     problem = "no_date" if kind == "event" and due is None else None  # an event needs a start
     return {"kind": kind, "problem": problem, "title": title, "due": due_iso, "all_day": all_day, "important": important,
-            "found": found, "action": action, "input": payload}
+            "repeat": repeat, "found": found, "action": action, "input": payload}

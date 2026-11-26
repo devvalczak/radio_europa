@@ -161,6 +161,9 @@ nie trafia do kopii. W testach `JARVIS_BACKUP_DIR=""`; test, który robi kopię,
 
 ## Pułapki
 
+- **Przyciski w powiadomieniach, share target i dyktowanie nie były sprawdzone na telefonie** (sandbox: tylko testy backendu i Chromium bez push).
+  Przyciski wywołują trasy `/api/m/…` z `sw.js` (`credentials: "same-origin"`, `X-Jarvis`); serwer wysyła tylko takie ścieżki.
+
 - **EMMA (`modules/shopping/backend/emma.py`) jest nieweryfikowana na żywo**: sandbox nie ma dostępu do emmamarket.pl, selektory
   to założenia o standardowym motywie PrestaShop, a testy używają syntetycznego HTML-a. Na prawdziwej maszynie uruchom
   `PYTHONPATH=core:. python scripts/emma_probe.py mleko`, popraw `parse_search`/`parse_delivery` i zamień zapisane strony na fixture'y testów.
@@ -200,12 +203,11 @@ streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA
 narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach,
 automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`), przypomnienie o 2FA na pulpicie, CI na GitHubie (pytest,
 build, E2E), zadania z terminami, poranny brief (push), wyszukiwanie we wszystkim (Ctrl+K), kalendarze zewnętrzne (CalDAV w obie
-strony, iCal/Google do odczytu). ~315 testów backendu.
+strony, iCal/Google do odczytu). ekran „Dziś”, szybkie dodawanie zdaniem (parser PL `core/app/capture.py`, skróty PWA i udostępnianie), powiadomienia z przyciskami (Zrobione/Drzemka), zadania cykliczne. ~355 testów backendu.
 
-Następna sesja: **najpierw opinie i Diagnostyka z działającej już u użytkownika aplikacji, potem wygoda codziennego użycia**
-(szybkie dodawanie zdaniem + skróty/udostępnianie PWA, powiadomienia z przyciskami + zadania cykliczne, ekran „Dziś”) —
-szczegóły, notatki projektowe i gotowy prompt w `docs/HANDOFF.md` (sekcje 4 i 6). Zmieniając sposób uruchamiania (Makefile,
-compose, `.env`), aktualizuj też `docs/URUCHOMIENIE.md`.
+Następna sesja: **opinie z używania i Diagnostyka**, gdy użytkownik uruchomi aplikację (jeszcze tego nie zrobił; nie zgaduj wyników),
+potem kolejne rzeczy z `docs/HANDOFF.md` (sekcje 4 i 5). Zmieniając sposób uruchamiania (Makefile, compose, `.env`), aktualizuj też
+`docs/URUCHOMIENIE.md`.
 Dalej: weryfikacja na żywo (Gemini z narzędziami, OpenSSH, push na telefonie, Open-Meteo, EMMA, IMAP, CalDAV/iCloud/Google iCal),
 Google Calendar w obie strony (wymaga aplikacji OAuth), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 

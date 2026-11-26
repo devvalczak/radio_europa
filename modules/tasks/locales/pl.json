@@ -46,5 +46,17 @@
   "saveFailed": "Nie udało się zapisać",
   "allDayNoRemind": "Zadania na cały dzień nie mają własnego przypomnienia — pojawią się w porannym briefie.",
   "fTime": "Godzina",
-  "notFound": "Nie ma już tego zadania."
+  "notFound": "Nie ma już tego zadania.",
+  "fRepeat": "Powtarzaj",
+  "repeatNone": "Nie powtarzaj",
+  "repeatDaily": "Codziennie",
+  "repeatWeekdays": "W dni robocze",
+  "repeatWeekly": "Co tydzień",
+  "repeatMonthly": "Co miesiąc",
+  "repeatYearly": "Co rok",
+  "repeatTag_daily": "codziennie",
+  "repeatTag_weekdays": "dni robocze",
+  "repeatTag_weekly": "co tydzień",
+  "repeatTag_monthly": "co miesiąc",
+  "repeatTag_yearly": "co rok"
 }

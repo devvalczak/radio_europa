@@ -47,7 +47,7 @@
   "actions": [
     {
       "name": "add_task",
-      "description": "Dodaje zadanie: tytuł, opcjonalnie termin (due z strefą czasową; all_day=true gdy liczy się tylko dzień), notatka, important, remind_minutes (push tyle minut przed terminem, 0 = o czasie, null = bez przypomnienia)."
+      "description": "Dodaje zadanie: tytuł, opcjonalnie termin (due ze strefą; all_day=true gdy liczy się tylko dzień), notatka, important, remind_minutes (push przed terminem, 0 = o czasie, null = brak), repeat (daily/weekdays/weekly/monthly/yearly, wymaga terminu) i tz (strefa IANA)."
     },
     {
       "name": "list_tasks",

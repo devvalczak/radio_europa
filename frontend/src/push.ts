@@ -11,7 +11,14 @@ const bytesToB64 = (buf: ArrayBuffer | null) =>
 
 export const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window;
 
-export const registerSW = () => (pushSupported() ? navigator.serviceWorker.register("/sw.js") : undefined);
+export const registerSW = () => {
+  if (!pushSupported()) return undefined;
+  // a notification button (Zrobione, Drzemka) changed data in the background: refresh what is on screen
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data?.type === "jarvis:changed") window.dispatchEvent(new CustomEvent("jarvis:changed", { detail: { module: "" } }));
+  });
+  return navigator.serviceWorker.register("/sw.js");
+};
 
 export async function enablePush(): Promise<void> {
   if (!pushSupported()) throw new Error("Ta przeglądarka nie obsługuje push.");

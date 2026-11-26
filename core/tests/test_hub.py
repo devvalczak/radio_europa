@@ -150,3 +150,29 @@ def test_ctx_actor_reaches_action(authed):
     finally:
         shopping.handler = original
     assert seen["actor"] == "user:owner"
+
+
+def test_reminder_payload_carries_the_action_buttons(monkeypatch):
+    import json
+
+    from app import push
+
+    sent = {}
+    monkeypatch.setattr(push.settings, "vapid_private_key", "k", raising=False)
+    monkeypatch.setattr(push, "webpush", lambda **kw: sent.update(kw))
+
+    class Db:
+        def scalars(self, _):
+            class R:
+                def all(self_inner):
+                    return [type("S", (), {"endpoint": "https://push.example/x", "p256dh": "p", "auth": "a"})()]
+            return R()
+
+        def commit(self):
+            pass
+
+    actions = [{"id": "done", "title": "Zrobione", "url": "/api/m/tasks/1/done", "body": {"done": True}}]
+    push.send_push_detailed(Db(), push.Reminder("T", "b", "/#/tasks", actions))
+    assert json.loads(sent["data"])["actions"] == actions
+    push.send_push_detailed(Db(), push.Reminder("T"))
+    assert json.loads(sent["data"])["actions"] == []  # no buttons: behaves as before

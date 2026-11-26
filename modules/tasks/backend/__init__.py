@@ -9,7 +9,9 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import AwareDatetime, BaseModel, Field
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,7 @@ from app.sdk import (ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBloc
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from .models import Task
+from .recurrence import next_due
 
 router = APIRouter()  # /api/m/tasks, login required
 module = Module(router=router)
@@ -34,11 +37,22 @@ class TaskIn(BaseModel):
     all_day: bool = False
     important: bool = False
     remind_minutes: int | None = Field(default=0, ge=0, le=MAX_REMIND_MINUTES)
+    repeat: Literal["daily", "weekdays", "weekly", "monthly", "yearly"] | None = None  # needs a due date
+    tz: str = Field(default="Europe/Warsaw", max_length=64)  # the user's zone (browser), for the repeat
+
+    @field_validator("tz")
+    @classmethod
+    def _known_zone(cls, v: str) -> str:
+        try:
+            ZoneInfo(v)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError("unknown time zone") from None
+        return v
 
 
 def _out(t: Task) -> dict:
     return {"id": t.id, "title": t.title, "notes": t.notes, "due": iso_z(t.due), "all_day": t.all_day,
-            "important": t.important, "remind_minutes": t.remind_minutes, "done": t.done, "done_at": iso_z(t.done_at),
+            "important": t.important, "remind_minutes": t.remind_minutes, "repeat": t.repeat, "done": t.done, "done_at": iso_z(t.done_at),
             "created_at": iso_z(t.created_at), "overdue": _overdue(t, utcnow())}
 
 
@@ -59,7 +73,10 @@ def _apply(t: Task, body: TaskIn) -> None:
     t.due = to_utc_naive(body.due) if body.due else None
     t.all_day = body.all_day and body.due is not None
     t.remind_minutes = body.remind_minutes if (t.due is not None and not t.all_day) else None
+    t.repeat = body.repeat if t.due is not None else None
+    t.repeat_tz = body.tz
     t.reminded = False  # editing re-arms the reminder
+    t.snoozed_until = None
 
 
 def _get(db: Session, task_id: int) -> Task:
@@ -82,6 +99,19 @@ def _create(db: Session, body: TaskIn, emit=None) -> dict:
 def _set_done(db: Session, t: Task, done: bool, emit=None) -> dict:
     if t.done != done:
         t.done, t.done_at = done, (utcnow() if done else None)
+        if done and t.repeat and t.due is not None and t.next_id is None:
+            # a repeating task comes back: the follow-up is a new row, the finished one stays in "Zrobione"
+            nxt = Task(title=t.title, notes=t.notes, important=t.important, all_day=t.all_day, remind_minutes=t.remind_minutes,
+                       repeat=t.repeat, repeat_tz=t.repeat_tz, created_at=utcnow(),
+                       due=next_due(t.due, t.all_day, t.repeat, t.repeat_tz, utcnow()))
+            db.add(nxt)
+            db.flush()
+            t.next_id = nxt.id
+        elif not done and t.next_id is not None:
+            follow = db.get(Task, t.next_id)  # undo: the follow-up would duplicate the restored task
+            if follow is not None and not follow.done:
+                db.delete(follow)
+            t.next_id = None
         db.commit()
         if done and emit:
             emit("task_done", {"id": t.id, "title": t.title})
@@ -141,6 +171,20 @@ def mark_done(task_id: int, body: DoneIn, db: Session = Depends(get_db)):
     return _set_done(db, _get(db, task_id), body.done)
 
 
+class SnoozeIn(BaseModel):
+    minutes: int = Field(default=60, ge=1, le=7 * 24 * 60)
+
+
+@router.post("/{task_id}/snooze")
+def snooze_task(task_id: int, body: SnoozeIn, db: Session = Depends(get_db)):
+    """"Remind me again in …" (button on the notification). Setting it twice just moves the time: idempotent."""
+    t = _get(db, task_id)
+    if not t.done:
+        t.snoozed_until = utcnow() + timedelta(minutes=body.minutes)
+        db.commit()
+    return _out(t)
+
+
 @router.delete("/{task_id}", status_code=204)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
     db.delete(_get(db, task_id))
@@ -198,9 +242,19 @@ def collect_reminders(db: Session, now: datetime) -> list[Reminder]:
     for t in rows:
         if t.due - timedelta(minutes=t.remind_minutes) <= now:
             t.reminded = True
-            due.append(Reminder(title=f"Zadanie: {t.title}", body=t.notes[:140], url="/#/tasks"))
+            due.append(_reminder(t))
+    for t in db.scalars(select(Task).where(Task.done.is_(False), Task.snoozed_until.is_not(None), Task.snoozed_until <= now)).all():
+        t.snoozed_until = None
+        due.append(_reminder(t))
     db.commit()
     return due
+
+
+def _reminder(t: Task) -> Reminder:
+    return Reminder(title=f"Zadanie: {t.title}", body=t.notes[:140], url="/#/tasks", actions=[
+        {"id": "done", "title": "Zrobione", "url": f"/api/m/tasks/{t.id}/done", "body": {"done": True}},
+        {"id": "snooze", "title": "Za 1 h", "url": f"/api/m/tasks/{t.id}/snooze", "body": {"minutes": 60}},
+    ])
 
 
 # --- widgets ------------------------------------------------------------------------------------------------------

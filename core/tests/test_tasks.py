@@ -1,6 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app.db import SessionLocal
+from modules.tasks.backend.recurrence import next_due
 
 
 def iso(dt: datetime) -> str:
@@ -103,3 +106,91 @@ def test_reminders_fire_once_and_rearm(authed):
     authed.post(f"/api/m/tasks/{t['id']}/done", json={"done": True})
     with SessionLocal() as db:
         assert collect_reminders(db, naive) == []  # done tasks never remind
+
+
+# --- repeating tasks ----------------------------------------------------------------------------------------------
+_WAW = "Europe/Warsaw"
+
+
+def _utc(y, mo, d, h=0, mi=0):
+    return datetime(y, mo, d, h, mi)
+
+
+@pytest.mark.parametrize("due,all_day,repeat,expected", [
+    (_utc(2026, 11, 26, 8), False, "daily", _utc(2026, 11, 27, 8)),
+    (_utc(2026, 11, 27, 8), False, "weekdays", _utc(2026, 11, 30, 8)),   # Friday -> Monday
+    (_utc(2026, 11, 26, 8), False, "weekly", _utc(2026, 12, 3, 8)),
+    (_utc(2026, 1, 30, 8), False, "monthly", _utc(2026, 2, 28, 8)),       # clamped: no 30 February
+    (_utc(2028, 2, 29, 8), False, "yearly", _utc(2029, 2, 28, 8)),
+    (_utc(2026, 11, 25, 23), True, "daily", _utc(2026, 11, 26, 23)),      # all-day = local midnight (Warsaw +1)
+])
+def test_next_due_table(due, all_day, repeat, expected):
+    assert next_due(due, all_day, repeat, _WAW, now=due) == expected
+
+
+def test_next_due_keeps_wall_clock_across_dst():
+    # 9:00 Warsaw on Sat 28 March 2026 (+01:00) = 08:00 UTC; the next day clocks go forward, 9:00 is then 07:00 UTC
+    assert next_due(datetime(2026, 3, 28, 8), False, "daily", _WAW, now=datetime(2026, 3, 28, 9)) == datetime(2026, 3, 29, 7)
+
+
+def test_next_due_skips_the_backlog():
+    # finished 3 days late: the next one is the first in the future, not another overdue one
+    now = datetime(2026, 11, 26, 12)
+    assert next_due(datetime(2026, 11, 23, 8), False, "daily", _WAW, now=now) == datetime(2026, 11, 27, 8)
+    # all-day: it may come back as "today" (local midnight 26 Nov = 25 Nov 23:00 UTC), never as yesterday
+    assert next_due(datetime(2026, 11, 22, 23), True, "daily", _WAW, now=now) == datetime(2026, 11, 25, 23)
+
+
+def test_completing_a_repeating_task_creates_the_next_and_undo_removes_it(authed):
+    due = (datetime.now(UTC) + timedelta(hours=2)).isoformat()
+    t = authed.post("/api/m/tasks", json={"title": "Śmieci", "due": due, "repeat": "weekly", "tz": _WAW}).json()
+    assert t["repeat"] == "weekly"
+    authed.post(f"/api/m/tasks/{t['id']}/done", json={"done": True})
+    open_ = authed.get("/api/m/tasks").json()
+    assert [x["title"] for x in open_] == ["Śmieci"] and open_[0]["id"] != t["id"]
+    assert open_[0]["repeat"] == "weekly"
+    assert datetime.fromisoformat(open_[0]["due"].replace("Z", "+00:00")) - datetime.fromisoformat(t["due"].replace("Z", "+00:00")) == timedelta(days=7)
+    # done twice does not multiply the follow-up
+    authed.post(f"/api/m/tasks/{t['id']}/done", json={"done": True})
+    assert len(authed.get("/api/m/tasks").json()) == 1
+    # undo removes the follow-up
+    authed.post(f"/api/m/tasks/{t['id']}/done", json={"done": False})
+    assert [x["id"] for x in authed.get("/api/m/tasks").json()] == [t["id"]]
+
+
+def test_repeat_needs_a_due_date_and_valid_zone(authed):
+    t = authed.post("/api/m/tasks", json={"title": "Bez terminu", "repeat": "daily"}).json()
+    assert t["repeat"] is None
+    assert authed.post("/api/m/tasks", json={"title": "x", "tz": "Mars/Base"}).status_code == 422
+    assert authed.post("/api/m/tasks", json={"title": "x", "repeat": "hourly"}).status_code == 422
+
+
+def test_complete_task_action_repeats_too(authed):
+    due = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+    t = authed.post("/api/m/tasks", json={"title": "Leki", "due": due, "repeat": "daily"}).json()
+    authed.post("/api/hub/actions/tasks.complete_task", json={"input": {"id": t["id"]}})
+    assert len(authed.get("/api/m/tasks").json()) == 1
+
+
+def test_task_reminder_has_buttons_and_snooze_brings_it_back(authed):
+    from modules.tasks.backend import collect_reminders
+
+    now = datetime.now(UTC)
+    t = add(authed, title="Leki", due=iso(now + timedelta(minutes=5)), remind_minutes=15)
+    naive = now.replace(tzinfo=None)
+    with SessionLocal() as db:
+        [r] = collect_reminders(db, naive)
+    assert [a["id"] for a in r.actions] == ["done", "snooze"]
+    assert r.actions[0] == {"id": "done", "title": "Zrobione", "url": f"/api/m/tasks/{t['id']}/done", "body": {"done": True}}
+    for _ in range(2):  # idempotent: tapping twice only moves the time
+        assert authed.post(f"/api/m/tasks/{t['id']}/snooze", json={"minutes": 60}).status_code == 200
+    with SessionLocal() as db:
+        assert collect_reminders(db, naive + timedelta(minutes=59)) == []
+        assert len(collect_reminders(db, naive + timedelta(minutes=61))) == 1
+        assert collect_reminders(db, naive + timedelta(minutes=62)) == []
+    # the done button on an already finished task is harmless, and snoozing a finished task does nothing
+    authed.post(f"/api/m/tasks/{t['id']}/done", json={"done": True})
+    authed.post(f"/api/m/tasks/{t['id']}/done", json={"done": True})
+    authed.post(f"/api/m/tasks/{t['id']}/snooze", json={"minutes": 5})
+    with SessionLocal() as db:
+        assert collect_reminders(db, naive + timedelta(hours=3)) == []

@@ -18,3 +18,4 @@ class Alarm(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)  # naive UTC
     last_fired: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # naive UTC
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime, default=None)  # "snooze" from a notification

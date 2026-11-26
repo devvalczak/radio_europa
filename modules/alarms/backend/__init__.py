@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -112,10 +112,32 @@ def delete_alarm(alarm_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+class SnoozeIn(BaseModel):
+    minutes: int = Field(default=10, ge=1, le=120)
+
+
+@router.post("/{alarm_id}/snooze")
+def snooze_alarm(alarm_id: int, body: SnoozeIn, db: Session = Depends(get_db)):
+    """"Snooze" (button on the notification): ring again in `minutes`, even if a one-off alarm switched itself off."""
+    alarm = _get(db, alarm_id)
+    alarm.snoozed_until = utcnow() + timedelta(minutes=body.minutes)
+    db.commit()
+    return _out(alarm)
+
+
+def _ring(alarm: Alarm) -> Reminder:
+    return Reminder(title="⏰ " + (alarm.label or "Alarm"), body=alarm.time, url="/#/alarms", actions=[
+        {"id": "snooze", "title": "Drzemka 10 min", "url": f"/api/m/alarms/{alarm.id}/snooze", "body": {"minutes": 10}},
+    ])
+
+
 @module.reminders
 def collect_reminders(db: Session, now: datetime) -> list[Reminder]:
     """Scheduler hook: alarms that are due now. Marks them fired (one-off alarms switch themselves off)."""
     due: list[Reminder] = []
+    for alarm in db.scalars(select(Alarm).where(Alarm.snoozed_until.is_not(None), Alarm.snoozed_until <= now)).all():
+        alarm.snoozed_until = None
+        due.append(_ring(alarm))
     for alarm in db.scalars(select(Alarm).where(Alarm.enabled.is_(True))).all():
         occ = schedule.due_occurrence(alarm.time, alarm.days, alarm.tz, now, alarm.created_at, alarm.last_fired)
         if occ is None:
@@ -123,7 +145,7 @@ def collect_reminders(db: Session, now: datetime) -> list[Reminder]:
         alarm.last_fired = occ
         if not alarm.days:
             alarm.enabled = False
-        due.append(Reminder(title="⏰ " + (alarm.label or "Alarm"), body=alarm.time, url="/#/alarms"))
+        due.append(_ring(alarm))
     db.commit()
     return due
 
