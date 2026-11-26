@@ -202,9 +202,10 @@ automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`
 build, E2E), zadania z terminami, poranny brief (push), wyszukiwanie we wszystkim (Ctrl+K), kalendarze zewnętrzne (CalDAV w obie
 strony, iCal/Google do odczytu). ~315 testów backendu.
 
-Następna sesja: **uruchomienie na prawdziwym laptopie + weryfikacja na żywo** — instrukcja dla użytkownika w
-`docs/URUCHOMIENIE.md`, zadanie i gotowy prompt w `docs/HANDOFF.md` (sekcje 4A i 6). Kopie, 2FA, CI, zadania, brief,
-wyszukiwanie i CalDAV są zrobione i w `main`. Zmieniając sposób uruchamiania (Makefile, compose, `.env`), aktualizuj też URUCHOMIENIE.md.
+Następna sesja: **najpierw opinie i Diagnostyka z działającej już u użytkownika aplikacji, potem wygoda codziennego użycia**
+(szybkie dodawanie zdaniem + skróty/udostępnianie PWA, powiadomienia z przyciskami + zadania cykliczne, ekran „Dziś”) —
+szczegóły, notatki projektowe i gotowy prompt w `docs/HANDOFF.md` (sekcje 4 i 6). Zmieniając sposób uruchamiania (Makefile,
+compose, `.env`), aktualizuj też `docs/URUCHOMIENIE.md`.
 Dalej: weryfikacja na żywo (Gemini z narzędziami, OpenSSH, push na telefonie, Open-Meteo, EMMA, IMAP, CalDAV/iCloud/Google iCal),
 Google Calendar w obie strony (wymaga aplikacji OAuth), agent hosta (zadania na komputerze z potwierdzeniami). Laptop docelowy: Linux, ≤ 8 GB RAM, brak GPU (lokalnie tylko bardzo małe modele).
 

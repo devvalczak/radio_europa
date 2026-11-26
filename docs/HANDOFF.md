@@ -4,7 +4,12 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 
 ## 1. Gdzie jesteśmy
 
-- `main` = `claude/personal-dashboard-app-nted7h` (scalone na prośbę użytkownika po zielonym CI: kopie, 2FA, CI, zadania, brief, wyszukiwanie, CalDAV). Do `main` tylko na prośbę.
+- `main` = `claude/personal-dashboard-app-nted7h` = `376fab3` (scalone na prośbę użytkownika po zielonym CI). Do `main` tylko na prośbę.
+- **Użytkownik uruchomił aplikację** („apka się uruchamia”) — nie wiemy jeszcze, czy w trybie dev na Macu (`make dev` /
+  devcontainer VS Code), czy produkcyjnie (`make up`), ani co pokazuje Diagnostyka. Zapytaj na starcie (sekcja 4, krok 1).
+- **Środowisko pracy użytkownika:** macOS + VS Code, **bez Pythona/Node na hoście** — rozwój w kontenerze (`dev/Dockerfile`,
+  `docker-compose.dev.yml`, `.devcontainer/`, `make dev` albo „Reopen in Container” + `make dev-local`). Produkcja: Linux + Docker.
+  Instrukcje: `docs/URUCHOMIENIE.md` (punkty 1–10 produkcja, 11 dev).
 - Backend: 314 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0012_calendar_sources`.
 - Moduły: notes, calendar, weather, news, alarms, mail, shopping, assistant, ssh, tasks, brief. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
 - Użytkownik ma **wyłączone 2FA** (konsola SSH prosi wtedy o hasło konta) — w zadaniu B przypomnij o włączeniu.
@@ -61,40 +66,58 @@ Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
    wystarcza, format błędu 429 (`RetryInfo.retryDelay`). Popraw `core/app/ai.py`/testy, jeśli rzeczywistość się różni.
 4. Opcjonalnie to samo dla ścieżki zgodnej z OpenAI (`/v1beta/openai`), żeby README mówiło prawdę.
 
-## 4. Zadanie na następną sesję (A — laptop — wciąż do zrobienia; B i CI zrobione)
+## 4. Zadanie na następną sesję: wygoda codziennego użycia
 
-### A. Uruchomienie na prawdziwym laptopie i weryfikacja na żywo
-Instrukcja dla użytkownika krok po kroku: **`docs/URUCHOMIENIE.md`** (wymagania, `make init`/`make up`, telefon i tunel,
-aktualizacja, typowe problemy, lista rzeczy do sprawdzenia). Użytkownik mógł ją już przejść sam i przyjść z błędami — zacznij od nich.
-Sandbox nie ma Dockera ani dostępu do tych usług, więc potrzebny jest laptop użytkownika:
-- Najpierw `list_computer_folders` → `request_computer_folder` (Remote Control w aplikacji Claude na laptopie, folder z repo).
-  Jeśli się nie da — poproś użytkownika o uruchomienie komend i wklejenie wyniku (nie zgaduj wyników).
-- `git pull`, `make init` (jeśli brak `.env`; istniejący `.env` bez klucza szyfrowania: `make encryption-key`), `make up`.
-  Napraw błędy Dockerfile/compose (pierwszy build w historii projektu: zależności `asyncssh`, fonty fontsource, xterm, TipTap).
-- Sprawdź: logowanie, pulpit, **Diagnostyka** (`#/debug`) — każdy czerwony/żółty wynik to zadanie. W szczególności:
-  Open-Meteo (`modules/weather/backend/service.py`, parsowanie z pamięci), EMMA (`scripts/emma_probe.py mleko`, popraw selektory
-  i zamień syntetyczne fixture'y na prawdziwe strony), IMAP Gmail (hasło aplikacji, TLS), push na telefonie (sekcja „To urządzenie”),
-  WebSocket konsoli SSH przez Caddy (i przez cloudflared, jeśli tunel działa), OpenSSH na laptopie (`host.docker.internal`,
-  `sudo apt install openssh-server`).
-- Nowe od poprzedniej sesji, też do sprawdzenia na żywo: CalDAV (iCloud/Nextcloud/Fastmail — odkrywanie, REPORT, PUT/DELETE
-  z ETag; iCloud przekierowuje na `pXX-caldav.icloud.com`), tajny adres iCal Google, push porannego briefu o ustawionej godzinie,
-  przypomnienia zadań, `make backup`/`make restore` w Dockerze.
-- Cloudflare: `make up-quick` (szybki tunel) albo `up-tunnel` z tokenem; Access z wyjątkiem dla `/api/public/calendar/*`;
-  subskrypcja iCal w Google Calendar — czy faktycznie pobiera.
-- Gemini: sekcja 3 (klucz przez `request_credential` albo wpisany przez użytkownika do `.env` na laptopie — nigdy do czatu/repo);
-  sprawdź `complete()` i tool calling asystenta (`core/app/ai_chat.py`, `thoughtSignature`).
-- CI na GitHubie — zrobione (patrz B).
+Cel użytkownika: „żeby to narzędzie było jak najbardziej wygodne w użytkowaniu”. Kolejność:
 
-### B. Bezpieczeństwo danych — ZROBIONE (sesja w chmurze, bez laptopa)
-- **Kopie zapasowe** (`core/app/backup.py`, `/api/system/backups`, Ustawienia → „Kopie zapasowe”, `make backup`, `make restore`,
-  `scripts/restore_backup.py`, diagnostyka `system.backup`, testy `core/tests/test_backup.py`). Założenia przyjęte z planu (użytkownik
-  nie odpowiedział na pytania, więc zrobione konfigurowalnie): kopie lokalnie w `data/backups` + opcjonalne lustro
-  `JARVIS_BACKUP_MIRROR_DIR` (dysk/NAS/folder chmury do zamontowania w compose); `.env` w menedżerze haseł (tylko dokumentacja
-  i przypomnienia, aplikacja nie eksportuje `.env`). **Do zrobienia na laptopie:** wybrać miejsce lustra, sprawdzić `make backup`
-  i `make restore` w Dockerze (uprawnienia `data/` — kontener działa jako uid 1000).
-- **2FA:** bez wymuszania; baner na pulpicie, dopóki wyłączone („Przypomnij za 7 dni”), link `otpauth://` w Ustawieniach.
-  Użytkownik musi włączyć 2FA sam.
-- **CI:** `.github/workflows/ci.yml` (pytest, build, E2E Playwright).
+### Krok 1 — najpierw rzeczywistość (zanim nowe funkcje)
+Aplikacja pierwszy raz działa poza sandboxem. Poproś użytkownika o:
+- gdzie działa (Mac dev / Linux `make up`) i czy przez tunel (telefon, push),
+- wynik **Diagnostyki** (`#/debug`, także wolne testy) — każdy czerwony/żółty wynik to poprawka,
+- co go irytowało albo czego szukał przy pierwszym użyciu.
+Napraw to w pierwszej kolejności. Lista rzeczy dotąd sprawdzanych tylko na atrapach: sekcja 2 i 4A niżej (Open-Meteo, EMMA,
+IMAP, push, CalDAV, Gemini, SSH, Cloudflare). Nie zgaduj wyników — proś o wklejenie (bez `.env`).
+
+### Krok 2 — propozycje wygody (użytkownik wybiera; przedstawione mu w poprzedniej sesji, jeszcze bez decyzji)
+1. **Szybkie dodawanie zdaniem, z każdego miejsca.** Jedno pole: „jutro 9 dentysta”, „w piątek zapłacić za prąd !”, „mleko 2 szt”
+   → wydarzenie / zadanie / zakupy / notatka z rozpoznaną datą, z podglądem przed zapisem.
+   - Parser po polsku bez AI w czystym Pythonie (testy tabelaryczne!): „dziś/jutro/pojutrze”, dni tygodnia („w piątek”, „we wtorek”),
+     „15 grudnia”, „15.12”, „o 9”, „9:30”, „za 2 h/30 min”, „rano/wieczorem” (stałe godziny), „!” = ważne, „co tydzień…” (jeśli
+     wejdą zadania cykliczne). Strefa z przeglądarki (`tz` jak w szybkich akcjach). AI (`ctx.ai`) tylko jako opcjonalny fallback
+     dla niejasnych zdań, z podglądem; bez AI wszystko działa.
+   - Zapis zwykłymi akcjami hubu (`calendar.create_event`, `tasks.add_task`, `shopping.add_item`, `notes.create`) → audyt i toasty
+     jak dziś. Miejsce: nowe pole w palecie Ctrl+K / przycisk na pulpicie i w „Dziś”.
+   - PWA: `frontend/public/manifest.webmanifest` → `shortcuts` (Nowe zadanie, Notatka, Zakupy) i `share_target` (udostępnij z innej
+     aplikacji → formularz z tekstem/linkiem); `frontend/public/sw.js` obsługuje share target (GET z parametrami → `#/capture?…`).
+   - Opcjonalnie dyktowanie (Web Speech API, `lang: "pl-PL"`, tylko gdy przeglądarka wspiera; Safari słabo).
+2. **Powiadomienia z przyciskami + zadania cykliczne.**
+   - `Reminder` (`core/app/push.py`) z listą akcji; `sw.js` → `notificationclick` z `event.action` woła API (`fetch` z
+     `credentials: "same-origin"` i `X-Jarvis`). „Zrobione” i „Przypomnij za 1 h” dla zadań, „Drzemka 10 min” dla alarmów.
+     Trasy HTTP modułów (nie akcje hubu), idempotentne. Android pokazuje przyciski, iOS (PWA) prawie nie — bez akcji ma działać jak dziś.
+   - Zadania cykliczne: kolumna `repeat` (codziennie / dni robocze / co tydzień / co miesiąc / co rok; migracja), po odhaczeniu
+     tworzy następne wystąpienie; liczenie dat w strefie użytkownika (zmiana czasu!) w czystych funkcjach z testami.
+3. **Ekran „Dziś” jako start na telefonie.** Jedna strona: pogoda, wydarzenia dziś, zadania dziś i po terminie (odhaczanie
+   w miejscu), nieprzeczytane maile (liczba + lista), zakupy, przycisk szybkiego dodawania. Może korzystać z `compose()` briefu
+   (`modules/brief/backend/__init__.py`) albo z akcji tylko-do-odczytu; na telefonie domyślna trasa zamiast pulpitu (ustawienie).
+Dalej w kolejce: asystent AI dodający zadania z rozmowy, przypomnienia zależne od miejsca (geolokalizacja), zapis do Google
+Calendar (OAuth w Google Cloud — decyzja użytkownika), agent hosta (zadania na komputerze z potwierdzeniami).
+
+Każda zmiana UI: skill `jarvis-design` (9 motywów + telefon, `frontend/scripts/theme-shots.mjs`); nowe moduły: skill `jarvis-module`.
+
+### A. Weryfikacja na żywo (lista kontrolna, wciąż otwarta)
+Instrukcja dla użytkownika krok po kroku: **`docs/URUCHOMIENIE.md`**. Sandbox nie ma Dockera ani dostępu do tych usług:
+- Połączenie z komputerem użytkownika: `list_computer_folders` → `request_computer_folder` (Remote Control); jeśli się nie da —
+  komendy do uruchomienia i czekanie na wklejone wyniki.
+- Pierwszy build obrazów (produkcyjnych i `dev/Dockerfile`) — błędy Dockerfile/compose to pierwsze poprawki.
+- **Diagnostyka** (`#/debug`): Open-Meteo (`modules/weather/backend/service.py`), EMMA (punkt 9 URUCHOMIENIE: `emma_probe.py` w
+  kontenerze, popraw selektory, zamień fixture'y na prawdziwe strony), IMAP Gmail (hasło aplikacji, TLS), push (sekcja „To urządzenie”),
+  konsola SSH przez Caddy/cloudflared, CalDAV (iCloud przekierowuje na `pXX-caldav.icloud.com`), tajny adres iCal Google, push
+  porannego briefu, przypomnienia zadań, `make backup`/`make restore`, Cloudflare (`make up-quick` / `up-tunnel`, Access z Bypass dla
+  `/api/public/calendar/*`), Gemini (sekcja 3).
+
+### B. Bezpieczeństwo danych — ZROBIONE
+Kopie zapasowe (`core/app/backup.py`, Ustawienia → „Kopie zapasowe”, `make backup`/`make restore`; lustro `JARVIS_BACKUP_MIRROR_DIR`
+do wybrania przez użytkownika), baner 2FA (użytkownik musi włączyć sam), CI (`.github/workflows/ci.yml`).
 
 ## 5. Zrobione w sesji w chmurze (po B) i dalej w planie
 
@@ -110,12 +133,12 @@ użytkownik chce), agent hosta (zadania na komputerze z potwierdzeniami), głos.
 ## 6. Gotowy prompt na start następnej sesji
 
 ```
-Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md, docs/HANDOFF.md i docs/URUCHOMIENIE.md. Najpierw
-git pull, make test i cd frontend && npm ci && npm run build. Potem sekcja 4A handoffu: uruchomienie na moim laptopie
-w Dockerze (pierwszy build w historii projektu) i weryfikacja na żywo wszystkiego, co dotąd było sprawdzane tylko na atrapach
-(Diagnostyka, Open-Meteo, EMMA, IMAP, push, poranny brief, SSH, Cloudflare, CalDAV/Google iCal, Gemini). Do laptopa połącz się
-przez Remote Control (request_computer_folder); jeśli się nie da, dawaj mi komendy do uruchomienia i czekaj na wyniki — nie
-zgaduj ich. [Tu wklej błędy z make up / make logs albo zrzut Diagnostyki, jeśli już próbowałem.] Zanim zaczniesz, dopytaj
-o to, czego nie wiesz (domena w Cloudflare? klucz Gemini? który kalendarz CalDAV?), i zaproponuj plan. Poprawki wypychaj na
-swoją gałąź; do main tylko gdy poproszę.
+Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md i docs/HANDOFF.md (sekcja 4). Najpierw git pull,
+make test (albo make dev-local-init, jeśli brak zależności) i cd frontend && npm run build — wszystko ma być zielone.
+Aplikacja u mnie się uruchamia: [napisz: Mac w trybie dev / Linux make up; przez tunel czy lokalnie]. Wynik Diagnostyki:
+[wklej czerwone i żółte pozycje]. Co mnie irytowało przy używaniu: [lista]. Najpierw napraw to, co z tego wynika.
+Potem robimy wygodę codziennego użycia z sekcji 4 handoffu: [wybierz: 1 szybkie dodawanie zdaniem + skróty PWA i udostępnianie,
+2 powiadomienia z przyciskami + zadania cykliczne, 3 ekran „Dziś”]. Zanim zaczniesz, dopytaj o szczegóły, których nie wiesz,
+i zaproponuj plan. Pracuję na macOS w VS Code bez Pythona/Node na hoście (dev w Dockerze) — komendy dla mnie podawaj w tej
+formie. Każdy ekran sprawdź we wszystkich motywach i na telefonie. Poprawki wypychaj na swoją gałąź; do main tylko gdy poproszę.
 ```
