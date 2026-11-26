@@ -1,0 +1,91 @@
+{
+  "contract": 1,
+  "id": "tasks",
+  "name": "Zadania",
+  "version": "0.1.0",
+  "description": "Zadania z terminami, ważnością i przypomnieniem push.",
+  "permissions": [
+    "push.send"
+  ],
+  "widgets": [
+    {
+      "id": "list",
+      "title": "Zadania",
+      "sizes": [
+        "2x1",
+        "2x2"
+      ],
+      "default": "2x2",
+      "refresh": 300,
+      "description": "Zadania po terminie i na najbliższe dni; kliknięcie otwiera moduł.",
+      "views": [
+        {
+          "id": "soon",
+          "title": "Najbliższe 7 dni"
+        },
+        {
+          "id": "open",
+          "title": "Wszystkie otwarte"
+        },
+        {
+          "id": "important",
+          "title": "Ważne"
+        }
+      ]
+    },
+    {
+      "id": "count",
+      "title": "Do zrobienia",
+      "sizes": [
+        "1x1"
+      ],
+      "default": "1x1",
+      "refresh": 300,
+      "description": "Liczba otwartych zadań i ile z nich jest po terminie."
+    }
+  ],
+  "actions": [
+    {
+      "name": "add_task",
+      "description": "Dodaje zadanie: tytuł, opcjonalnie termin (due z strefą czasową; all_day=true gdy liczy się tylko dzień), notatka, important, remind_minutes (push tyle minut przed terminem, 0 = o czasie, null = bez przypomnienia)."
+    },
+    {
+      "name": "list_tasks",
+      "description": "Zwraca otwarte zadania. scope: open (wszystkie), soon (po terminie + w ciągu `days` dni), overdue (po terminie), important. Każde zadanie ma id potrzebne do complete_task.",
+      "readonly": true
+    },
+    {
+      "name": "complete_task",
+      "description": "Oznacza zadanie o podanym id jako zrobione (id z list_tasks)."
+    }
+  ],
+  "events": {
+    "emits": [
+      "task_created",
+      "task_done"
+    ]
+  },
+  "quick": [
+    {
+      "id": "new",
+      "title": "Zadanie",
+      "action": "add_task",
+      "fields": [
+        {
+          "name": "title",
+          "label": "Co zrobić",
+          "placeholder": "np. Zapłacić za prąd"
+        },
+        {
+          "name": "due",
+          "label": "Termin (opcjonalnie)"
+        },
+        {
+          "name": "important",
+          "label": "Ważne"
+        }
+      ],
+      "success": "Dodano zadanie"
+    }
+  ]
+}
