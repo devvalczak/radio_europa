@@ -4,7 +4,7 @@ Stan na koniec ostatniej sesji. Czytaj razem z `CLAUDE.md` (zasady, komendy, pu�
 
 ## 1. Gdzie jesteśmy
 
-- `main` = `claude/personal-dashboard-app-nted7h` (scalone na prośbę użytkownika, `8a77a1a` + ten handoff). Do `main` tylko na prośbę.
+- `main` = `claude/personal-dashboard-app-nted7h` (scalone na prośbę użytkownika po zielonym CI: kopie, 2FA, CI, zadania, brief, wyszukiwanie, CalDAV). Do `main` tylko na prośbę.
 - Backend: 314 testów (`make test`), frontend: `cd frontend && npm run build`. Ostatnia migracja: `0012_calendar_sources`.
 - Moduły: notes, calendar, weather, news, alarms, mail, shopping, assistant, ssh, tasks, brief. Każdy według kontraktu v1; nowe przez skill `jarvis-module`.
 - Użytkownik ma **wyłączone 2FA** (konsola SSH prosi wtedy o hasło konta) — w zadaniu B przypomnij o włączeniu.
