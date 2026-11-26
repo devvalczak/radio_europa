@@ -97,6 +97,7 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
     const go = (route: string) => () => (window.location.hash = `#/${route}`);
     return [
       ...quick.map((a) => ({ id: `q:${a.id}`, group: t.palette.create, label: a.title, hint: a.module_name, run: () => openQuick(a.id) })),
+      { id: "nav:capture", group: t.palette.create, label: t.capture.title, run: go("capture") },
       { id: "nav:today", group: t.palette.goto, label: t.today.title, run: go("today") },
       { id: "nav:dashboard", group: t.palette.goto, label: t.dashboard, run: go("dashboard") },
       ...modules.filter((m) => m.status === "ok").map((m) => ({ id: `nav:${m.id}`, group: t.palette.goto, label: m.name, run: go(m.id) })),
@@ -121,7 +122,11 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
         found: true,
       })),
     );
-    return [...local, ...results];
+    const text = q.trim();
+    const capture: Command[] = text.length >= 3
+      ? [{ id: "capture:text", group: t.palette.create, label: `${t.capture.open}: ${text}`, run: () => (window.location.hash = `#/capture?text=${encodeURIComponent(text)}`) }]
+      : [];
+    return [...local, ...capture, ...results];
   }, [commands, q, found]);
 
   const run = (c: Command | undefined) => {

@@ -2,14 +2,17 @@
 
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from . import capture
 from .auth import require_user
 from .config import settings
 from .db import get_db
@@ -27,6 +30,12 @@ search_log = logging.getLogger("jarvis.search")
 class ActionCall(BaseModel):
     input: dict = {}
     confirmed: bool = False
+
+
+class CaptureIn(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+    tz: str = Field(default="Europe/Warsaw", max_length=64)
+    kind: str | None = Field(default=None, pattern="^(task|event|shopping|note)$")
 
 
 class LayoutItem(BaseModel):
@@ -133,6 +142,16 @@ def build_router(hub: Hub) -> APIRouter:
         except ValidationError as e:
             raise HTTPException(500, "widget_returned_invalid_blocks") from e
         return {"blocks": blocks, "updated_at": utcnow().isoformat() + "Z"}
+
+    @router.post("/hub/capture/parse")
+    def capture_parse(body: CaptureIn):
+        """One Polish sentence -> a guess (kind, title, date) with the hub action to run. Saves nothing: the UI shows
+        a preview and then calls the action like any other write (audit, toast)."""
+        try:
+            tz = ZoneInfo(body.tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise HTTPException(422, "bad_timezone") from None
+        return capture.parse(body.text, tz, datetime.now(UTC), body.kind)
 
     @router.get("/hub/search")
     def search(q: str = Query("", max_length=200), limit: int = Query(5, ge=1, le=20), db: Session = Depends(get_db)):

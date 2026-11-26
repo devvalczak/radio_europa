@@ -5,5 +5,16 @@
   "display": "standalone",
   "background_color": "#0b1020",
   "theme_color": "#0b1020",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }],
+  "shortcuts": [
+    { "name": "Dziś", "url": "/#/today" },
+    { "name": "Nowe zadanie", "url": "/#/capture?kind=task" },
+    { "name": "Notatka", "url": "/#/capture?kind=note" },
+    { "name": "Zakupy", "url": "/#/capture?kind=shopping" }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": { "title": "share_title", "text": "share_text", "url": "share_url" }
+  }
 }

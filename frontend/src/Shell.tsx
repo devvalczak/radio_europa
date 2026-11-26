@@ -11,6 +11,7 @@ import { openPalette, Palette, paletteKeys } from "./Palette";
 import { QuickHost } from "./quick";
 import { Settings } from "./Settings";
 import { System } from "./System";
+import { Capture } from "./Capture";
 import { Today } from "./Today";
 import { homeRoute } from "./homeRoute";
 
@@ -128,6 +129,8 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
           <Settings status={status} onChange={onChange} modules={modules} />
         ) : route === "system" ? (
           <System />
+        ) : route === "capture" ? (
+          <Capture />
         ) : route === "today" ? (
           <Today />
         ) : route === "debug" ? (

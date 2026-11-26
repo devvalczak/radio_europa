@@ -91,3 +91,18 @@ def test_layout_validation(authed):
     assert authed.put("/api/hub/layout", json=[{**ok, "size": "3x3"}]).status_code == 422
     assert authed.put("/api/hub/layout", json=[{**ok, "widget": "nope"}]).status_code == 422
     assert authed.put("/api/hub/layout", json=[{"module": "calendar", "widget": "next", "size": "2x2"}]).status_code == 422  # not allowed for that widget
+
+
+def test_capture_parse_endpoint(authed, client):
+    r = authed.post("/api/hub/capture/parse", json={"text": "mleko 2 szt", "tz": "Europe/Warsaw"})
+    assert r.status_code == 200
+    assert r.json()["action"] == "shopping.add_item" and r.json()["input"] == {"query": "Mleko", "quantity": 2}
+    assert authed.post("/api/hub/capture/parse", json={"text": "x", "tz": "Mars/Base"}).status_code == 422
+    assert authed.post("/api/hub/capture/parse", json={"text": ""}).status_code == 422
+
+
+def test_capture_parse_needs_login_and_csrf_header(client, authed):
+    anon = type(client)(client.app, headers={"X-Jarvis": "1"})
+    assert anon.post("/api/hub/capture/parse", json={"text": "jutro 9 test"}).status_code == 401
+    no_header = type(authed)(authed.app, cookies=authed.cookies)
+    assert no_header.post("/api/hub/capture/parse", json={"text": "jutro 9 test"}).status_code in (400, 403)

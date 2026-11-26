@@ -10,6 +10,14 @@ import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/orbitron";
 import "./styles.css";
 
+// "Share to Jarvis" from another app opens "/?share_title=…&share_text=…&share_url=…": turn it into the capture form
+// (hash routes survive the login screen, and the address is cleaned so a reload does not share again)
+const shareParams = new URLSearchParams(window.location.search);
+if (["share_title", "share_text", "share_url"].some((k) => shareParams.has(k))) {
+  const shared = ["share_title", "share_text", "share_url"].map((k) => shareParams.get(k)).filter(Boolean).join(" ").trim();
+  history.replaceState(null, "", `/#/capture?text=${encodeURIComponent(shared.slice(0, 500))}`);
+}
+
 applyTheme(currentTheme()).catch(() => undefined);
 registerSW();
 

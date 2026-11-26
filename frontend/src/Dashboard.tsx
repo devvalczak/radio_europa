@@ -292,6 +292,7 @@ export function Dashboard({ totpEnabled = true }: { totpEnabled?: boolean }) {
       {!editing && quick.length > 0 && (
         <nav className="quick-bar" aria-label={t.dash.quickLabel}>
           <span className="eyebrow">{t.dash.quickLabel}</span>
+          <button className="quick-btn" onClick={() => (window.location.hash = "#/capture")}>{t.capture.open}</button>
           {quick.map((q) => (
             <button key={q.id} className="quick-btn" onClick={() => openQuick(q.id)}>
               <ModuleIcon id={q.module} fallback="+" />
