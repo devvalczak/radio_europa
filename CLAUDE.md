@@ -30,7 +30,7 @@ make backup | restore f=…         # kopia bazy teraz / przywrócenie (offline,
 make dev | dev-test | dev-build | dev-down   # rozwój w Dockerze (docker-compose.dev.yml): backend :8000 + Vite :5173, dane w data-dev/
 make dev-local                    # to samo bez Dockera (w devcontainerze VS Code i w chmurze Claude); dev-local-init = .venv + npm
 make test                         # pytest backendu ($(PYTHON) = .venv, jeśli jest, inaczej python3)
-make migration m="opis"           # nowa migracja z różnic modeli (wymaga alembic w PATH)
+make migration m="opis"           # nowa migracja z różnic modeli (w kontenerze: make dev-migration m="opis")
 make new-module name=pogoda       # szkielet modułu zgodny z kontraktem
 cd frontend && npm run build      # tsc + vite build; npm run dev = serwer dev z proxy /api → :8000
 ```
