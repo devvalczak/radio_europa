@@ -1,0 +1,44 @@
+# Development without Python/Node on the host: `make dev` or `docker compose -f docker-compose.dev.yml up`,
+# then http://localhost:5173. Code is mounted from this checkout and reloads on save; data in ./data-dev.
+# Production stays in docker-compose.yml (make up). Steps: docs/URUCHOMIENIE.md, section 11.
+name: jarvis-dev
+
+x-dev: &dev
+  build:
+    context: .
+    dockerfile: dev/Dockerfile
+  image: jarvis-dev:latest
+  user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+  volumes:
+    - .:/repo
+    - node_modules:/repo/frontend/node_modules
+  environment:
+    HOST: 0.0.0.0
+    WATCHFILES_FORCE_POLLING: "true"  # file events are unreliable on Docker Desktop mounts; polling always works
+    CHOKIDAR_USEPOLLING: "true"
+
+services:
+  api:
+    <<: *dev
+    command: sh /repo/dev/api.sh
+
+  web:
+    <<: *dev
+    command: sh /repo/dev/web.sh
+    environment:
+      HOST: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_API_TARGET: http://api:8000
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on: [api]
+
+  # VS Code "Reopen in Container" (.devcontainer): a shell with Python, Node, git and make; run `make dev-local` inside
+  workspace:
+    <<: *dev
+    profiles: ["devcontainer"]
+    user: root
+    command: sleep infinity
+
+volumes:
+  node_modules:

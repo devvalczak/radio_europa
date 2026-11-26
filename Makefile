@@ -1,6 +1,10 @@
-# the project venv (make dev-init) when it exists, else python3 from PATH (macOS has no `python`)
-PYTHON ?= $(if $(wildcard .venv/bin/python),$(CURDIR)/.venv/bin/python,python3)
-.PHONY: encryption-key init up down logs build up-tunnel up-quick quick-url test migration new-module backup restore dev-init dev
+# the project venv (make dev-local-init) when it exists and runs here (a Mac venv does not run in the dev container),
+# else python3 from PATH (macOS has no `python`)
+PYTHON ?= $(shell .venv/bin/python -c '' >/dev/null 2>&1 && echo "$(CURDIR)/.venv/bin/python" || echo python3)
+# development in Docker (docker-compose.dev.yml); files it creates in the checkout belong to you
+DEV = DEV_UID=$$(id -u) DEV_GID=$$(id -g) docker compose -f docker-compose.dev.yml
+.PHONY: encryption-key init up down logs build up-tunnel up-quick quick-url test migration new-module backup restore
+.PHONY: dev-init dev dev-down dev-logs dev-test dev-build dev-migration dev-sh dev-local-init dev-local
 
 init: ## create .env with fresh secrets (never overwrites an existing .env)
 	@test ! -f .env || (echo ".env already exists, not touching it" && exit 1)
@@ -60,25 +64,43 @@ restore: ## restore a backup: make restore f=data/backups/jarvis-....db.gz (stop
 	$(PYTHON) scripts/restore_backup.py "$(f)" --db data/jarvis.db
 	docker compose start core
 
-# --- local development without Docker (macOS or Linux): backend with auto-reload + Vite dev server -----------------
-dev-init: ## one-time: .venv (Python >= 3.12), npm packages, .env.dev with dev secrets and paths in ./data-dev
-	@python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else "Python >= 3.12 needed (macOS: brew install python@3.12)")'
+# --- development in Docker: nothing but Docker on the host (macOS: Docker Desktop or OrbStack) ---------------------
+dev-init: ## optional: build the dev image and create .env.dev (prints the first-login token); `make dev` does both too
+	$(DEV) build
+	$(DEV) run --rm --no-deps -T api sh dev/ensure-env.sh
+
+dev: ## backend + Vite in Docker, reload on save; open http://localhost:5173 (Ctrl+C stops)
+	$(DEV) up --build
+
+dev-down: ## stop the dev containers (data in ./data-dev stays)
+	$(DEV) down
+
+dev-logs:
+	$(DEV) logs -f --tail=100
+
+dev-test: ## backend tests in the dev container
+	$(DEV) run --rm --no-deps -T api sh -c "cd core && python -m pytest -q"
+
+dev-build: ## frontend: themes check + typecheck + build, in the dev container
+	$(DEV) run --rm --no-deps -T web sh dev/web.sh npm run build
+
+dev-migration: ## new migration in the dev container: make dev-migration m="add thing"
+	@test -n "$(m)" || (echo 'usage: make dev-migration m="opis"' && exit 1)
+	$(DEV) run --rm --no-deps -T api make migration m="$(m)"
+
+dev-sh: ## a shell in the dev container (python, node, git, make)
+	$(DEV) run --rm --no-deps api bash
+
+# --- development without Docker: Linux, a Mac with Python/Node, or inside the VS Code dev container --------------
+dev-local-init: ## one-time on a host: .venv (Python >= 3.12) + npm packages (not needed in the dev container)
+	@python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else "Python >= 3.12 needed")'
 	@test -d .venv || python3 -m venv .venv
 	.venv/bin/pip install -q --upgrade pip
 	.venv/bin/pip install -q -r core/requirements-dev.txt
-	cd frontend && npm ci --no-audit --no-fund
-	@mkdir -p data-dev
-	@test -f .env.dev && echo ".env.dev already exists, not touching it" || ( \
-	  .venv/bin/python scripts/gen_secrets.py > .env.dev && \
-	  printf '%s\n' "JARVIS_COOKIE_SECURE=false" "JARVIS_DATABASE_URL=sqlite:///$(CURDIR)/data-dev/jarvis.db" \
-	    "JARVIS_MODULES_DIR=$(CURDIR)/modules" "JARVIS_LOG_DIR=$(CURDIR)/data-dev/logs" \
-	    "JARVIS_BACKUP_DIR=$(CURDIR)/data-dev/backups" "JARVIS_VAPID_SUBJECT=mailto:dev@example.com" >> .env.dev && \
-	  echo "Created .env.dev. Setup token for the first login:" && grep '^JARVIS_SETUP_TOKEN' .env.dev )
+	sh dev/web.sh true
 
-dev: ## backend :8000 (reloads on code changes) + frontend :5173 (hot reload); open http://localhost:5173, Ctrl+C stops both
-	@test -f .env.dev || (echo "run: make dev-init" && exit 1)
-	@set -a; . ./.env.dev; set +a; export PYTHONPATH="$(CURDIR)/core:$(CURDIR)"; \
-	trap 'kill 0' INT TERM; \
-	$(PYTHON) -m uvicorn app.main:app --port 8000 --reload --reload-dir "$(CURDIR)/core/app" --reload-dir "$(CURDIR)/modules" & \
-	(cd frontend && npx vite --port 5173 --strictPort) & \
+dev-local: ## the same as `make dev`, without Docker: backend :8000 + Vite :5173 (Ctrl+C stops both)
+	@trap 'kill 0' INT TERM; \
+	PYTHON="$(PYTHON)" sh dev/api.sh & \
+	sh dev/web.sh & \
 	wait

@@ -111,8 +111,9 @@ make test                              # wszystkie testy backendu, w tym zgodno�
 cd frontend && npm run build           # typecheck + build (łapie błędy stron modułów)
 ```
 
-Dla zmian widocznych w UI uruchom `make dev-init` (raz) i `make dev` (backend :8000 z przeładowaniem + Vite :5173; token pierwszej
-konfiguracji w `.env.dev`; nowy moduł wymaga restartu `make dev`, bo Vite wczytuje listę modułów przy starcie), sprawdź w przeglądarce:
+Dla zmian widocznych w UI uruchom `make dev-local` (w chmurze Claude najpierw `make dev-local-init`; użytkownik na Macu: `make dev`
+w Dockerze albo `make dev-local` w devcontainerze VS Code) — backend :8000 z przeładowaniem + Vite :5173, token pierwszej
+konfiguracji w `.env.dev`; nowy moduł wymaga restartu, bo Vite wczytuje listę modułów przy starcie. Sprawdź w przeglądarce:
 moduł w menu z ikoną, widgety w „Edytuj układ → Dodaj widget", stronę modułu, stan pusty i błąd — **w każdym zainstalowanym
 motywie** (`node frontend/scripts/theme-shots.mjs`, patrz skill `jarvis-design` krok 5) i obejrzyj zrzuty. Jeśli czegoś nie dało się
 uruchomić (np. Docker), napisz to wprost w podsumowaniu, zamiast twierdzić, że działa.

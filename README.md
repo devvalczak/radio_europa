@@ -110,15 +110,14 @@ Port 8080 jest wystawiony tylko na `127.0.0.1`, a z internetu nic nie wchodzi be
 („Dodaj do ekranu głównego"), wejdź w Ustawienia → „Włącz powiadomienia" i „Wyślij testowe".
 Na iOS push działa tylko z aplikacji dodanej do ekranu głównego (iOS 16.4+).
 
-## Rozwój (macOS albo Linux, bez Dockera)
+## Rozwój (macOS + Docker + VS Code)
 
-```bash
-make dev-init     # raz: .venv (Python >= 3.12), npm ci, .env.dev (sekrety deweloperskie, dane w ./data-dev)
-make dev          # backend :8000 z przeładowaniem + Vite :5173 → http://localhost:5173
-make test         # pytest; cd frontend && npm run build — typecheck + build (to samo co CI)
-```
-Szczegóły (Homebrew, push lokalnie, zrzuty motywów, Docker Desktop/OrbStack): [docs/URUCHOMIENIE.md, punkt 11](docs/URUCHOMIENIE.md#11-tryb-deweloperski-na-macos-bez-dockera).
-Produkcja to Docker na Linuxie (`make init` / `make up`).
+Na hoście tylko Docker i VS Code — Python, Node, git i make są w kontenerze deweloperskim (`dev/Dockerfile`, `docker-compose.dev.yml`).
+- **VS Code:** rozszerzenie Dev Containers → „Reopen in Container” → w terminalu `make dev-local` (http://localhost:5173), `make test`.
+- **Sam terminal:** `make dev` (backend + Vite w Dockerze, przeładowanie po zapisie), `make dev-test`, `make dev-build`, `make dev-down`.
+- **Bez Dockera** (Linux / Python 3.12 + Node 22): `make dev-local-init`, potem `make dev-local`.
+
+Szczegóły: [docs/URUCHOMIENIE.md, punkt 11](docs/URUCHOMIENIE.md#11-tryb-deweloperski-macos-docker-vs-code). Produkcja: Docker na Linuxie (`make init` / `make up`).
 
 ## Stan i znane ograniczenia
 

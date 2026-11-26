@@ -2,7 +2,8 @@
 
 Dwa tryby:
 - **Produkcja: Linux + Docker** (punkty 1–10) — docelowy laptop, działa 24/7, dostęp z telefonu przez Cloudflare.
-- **Rozwój: macOS bez Dockera** ([punkt 11](#11-tryb-deweloperski-na-macos-bez-dockera)) — `make dev`, przeładowanie po każdej zmianie kodu.
+- **Rozwój: macOS + Docker + VS Code** ([punkt 11](#11-tryb-deweloperski-macos-docker-vs-code)) — bez instalowania Pythona i Node,
+  przeładowanie po każdej zmianie kodu.
 
 Produkcja: dla laptopa z Linuxem (Ubuntu/Debian/Mint; ≤ 8 GB RAM wystarczy). Całość działa w Dockerze: nie instalujesz Pythona ani Node.js.
 Czas: ok. 15 minut, z czego większość to pierwsze budowanie obrazów.
@@ -132,41 +133,63 @@ tajny adres iCal Google, Gemini (`JARVIS_AI_PROVIDER=gemini` w `.env`).
 
 Z takim opisem nowa sesja Claude (prompt w `docs/HANDOFF.md`, sekcja 6) wie, od czego zacząć.
 
-## 11. Tryb deweloperski na macOS (bez Dockera)
+## 11. Tryb deweloperski: macOS, Docker, VS Code
 
-Do pisania i testowania zmian. Backend i frontend działają wprost na Macu, z automatycznym przeładowaniem; dane w osobnym
-katalogu `data-dev/` (nie mieszają się z produkcyjnym `data/`). Działa tak samo na Linuxie.
+Do pisania i testowania zmian. Na Macu potrzebujesz tylko **Dockera** (Docker Desktop albo lżejszy OrbStack) i **VS Code**.
+Python, Node, git i make są w kontenerze deweloperskim (`dev/Dockerfile`); kod jest podmontowany z Twojej kopii repo, więc
+zapis pliku w VS Code od razu przeładowuje backend albo stronę. Dane deweloperskie leżą w `data-dev/` (osobno od produkcyjnego `data/`).
 
-**Raz:**
+### Raz
+
+1. Zainstaluj Docker Desktop (docker.com) albo OrbStack (orbstack.dev) i uruchom go.
+2. W VS Code zainstaluj rozszerzenie **Dev Containers** (Microsoft).
+3. Pobierz repo z VS Code: paleta poleceń (Cmd+Shift+P) → „Git: Clone” → `https://github.com/devvalczak/radio_europa.git`.
+   (Jeśli macOS zaproponuje „Command Line Tools” dla gita — to mały pakiet, nie Xcode; możesz też pominąć ten krok, wybierając
+   „Dev Containers: Clone Repository in Container Volume…”: repo trafi wtedy prosto do kontenera.)
+4. Otwórz folder repo w VS Code → w prawym dolnym rogu „Reopen in Container” (albo paleta → „Dev Containers: Reopen in Container”).
+   Pierwsze budowanie obrazu trwa kilka minut.
+
+### Na co dzień (w VS Code, w kontenerze)
+
+Terminal VS Code działa już w kontenerze:
+
 ```bash
-xcode-select --install                 # git i make (jeśli jeszcze nie ma)
-brew install python@3.12 node@22       # Python >= 3.12, Node 22 (jak w Dockerze); albo pyenv/nvm/uv
-git clone https://github.com/devvalczak/radio_europa.git jarvis && cd jarvis
-make dev-init                          # .venv z zależnościami, npm ci, .env.dev z sekretami deweloperskimi; wypisze token
+make dev-local      # backend :8000 + Vite :5173; VS Code sam otworzy http://localhost:5173 (Ctrl+C zatrzymuje)
+make test           # testy backendu (także z panelu Testing w VS Code)
+cd frontend && npm run build    # motywy + typecheck + build (to samo co CI)
+make migration m="opis"         # po zmianie modeli bazy
 ```
 
-**Na co dzień:**
+Pierwsze wejście na stronę: token wypisany przy starcie (`first login token`, jest też w `.env.dev`). Podpowiedzi Pythona
+(Pylance) i TypeScriptu działają, bo VS Code widzi interpreter i pakiety z kontenera. Git (commit, push) działa i z panelu VS Code,
+i z terminala.
+
+### Bez VS Code w kontenerze (sam terminal na Macu)
+
+Wystarczy Docker; komendy w nawiasach działają bez `make`:
+
 ```bash
-make dev        # backend :8000 + frontend :5173; otwórz http://localhost:5173 (Ctrl+C zatrzymuje oba)
+make dev            # (docker compose -f docker-compose.dev.yml up --build) → http://localhost:5173, Ctrl+C zatrzymuje
+make dev-test       # testy w kontenerze
+make dev-build      # build frontendu w kontenerze
+make dev-migration m="opis"
+make dev-sh         # powłoka w kontenerze
+make dev-down       # zatrzymanie kontenerów
 ```
-Pierwsze wejście: token z `make dev-init` (jest też w `.env.dev`). Zmiana w `core/app` albo `modules/*/backend` przeładowuje
-backend (i wykonuje nowe migracje), zmiana w frontendzie odświeża stronę sama. Push działa też lokalnie: `localhost` to dla
-przeglądarki bezpieczny kontekst (Chrome, Safari 16+ na macOS 13+).
 
-**Przed commitem** (to samo sprawdza CI):
-```bash
-make test                               # pytest backendu (używa .venv)
-cd frontend && npm run build            # motywy + typecheck + build
-```
-Zrzuty wszystkich ekranów we wszystkich motywach (skill `jarvis-design`): `cd frontend && npm install --no-save playwright@1.63.0 &&
-npx playwright install chromium`, potem `JARVIS_URL=http://localhost:5173 JARVIS_USER=… JARVIS_PASSWORD=… node scripts/theme-shots.mjs shots`.
+`make` na Macu jest w Command Line Tools; bez niego używaj komend `docker compose -f docker-compose.dev.yml …` (patrz
+`Makefile`, cele `dev-*`).
 
-**Czysta baza deweloperska:** zatrzymaj `make dev`, usuń `data-dev/jarvis.db`, uruchom ponownie (znów poprosi o token z `.env.dev`).
-AI w trybie dev: dopisz `JARVIS_AI_*` do `.env.dev` (jak w `.env.example`). Serwer CalDAV/IMAP w sieci domowej:
-`JARVIS_ALLOW_PRIVATE_HOSTS=true` w `.env.dev`.
+### Dobrze wiedzieć
 
-**Wersja „jak na produkcji” na Macu (opcjonalnie):** Docker Desktop albo OrbStack, potem te same `make init` / `make up` co na
-Linuxie (punkty 3–4). Obrazy są wieloarchitekturowe (Apple Silicon działa), `host.docker.internal` działa od razu. To dobry
-test Dockerfile'i przed wdrożeniem na laptopa, ale docelowa maszyna to Linux.
+- **Push na Macu:** `localhost` to dla przeglądarki bezpieczny kontekst, więc powiadomienia działają też lokalnie (Chrome,
+  Safari 16+ na macOS 13+).
+- **Czysta baza:** zatrzymaj serwery, usuń `data-dev/jarvis.db`, uruchom ponownie (znów poprosi o token).
+- **AI / serwery w sieci domowej w trybie dev:** dopisz `JARVIS_AI_*` albo `JARVIS_ALLOW_PRIVATE_HOSTS=true` do `.env.dev`.
+- **Pakiety npm** w kontenerze leżą w osobnym wolumenie Dockera (binarki Linuksa), więc nie mieszają się z plikami na Macu;
+  `dev/web.sh` doinstalowuje je sam po zmianie `package-lock.json`.
+- **Bez Dockera** (Linux albo Mac z Pythonem 3.12 i Node 22): `make dev-local-init` raz, potem `make dev-local`.
+- **Zrzuty ekranów we wszystkich motywach** (skill `jarvis-design`) wymagają Chromium — rób je na Linuxie albo zostaw Claude.
+- Produkcja na Macu „na próbę”: te same `make init` / `make up` co na Linuxie (punkty 3–4) — dobry test Dockerfile'i, ale docelowo Linux.
 
 `.env.dev`, `.venv/` i `data-dev/` są w `.gitignore` i `.dockerignore` — nie trafiają do repo ani do obrazów.

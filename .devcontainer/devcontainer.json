@@ -1,0 +1,26 @@
+{
+  "name": "Jarvis (dev)",
+  "dockerComposeFile": ["../docker-compose.dev.yml"],
+  "service": "workspace",
+  "runServices": ["workspace"],
+  "workspaceFolder": "/repo",
+  "shutdownAction": "stopCompose",
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "Jarvis", "onAutoForward": "openBrowser" },
+    "8000": { "label": "Jarvis API", "onAutoForward": "silent" }
+  },
+  "postAttachCommand": "echo 'Start: make dev-local  ·  testy: make test  ·  build: cd frontend && npm run build'",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "ms-python.vscode-pylance"],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.extraPaths": ["core", "."],
+        "python.testing.pytestEnabled": true,
+        "python.testing.cwd": "${workspaceFolder}/core",
+        "python.testing.pytestArgs": ["tests"]
+      }
+    }
+  }
+}
