@@ -133,7 +133,7 @@ export function Today() {
                 <li key={x.id}>
                   <label className="check">
                     <input type="checkbox" checked={false} onChange={() => void setDone(x, true)} aria-label={t.today.markDone(x.title)} />
-                    <span>{x.title}</span>
+                    <a href={`#/tasks?id=${x.id}`}>{x.title}</a>
                   </label>
                   <span className="row">
                     {x.important && <Tag>{t.today.important}</Tag>}
@@ -158,7 +158,7 @@ export function Today() {
             ) : (
               <ul className="list">
                 {todayEvents.map((e) => (
-                  <li key={e.id}><span>{e.title}</span><span className="muted">{e.all_day ? t.today.allDay : hhmm(e.start)}</span></li>
+                  <li key={e.id}><a href={`#/calendar?id=${e.id}`}>{e.title}</a><span className="muted">{e.all_day ? t.today.allDay : hhmm(e.start)}</span></li>
                 ))}
               </ul>
             )}
@@ -197,7 +197,7 @@ export function Today() {
               <p>{t.today.unread(m.length >= 50 ? "50+" : String(m.length))}</p>
               <ul className="list">
                 {m.slice(0, 5).map((x) => (
-                  <li key={x.id}><a href="#/mail"><b>{x.from_name || x.from_addr}</b><span className="muted">{x.subject}</span></a></li>
+                  <li key={x.id}><a href={`#/mail?id=${x.id}`}><b>{x.from_name || x.from_addr}</b><span className="muted">{x.subject}</span></a></li>
                 ))}
               </ul>
             </div>

@@ -2,6 +2,7 @@ import { ApiError, createT, moduleApi, ModuleDef, notifyChanged } from "@jarvis/
 import { Button, Card, ErrorText, Field, Muted, PageTitle, Skeleton, Switch, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
+import { TodayTile } from "./today";
 
 interface Settings {
   configured: boolean;
@@ -162,4 +163,4 @@ function Page() {
   );
 }
 
-export default { id: "brief", Page } satisfies ModuleDef;
+export default { id: "brief", Page, widgets: { today: TodayTile } } satisfies ModuleDef;

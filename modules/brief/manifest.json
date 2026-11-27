@@ -18,7 +18,7 @@
       ],
       "default": "2x2",
       "refresh": 300,
-      "description": "Skrót dnia z porannego briefu: pogoda, wydarzenia, zadania, poczta, zakupy."
+      "description": "Co zostało na dziś: zadania (odhaczasz je albo przenosisz na jutro) i wydarzenia w jednym miejscu."
     }
   ],
   "tasks": [

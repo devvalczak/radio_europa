@@ -72,7 +72,8 @@ def test_layout_defaults_save_and_repair(authed):
     first = authed.get("/api/hub/layout").json()
     assert first["saved"] is False
     defaults = {(i["module"], i["widget"]) for i in first["items"]}
-    assert {("calendar", "upcoming"), ("calendar", "next"), ("notes", "recent")} <= defaults
+    assert {("brief", "today"), ("notes", "recent")} <= defaults
+    assert ("calendar", "upcoming") not in defaults  # reachable via "Dodaj widget", not on a fresh dashboard
     assert all(i["size"] for i in first["items"])
 
     mine = [{"module": "notes", "widget": "recent", "size": "2x2", "view": "pinned"},

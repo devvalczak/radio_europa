@@ -207,9 +207,18 @@ def build_router(hub: Hub) -> APIRouter:
         """Quick actions (manifest `quick`): small forms on the dashboard, run as normal hub actions."""
         return quick_actions()
 
+    # What a fresh dashboard shows: "Dzisiaj" (tasks + events) first, then a few glanceable tiles. Everything else
+    # (upcoming events, task list, news, SSH, assistant, …) is one click away in "Dodaj widget" - showing it all
+    # repeated the same event in three tiles. Users who saved a layout are not affected.
+    DEFAULT_WIDGETS = [("brief", "today"), ("weather", "current"), ("mail", "unread_count"), ("shopping", "summary"),
+                       ("alarms", "next"), ("notes", "recent")]
+
     def default_layout() -> list[dict]:
+        cat = catalog()
+        chosen = [next((w for w in cat if (w["module"], w["widget"]) == d), None) for d in DEFAULT_WIDGETS]
+        picked = [w for w in chosen if w] or cat  # nothing curated is installed: fall back to everything
         return [{"module": w["module"], "widget": w["widget"], "size": w["default"],
-                 "view": w["views"][0]["id"] if w["views"] else None} for w in catalog()]
+                 "view": w["views"][0]["id"] if w["views"] else None} for w in picked]
 
     @router.get("/hub/layout")
     def get_layout(user: User = Depends(require_user), db: Session = Depends(get_db)):
