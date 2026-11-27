@@ -1,5 +1,5 @@
 import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
-import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Skeleton, Switch, Tabs, Tag, toast } from "@jarvis/ui";
+import { Button, Card, Dialog, ErrorText, Field, ItemTags, Muted, PageTitle, RelatedPanel, Skeleton, Switch, Tabs, Tag, toast } from "@jarvis/ui";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -293,7 +293,9 @@ function Page() {
               </>
             )}
             <Switch checked={draft.important} onChange={(v) => set({ important: v })} label={t("fImportant")} />
+            {draft.id && <ItemTags itemRef={`tasks:${draft.id}`} />}
             <ErrorText>{formError}</ErrorText>
+            {draft.id && <RelatedPanel itemRef={`tasks:${draft.id}`} onOpen={() => setDraft(null)} />}
           </form>
         )}
       </Dialog>

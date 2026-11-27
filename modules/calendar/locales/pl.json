@@ -105,5 +105,11 @@
   "sync.syncedEvent": "Zmiany trafią też do tego kalendarza przy najbliższej synchronizacji.",
   "syncSettings.open": "Synchronizacja i kalendarze zewnętrzne",
   "syncSettings.close": "Ukryj synchronizację",
-  "syncSettings.hint": "Podłącz Google, iCloud lub Nextcloud albo subskrybuj ten kalendarz w telefonie."
+  "syncSettings.hint": "Podłącz Google, iCloud lub Nextcloud albo subskrybuj ten kalendarz w telefonie.",
+  "tasksOfDay": "Zadania na ten dzień",
+  "taskDone": "Zrobione: {title}",
+  "undo": "Cofnij",
+  "markDone": "Oznacz jako zrobione: {title}",
+  "taskFailed": "Nie udało się odhaczyć zadania.",
+  "tasksCount": "zadań: {n}"
 }

@@ -26,6 +26,8 @@ export interface MarkdownEditorProps {
   /** Accessible name of the text area. */
   label?: string;
   minHeight?: number;
+  /** Typing "[[" (or the toolbar button) asks the page to pick an item; the page calls `insert` with its title and "#/module?id=N". */
+  onMention?: (insert: (title: string, href: string) => void) => void;
 }
 
 // --- tiny icon set (stroke icons, 16px, currentColor) ------------------------------------------------------
@@ -50,6 +52,7 @@ const icons = {
   rule: <I d="M3 12h18" />,
   table: <I><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M10 4v16" /></I>,
   clear: <I d="M4 7V4h16v3M9 20h6M12 4v16M3 3l18 18" />,
+  mention: <I d="M8 3H5v18h3M16 3h3v18h-3" />,
 };
 
 /** Ctrl/⌘+Enter submits the surrounding form instead of inserting a hard break. */
@@ -97,7 +100,7 @@ function Btn({ on, label, keys, disabled, onClick, children }: {
 
 const mod = /Mac|iPhone|iPad/.test(typeof navigator !== "undefined" ? navigator.platform : "") ? "⌘" : "Ctrl";
 
-function Toolbar({ editor, mode, onLink }: { editor: Editor; mode: "full" | "compact"; onLink: () => void }) {
+function Toolbar({ editor, mode, onLink, onMention }: { editor: Editor; mode: "full" | "compact"; onLink: () => void; onMention?: () => void }) {
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -136,6 +139,7 @@ function Toolbar({ editor, mode, onLink }: { editor: Editor; mode: "full" | "com
       <Btn label="Przekreślenie" keys={`${mod}+Shift+S`} on={s.strike} onClick={() => c().toggleStrike().run()}>{icons.strike}</Btn>
       {full && <Btn label="Kod w tekście" keys={`${mod}+E`} on={s.code} onClick={() => c().toggleCode().run()}>{icons.code}</Btn>}
       <Btn label="Link" keys={`${mod}+K`} on={s.link} onClick={onLink}>{icons.link}</Btn>
+      {onMention && <Btn label="Wzmianka: link do zadania, wydarzenia, notatki…" keys="[[" onClick={onMention}>{icons.mention}</Btn>}
       <span className="rt-sep" />
       <Btn label="Lista punktowana" keys={`${mod}+Shift+8`} on={s.bullet} onClick={() => c().toggleBulletList().run()}>{icons.bullet}</Btn>
       <Btn label="Lista numerowana" keys={`${mod}+Shift+7`} on={s.ordered} onClick={() => c().toggleOrderedList().run()}>{icons.ordered}</Btn>
@@ -190,11 +194,22 @@ function LinkBar({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   );
 }
 
-export default function MarkdownEditor({ value, onChange, placeholder, autoFocus, toolbar = "full", onSubmit, label, minHeight = 160 }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, placeholder, autoFocus, toolbar = "full", onSubmit, label, minHeight = 160, onMention }: MarkdownEditorProps) {
   const [linkOpen, setLinkOpen] = useState(false);
   const last = useRef(value);
   const submit = useRef(onSubmit);
   submit.current = onSubmit;
+  const mention = useRef(onMention);
+  mention.current = onMention;
+  const editorRef = useRef<Editor | null>(null);
+  const askMention = () => {
+    const ed = editorRef.current;
+    if (!ed || !mention.current) return;
+    mention.current((title, href) => {
+      // a plain Markdown link; "#/…" links are internal, so the link mark must accept them (see Link.isAllowedUri below)
+      ed.chain().focus().insertContent([{ type: "text", text: title, marks: [{ type: "link", attrs: { href } }] }, { type: "text", text: " " }]).run();
+    });
+  };
 
   const editor = useEditor({
     extensions: [
@@ -202,11 +217,18 @@ export default function MarkdownEditor({ value, onChange, placeholder, autoFocus
         underline: false, // Markdown has no underline
         heading: { levels: [1, 2, 3] },
         link: { openOnClick: false, autolink: true, defaultProtocol: "https", protocols: ["http", "https", "mailto"],
+          isAllowedUri: (url: string) => /^(https?:\/\/|mailto:|#\/[a-z][a-z0-9_]{1,31}\?id=\d+$)/i.test(url),
           HTMLAttributes: { rel: "noopener noreferrer nofollow", target: "_blank" } },
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
       TaskFromBullet,
+      Extension.create({
+        name: "mentionTrigger",
+        addInputRules() {
+          return [new InputRule({ find: /\[\[$/, handler: ({ range, chain }) => { chain().deleteRange(range).run(); setTimeout(askMention, 0); } })];
+        },
+      }),
       TableKit.configure({ table: { resizable: false } }),
       Placeholder.configure({ placeholder: placeholder ?? "" }),
       CharacterCount,
@@ -220,7 +242,18 @@ export default function MarkdownEditor({ value, onChange, placeholder, autoFocus
     content: value,
     contentType: "markdown",
     autofocus: autoFocus ? "end" : false,
-    editorProps: { attributes: { class: "rt-content", "aria-label": label ?? "Treść", "aria-multiline": "true", role: "textbox" } },
+    editorProps: {
+      attributes: { class: "rt-content", "aria-label": label ?? "Treść", "aria-multiline": "true", role: "textbox" },
+      handleClick: (_view, _pos, event) => {
+        // Ctrl/⌘+click on an internal link (a mention) opens it; a plain click just places the cursor, so the text stays editable
+        const a = (event.target as HTMLElement).closest?.("a[href^='#/']");
+        if (a && (event.ctrlKey || event.metaKey)) {
+          window.location.hash = (a.getAttribute("href") ?? "").replace(/^#/, "");
+          return true;
+        }
+        return false;
+      },
+    },
     onUpdate: ({ editor: e }) => {
       const md = e.getMarkdown();
       last.current = md;
@@ -245,10 +278,11 @@ export default function MarkdownEditor({ value, onChange, placeholder, autoFocus
     },
   });
 
+  editorRef.current = editor;
   if (!editor) return null;
   return (
     <div className={`rt rt-${toolbar}`} style={{ ["--rt-min" as string]: `${minHeight}px` }}>
-      <Toolbar editor={editor} mode={toolbar} onLink={() => setLinkOpen((o) => !o)} />
+      <Toolbar editor={editor} mode={toolbar} onLink={() => setLinkOpen((o) => !o)} onMention={onMention ? askMention : undefined} />
       {linkOpen && <LinkBar editor={editor} onClose={() => setLinkOpen(false)} />}
       <EditorContent editor={editor} />
       {toolbar === "full" && count && (

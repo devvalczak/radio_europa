@@ -1,5 +1,5 @@
 import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, useHashParam } from "@jarvis/sdk";
-import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Row, Switch, Tag, toast } from "@jarvis/ui";
+import { Button, Card, CreateFrom, Dialog, ErrorText, Field, Muted, PageTitle, RelatedPanel, Row, Switch, Tag, confirmDialog, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -173,7 +173,7 @@ function Page() {
   }, [deep]);
 
   async function summarize() {
-    if (!window.confirm(t("summaryConfirm"))) return;
+    if (!(await confirmDialog(t("summaryConfirm")))) return;
     setBusy(true);
     setError("");
     try {
@@ -210,7 +210,7 @@ function Page() {
             </span>
             <Row>
               <Button onClick={() => { setFormError(""); setDraft(editDraft(a)); }}>{t("edit")}</Button>
-              <Button variant="danger" onClick={() => window.confirm(t("confirmRemove")) && api.del(`/accounts/${a.id}`).then(load)}>{t("remove")}</Button>
+              <Button variant="danger" onClick={() => void confirmDialog(t("confirmRemove")).then((ok) => { if (ok) void api.del(`/accounts/${a.id}`).then(load); })}>{t("remove")}</Button>
             </Row>
           </Row>
         ))}
@@ -270,6 +270,8 @@ function Page() {
               <small className="muted block">{t("textOnly")}</small>
             </>
           )}
+          <Row><CreateFrom itemRef={`mail:${open.msg.id}`} title={open.msg.subject || t("noSubject")} text={`${t("from")}: ${open.msg.from_name || open.msg.from_addr}`} /></Row>
+          <RelatedPanel itemRef={`mail:${open.msg.id}`} onOpen={() => setOpen(null)} />
         </Dialog>
       )}
     </>

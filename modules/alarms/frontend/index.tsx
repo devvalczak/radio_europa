@@ -1,5 +1,5 @@
-import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Field, Muted, PageTitle, Row, Tag } from "@jarvis/ui";
+import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
+import { Button, Card, confirmDialog, ErrorText, Field, Muted, PageTitle, Row, Switch, Tag, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -31,10 +31,25 @@ function Page() {
   }, []);
   useEffect(load, [load]);
 
+  // #/alarms?id=5 (search, links): scroll to that alarm and mark it for a moment
+  const deep = useHashParam("id");
+  const [marked, setMarked] = useState<number | null>(null);
+  useEffect(() => {
+    if (!deep) return;
+    setMarked(Number(deep));
+    clearHashParams();
+    const id = setTimeout(() => setMarked(null), 4000);
+    return () => clearTimeout(id);
+  }, [deep]);
+  useEffect(() => {
+    if (marked) document.getElementById(`alarm-${marked}`)?.scrollIntoView({ block: "center" });
+  }, [marked, alarms]);
+
   const save = async (fn: () => Promise<unknown>) => {
     try {
       await fn();
       setError("");
+      notifyChanged("alarms"); // the dashboard tile and "Dzisiaj" follow
       load();
     } catch (e) {
       setError(e instanceof ApiError && e.status === 409 ? e.detail : t("saveFailed"));
@@ -67,20 +82,23 @@ function Page() {
       <Card>
         {alarms.length === 0 && <Muted>{t("none")}</Muted>}
         {alarms.map((a) => (
-          <Row key={a.id} between>
-            <span>
-              <b style={{ fontSize: 22 }}>{a.time}</b> {a.label}
-              <small className="muted block">
-                {daysText(a.days)} · {a.enabled && a.next_fire ? `${t("next")}: ${nextText(a.next_fire)}` : t("off")}
-              </small>
-            </span>
-            <Row>
-              <label style={{ flexDirection: "row", alignItems: "center" }}>
-                <input type="checkbox" checked={a.enabled} onChange={(e) => save(() => api.put(`/${a.id}`, { label: a.label, time: a.time, days: a.days, tz: a.tz, enabled: e.target.checked }))} />
-              </label>
-              <Tag onClick={() => window.confirm(t("confirmDelete")) && save(() => api.del(`/${a.id}`))}>{t("remove")}</Tag>
+          <div key={a.id} id={`alarm-${a.id}`} className={`alarm-row ${marked === a.id ? "marked" : ""}`}>
+            <Row between>
+              <span>
+                <b className="alarm-time">{a.time}</b> {a.label}
+                <small className="muted block">
+                  {daysText(a.days)} · {a.enabled && a.next_fire ? `${t("next")}: ${nextText(a.next_fire)}` : t("off")}
+                </small>
+              </span>
+              <Row>
+                <Switch checked={a.enabled} label={a.enabled ? t("on") : t("off")}
+                  onChange={(v) => save(() => api.put(`/${a.id}`, { label: a.label, time: a.time, days: a.days, tz: a.tz, enabled: v }))} />
+                <Tag onClick={() => void confirmDialog(t("confirmDelete")).then((ok) => {
+                  if (ok) void save(() => api.del(`/${a.id}`)).then(() => toast(t("removed")));
+                })}>{t("remove")}</Tag>
+              </Row>
             </Row>
-          </Row>
+          </div>
         ))}
       </Card>
     </>

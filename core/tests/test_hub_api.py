@@ -59,7 +59,7 @@ def test_widget_catalog_and_data(authed):
 
     authed.post("/api/m/notes", json={"title": "Pierwsza", "content": "treść", "pinned": True})
     items = authed.get("/api/hub/widgets/notes/recent").json()["blocks"][0]["items"]
-    assert items[0]["title"].endswith("Pierwsza") and items[0]["href"] == "#/notes"
+    assert items[0]["title"].endswith("Pierwsza") and items[0]["href"].startswith("#/notes?id=")
 
     start = iso(datetime.now(UTC) + timedelta(hours=5))
     authed.post("/api/m/calendar", json={"title": "Lunch", "start": start})

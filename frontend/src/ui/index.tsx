@@ -38,11 +38,12 @@ export const Row = ({ children, between = false }: { children: ReactNode; betwee
 
 export const Muted = ({ children }: { children: ReactNode }) => <p className="muted">{children}</p>;
 export const ErrorText = ({ children }: { children: ReactNode }) => (children ? <p className="error">{children}</p> : null);
-export const Tag = ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
-  <span className="tag" onClick={onClick}>
-    {children}
-  </span>
-);
+export const Tag = ({ children, onClick }: { children: ReactNode; onClick?: () => void }) =>
+  onClick ? (
+    <button type="button" className="tag bare" onClick={onClick}>{children}</button>
+  ) : (
+    <span className="tag">{children}</span>
+  );
 
 /** Page header: title, optional subtitle line and actions on the right. Themes decorate it (rule, prompt, glitch). */
 export const PageTitle = ({ children, sub, actions }: { children: ReactNode; sub?: ReactNode; actions?: ReactNode }) => (
@@ -126,12 +127,14 @@ export type MenuEntry =
   | { type: "label"; label: ReactNode }
   | { type: "note"; label: ReactNode };
 
-export const Menu = ({ trigger, entries, label, align = "end" }: {
+export const Menu = ({ trigger, entries, label, align = "end", wide = false }: {
   trigger: ReactNode; entries: MenuEntry[]; label: string; align?: "start" | "end";
+  /** a text trigger ("Utwórz z…") instead of a small icon button */
+  wide?: boolean;
 }) => (
   <RMenu.Root modal={false}>
     <RMenu.Trigger asChild>
-      <button className="ghost icon-btn ui-menu-trigger" aria-label={label}>{trigger}</button>
+      <button className={`ghost ${wide ? "ui-menu-wide" : "icon-btn"} ui-menu-trigger`} aria-label={label}>{trigger}</button>
     </RMenu.Trigger>
     <RMenu.Portal>
       <RMenu.Content className="ui-menu card" align={align} sideOffset={6} collisionPadding={8}>
@@ -259,3 +262,6 @@ export const Terminal = (props: import("./terminal/TerminalView").TerminalProps)
     <LazyTerminal {...props} />
   </Suspense>
 );
+
+export { ConfirmHost, confirmDialog, CreateFrom, ItemPicker, ItemTags, MODULE_LABEL, RelatedPanel, TagEditor } from "./related";
+export type { PickedItem } from "./related";

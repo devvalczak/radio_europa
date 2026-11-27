@@ -34,7 +34,14 @@ export class ApiError extends Error {
 export const notifyChanged = (module: string) => window.dispatchEvent(new CustomEvent("jarvis:changed", { detail: { module } }));
 
 /** Open a quick action form ("<module>.<quick id>" from the manifest `quick`) from anywhere. */
-export const openQuick = (id: string) => window.dispatchEvent(new CustomEvent("jarvis:quick", { detail: { id } }));
+export interface QuickOpts {
+  /** prefilled fields (by action field name) */
+  values?: Record<string, string>;
+  /** "module:id" of the item this one is created from: after saving, the two are linked ("utworzone z") */
+  linkTo?: string;
+}
+export const openQuick = (id: string, opts: QuickOpts = {}) =>
+  window.dispatchEvent(new CustomEvent("jarvis:quick", { detail: { id, ...opts } }));
 
 interface Opts {
   method?: string;
@@ -129,3 +136,11 @@ export const clearHashParams = () => {
   const [route] = window.location.hash.split("?");
   if (window.location.hash !== route) history.replaceState(null, "", route || "#/");
 };
+
+
+/* --- dates: one place for how the app writes times (always the viewer's zone, Polish) ----------------------- */
+export const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+export const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+/** "27 lis, 11:00" (date only for all-day items). */
+export const formatWhen = (iso?: string | null, allDay = false) =>
+  iso ? new Date(iso).toLocaleString("pl-PL", allDay ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";

@@ -1,4 +1,4 @@
-import { api, ApiError, createT, notifyChanged, openQuick } from "@jarvis/sdk";
+import { api, ApiError, createT, dayKey, hhmm, notifyChanged, openQuick } from "@jarvis/sdk";
 import { Button, Skeleton, Tag, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
@@ -12,8 +12,6 @@ interface Ev { id: number; title: string; start: string; all_day: boolean }
 const t = createT(pl);
 const call = <T,>(name: string, input: object) =>
   api<{ result: T }>(`/hub/actions/${name}`, { method: "POST", body: { input } }).then((r) => r.result);
-const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Warsaw";
 
 export function TodayTile() {

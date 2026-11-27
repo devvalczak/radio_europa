@@ -61,7 +61,21 @@ def _iso(dt: datetime) -> str:
     return dt.astimezone(UTC).replace(tzinfo=None).isoformat() + "Z"
 
 
+TAG = re.compile(r"(?:^|(?<=\s))#([^\W\d_][\w-]{0,39})(?=\s|$|[,.;:!?])", re.UNICODE)
+
+
 def parse(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> dict:
+    """Like `_parse`, plus `tags`: "#word" in the sentence becomes a shared tag (removed from the title)."""
+    tags = [m.group(1).lower() for m in TAG.finditer(text)]
+    rest = TAG.sub(" ", text) if tags else text
+    if not rest.strip():  # only tags: keep the text, the user wrote something odd
+        rest, tags = text, []
+    out = _parse(rest, tz, now, kind)
+    out["tags"] = list(dict.fromkeys(tags))[:12]
+    return out
+
+
+def _parse(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> dict:
     """`now` is an aware datetime; `kind` (task|event|shopping|note) overrides the guess.
     Returns {kind, title, due, all_day, important, found, action, input, problem}."""
     raw = " ".join(text.split())

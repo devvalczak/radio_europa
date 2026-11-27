@@ -159,7 +159,7 @@ def widget_recent(ctx: Ctx, opts: WidgetOpts):
         return [TextBlock(text="Brak notatek. Zapisz pierwszą myśl — tytułem zostanie pierwsza linia."), NEW_NOTE]
     return [ListBlock(items=[
         ListItem(title=("📌 " if n.pinned and opts.view != "pinned" else "") + (n.title or "(bez tytułu)"),
-                 subtitle=None if opts.small else (snippet(n.content, 80) or None), time=iso_z(n.updated_at), href="#/notes")
+                 subtitle=None if opts.small else (snippet(n.content, 80) or None), time=iso_z(n.updated_at), href=f"#/notes?id={n.id}")
         for n in notes])]
 
 

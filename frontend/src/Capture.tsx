@@ -12,6 +12,7 @@ interface Parsed {
   all_day: boolean;
   important: boolean;
   repeat: string | null;
+  tags?: string[];
   ai: boolean;
   found: string[];
   action: string;
@@ -92,7 +93,12 @@ export function Capture() {
       const module = parsed.action.split(".")[0];
       notifyChanged(module);
       // these pages open a single item from ?id= (the others only open the page)
-      const id = ["notes", "tasks", "calendar"].includes(module) ? res?.result?.id : undefined;
+      const itemId = res?.result?.id;
+      if (itemId && parsed.tags?.length) {
+        // "#praca" in the sentence: the shared tags of the new item (a failure here must not hide that it was saved)
+        await api("/hub/tags", { method: "PUT", body: { ref: `${module}:${itemId}`, tags: parsed.tags } }).catch(() => toast(t.capture.tagsFailed, { tone: "error" }));
+      }
+      const id = ["notes", "tasks", "calendar"].includes(module) ? itemId : undefined;
       toast(t.capture.saved[parsed.kind], { action: { label: t.quick.open, run: () => (window.location.hash = `#/${module}${id ? `?id=${id}` : ""}`) } });
       setText("");
       setKind(null);
@@ -149,6 +155,7 @@ export function Capture() {
             <p><b>{parsed.title}</b></p>
             {parsed.due && <p className="muted">{when(parsed)}{parsed.important ? ` · ${t.today.important}` : ""}{parsed.repeat ? ` · ${t.capture.repeats[parsed.repeat] ?? ""}` : ""}</p>}
             {!parsed.due && parsed.important && <p className="muted">{t.today.important}</p>}
+            {parsed.tags && parsed.tags.length > 0 && <p className="muted">{parsed.tags.map((x) => `#${x}`).join(" ")}</p>}
             {parsed.input.quantity != null && Number(parsed.input.quantity) > 1 && <p className="muted">{t.capture.quantity(Number(parsed.input.quantity))}</p>}
             {parsed.problem && <p className="error">{t.capture.noDate}</p>}
             {aiMode && <p className="muted">{t.capture.fromAi}</p>}

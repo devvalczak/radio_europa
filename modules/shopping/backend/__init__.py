@@ -257,7 +257,7 @@ def list_widget(ctx: Ctx, opts: WidgetOpts):
             title=("✓ " if i.done else "") + (i.product_name or i.query),
             subtitle=" · ".join(x for x in (service.money(i.price_cents) if i.price_cents is not None else "brak ceny",
                                            f"dodał: {i.added_by}" if i.added_by else "") if x),
-            badge=f"×{i.quantity}", href="#/shopping") for i in items])]
+            badge=f"×{i.quantity}", href=f"#/shopping?id={i.id}") for i in items])]
 
 
 # --- Diagnostyka ----------------------------------------------------------------------------------------------

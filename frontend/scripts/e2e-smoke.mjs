@@ -55,6 +55,23 @@ await step("diagnostics page loads", async () => {
   await page.getByText("Kopie zapasowe bazy").first().waitFor({ timeout: 15000 });
 });
 
+await step("a task and a note can be linked and the backlink shows on the task", async () => {
+  const post = async (path, data) => (await page.request.post(`${base}/api${path}`, { headers: { "X-Jarvis": "1" }, data })).json();
+  const task = await post("/m/tasks", { title: "E2E zadanie" });
+  const note = await post("/m/notes", { content: "# E2E notatka\nszczegóły", tags: ["e2e"] });
+  await post("/hub/links", { a: `tasks:${task.id}`, b: `notes:${note.id}` });
+  await page.goto(`${base}/#/tasks?id=${task.id}`, { waitUntil: "networkidle" });
+  await page.locator(".related").getByText("E2E notatka").waitFor({ timeout: 15000 });
+});
+
+await step("tasks with a due date show in the calendar and can be ticked", async () => {
+  const due = new Date(); due.setHours(23, 0, 0, 0);
+  await (await page.request.post(`${base}/api/m/tasks`, { headers: { "X-Jarvis": "1" }, data: { title: "E2E dzisiaj", due: due.toISOString() } })).json();
+  await page.goto(`${base}/#/calendar`, { waitUntil: "networkidle" });
+  await page.locator(".task-list li", { hasText: "E2E dzisiaj" }).locator("input[type=checkbox]").click({ timeout: 15000 });
+  await page.getByText("Zrobione: E2E dzisiaj").first().waitFor({ timeout: 15000 });
+});
+
 await browser.close();
 const real = errors.filter((e) => !/favicon|manifest/.test(e));
 if (real.length) {

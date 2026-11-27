@@ -1,5 +1,5 @@
-import { api, ApiError, openQuick } from "@jarvis/sdk";
-import { Button, Muted, toast } from "@jarvis/ui";
+import { ApiError, api, formatWhen, openQuick } from "@jarvis/sdk";
+import { Button, Muted, confirmDialog, toast } from "@jarvis/ui";
 
 export type BlockData =
   | { type: "list"; items: { title: string; subtitle?: string; badge?: string; href?: string; time?: string; all_day?: boolean }[]; empty?: string }
@@ -8,15 +8,14 @@ export type BlockData =
   | { type: "progress"; label: string; value: number }
   | { type: "buttons"; buttons: { label: string; href?: string; action?: string; quick?: string; primary?: boolean; input?: Record<string, unknown> }[] };
 
-const fmtTime = (iso: string, allDay?: boolean) =>
-  new Date(iso).toLocaleString("pl-PL", allDay ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const fmtTime = (iso: string, allDay?: boolean) => formatWhen(iso, !!allDay);
 
 async function runAction(name: string, input: Record<string, unknown> | undefined, onDone: () => void) {
   try {
     await api(`/hub/actions/${name}`, { method: "POST", body: { input: input ?? {} } });
   } catch (e) {
     if (e instanceof ApiError && e.detail.includes("confirmation_required")) {
-      if (!window.confirm(`Potwierdzić akcję ${name}?`)) return;
+      if (!(await confirmDialog(`Potwierdzić akcję ${name}?`))) return;
       await api(`/hub/actions/${name}`, { method: "POST", body: { input: input ?? {}, confirmed: true } });
     } else {
       toast(e instanceof ApiError && e.info ? e.info : "Nie udało się wykonać akcji.", { tone: "error" });

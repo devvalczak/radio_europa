@@ -1,5 +1,5 @@
 import { ApiError, createT, moduleApi, ModuleDef, notifyChanged } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Muted, PageTitle, Row, toast } from "@jarvis/ui";
+import { Button, Card, ErrorText, Muted, PageTitle, Row, confirmDialog, toast } from "@jarvis/ui";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -125,7 +125,7 @@ function ChatPanel({ compact = false }: { compact?: boolean }) {
   };
   const decide = (id: string, approve: boolean) => void run(() => api.post<State>(`/chat/calls/${id}`, { approve, tz: tz() }));
   const clear = async () => {
-    if (!window.confirm(t("confirmClear"))) return;
+    if (!(await confirmDialog(t("confirmClear")))) return;
     await run(() => api.del("/chat").then(() => api.get<State>("/chat")));
     toast(t("cleared"));
   };

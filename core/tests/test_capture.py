@@ -98,3 +98,13 @@ def test_repeat_phrases():
     assert run("w dni robocze raport")["repeat"] == "weekdays"
     assert run("co miesiąc 1 czynsz")["repeat"] == "monthly"
     assert run("jutro 9 dentysta")["repeat"] is None
+
+
+def test_hash_words_become_tags_and_leave_the_title():
+    r = run("jutro 9 dentysta #zdrowie #Rodzina")
+    assert r["kind"] == "event" and r["title"] == "Dentysta" and r["tags"] == ["zdrowie", "rodzina"]
+    assert run("kupić mleko #dom, pilne")["tags"] == ["dom"]
+    assert run("zwykłe zdanie")["tags"] == []
+    assert run("#tylkotag")["tags"] == []  # nothing else written: kept as the text itself
+    assert run("numer #5 w kolejce")["tags"] == []  # "#5" is not a tag
+    assert run("notatka: pomysł #praca")["tags"] == ["praca"]

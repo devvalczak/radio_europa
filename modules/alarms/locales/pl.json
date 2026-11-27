@@ -15,5 +15,7 @@
   "confirmDelete": "Usunąć alarm?",
   "pushNote": "Alarm przychodzi jako powiadomienie push. To nie jest gwarantowany budzik: telefon w trybie oszczędzania baterii lub „Nie przeszkadzać” może je opóźnić albo wyciszyć.",
   "loadFailed": "Nie udało się wczytać alarmów.",
-  "saveFailed": "Nie udało się zapisać alarmu."
+  "saveFailed": "Nie udało się zapisać alarmu.",
+  "on": "włączony",
+  "removed": "Alarm usunięty"
 }

@@ -81,49 +81,22 @@ Użytkownik nie miał jeszcze klucza z Google AI Studio. Kiedy go zdobędzie:
    wystarcza, format błędu 429 (`RetryInfo.retryDelay`). Popraw `core/app/ai.py`/testy, jeśli rzeczywistość się różni.
 4. Opcjonalnie to samo dla ścieżki zgodnej z OpenAI (`/v1beta/openai`), żeby README mówiło prawdę.
 
-## 4. Zadanie na następną sesję: spójność i integracja modułów
+## 4. Ostatnia sesja: spójność i integracja modułów (zrobione)
 
-**Intencja użytkownika (jego słowami, sens zachowaj):** przede wszystkim ma być **spójnie**. Poszczególne moduły mają być ze sobą
-**zintegrowane** — np. notatki, kalendarz, zadania (i inne) nie mają „żyć własnym życiem”, tylko być spójne i **móc korzystać z tych
-samych danych**. To tylko przykład, nie musi być zaimplementowane 1:1; chodzi o to, żebyś dokładnie zrozumiał, o co chodzi.
+Po analizie kodu i przejściu przez uruchomioną aplikację (desktop + telefon) użytkownik zatwierdził plan; wdrożone:
 
-**Tryb pracy (obowiązkowy, wynika z polecenia użytkownika):**
-1. Zacznij od **bardzo dokładnej analizy** tego, co już jest (poniżej checklista). Nic nie implementuj.
-2. **Zaproponuj poprawki** (kilka wariantów, koszt, ryzyko, co się zmienia w kontrakcie i w UI).
-3. **PYTAJ użytkownika o zdanie** (AskUserQuestion) przed każdą decyzją architektoniczną i poczekaj na odpowiedź.
-4. **Dopiero po akceptacji planu implementuj**, małymi krokami, z testami i zrzutami we wszystkich motywach i na telefonie.
-
-**Fakty wyjściowe (z poprzedniej sesji, zweryfikuj w kodzie, nie zakładaj):** kontrakt modułu v1 oddziela moduły z założenia (brak
-importów między modułami; komunikacja przez `ctx.call` i zdarzenia `ctx.emit`), każdy moduł ma własne tabele i własny model „elementu”.
-Dane łączą dziś tylko: ekran „Dziś” (agreguje akcje readonly), poranny brief (`BUILDERS` w `modules/brief`), wyszukiwanie Ctrl+K
-(`@module.search`), „Dodaj zdaniem” (parser wybiera moduł i woła akcję hubu), asystent AI (akcje hubu jako narzędzia). Nie ma wspólnych:
-encji/linków między elementami, tagów, osi czasu, relacji (zadanie ↔ wydarzenie ↔ notatka ↔ mail), wspólnej koncepcji terminu,
-projektu, kontaktu ani miejsca. Zadanie z terminem nie pojawia się w kalendarzu, notatka nie wie o zadaniu, mail nie zamienia się w zadanie.
-
-**Checklista analizy:**
-- Inwentarz modeli danych i API każdego modułu (notes, calendar, tasks, alarms, shopping, mail, weather, news, brief, assistant, ssh)
-  i ich nakładanie się: zadanie z terminem vs wydarzenie vs alarm vs przypomnienie; notatka vs opis wydarzenia/zadania; zakupy vs zadania.
-- Co kontrakt v1 i hub pozwalają, a co blokują; czy potrzebny jest kontrakt v2 (np. wspólna tabela linków/encji w rdzeniu, „referencje”
-  `module:id`, wspólne tagi/projekty, wspólny typ terminu). Wpływ na loader, schemat manifestu, `docs/MODULE_CONTRACT.md`.
-- UI: nawigacja, widgety, wyszukiwanie, deep linki `#/<moduł>?id=N`, szczegóły elementów, ekrany „Pulpit” i „Dziś”, „Dodaj zdaniem”.
-- AI/asystent: co widzi i co może zrobić na wspólnych danych (`readonly`, `confirm`, `assistant: false`, `assistant_access`).
-- Migracje (liniowa historia po `0013`), bezpieczeństwo (uprawnienia, brak sekretów w akcjach hubu, konsola SSH bez akcji hubu), zgodność wsteczna danych.
-
-**Przykładowe kierunki do przedstawienia użytkownikowi (to NIE są decyzje):** linki „powiązane” między elementami (notatka ↔ zadanie ↔
-wydarzenie ↔ mail) z backlinkami; zadania z terminem widoczne w kalendarzu; mail → zadanie/wydarzenie jednym kliknięciem; wspólne
-tagi/projekty; jedna oś czasu (Dziś/Tydzień); notatka jako opis lub załącznik wydarzenia/zadania; lista zakupów wyciągana z zadania lub
-notatki; wspólny „wybieracz elementów” w UI.
-
-**Na później (krótka lista UX z poprzedniej sesji, nie zakres tej):** dwa ekrany startowe (Pulpit i Dziś) się pokrywają; pasek kart
-na telefonie to „Dziś, Pulpit i dwa pierwsze moduły alfabetycznie” (arbitralne); pasek „Dodaj szybko” jest ucięty na telefonie;
-„Dodaj zdaniem”: przykłady, „zapisz i dodaj kolejne”, cofnięcie, „za tydzień”/„w przyszły piątek”; „Dziś”: odkładanie zadań,
-kolejność zależna od pory dnia; karta „Wykonaj” w asystencie (jedno zatwierdzenie dla kilku wpisów); tor pierwszego uruchomienia
-(`make dev` → konto → 2FA → lokalizacja pogody → powiadomienia). Dalej w kolejce: przypomnienia zależne od miejsca, zapis do Google
-Calendar (OAuth, decyzja użytkownika), agent hosta (zadania na komputerze z potwierdzeniami), powtarzające się wydarzenia kalendarza.
-
-**Diagnostyki nie poprawiamy**, dopóki użytkownik sam nie wklei jej wyniku (aplikacji jeszcze nie uruchomił).
-
-Każda zmiana UI: skill `jarvis-design` (9 motywów + telefon, `frontend/scripts/theme-shots.mjs`); nowe moduły: skill `jarvis-module`.
+- **UX:** Pulpit jest ekranem startowym także na telefonie; kafelek „Dzisiaj” (`modules/brief/frontend/today.tsx`: zadania z odhaczaniem
+  i „Na jutro”, wydarzenia, klikalne wiersze) i kuratorowany układ domyślny (`hub_api.default_layout`); pasek kart na telefonie wybierany
+  w Ustawieniach (`frontend/src/tabbar.ts`); kalendarz ze zwiniętą synchronizacją; notatki otwierają ostatnią; zwarte zakupy; w Ctrl+K wyniki
+  przed „Dodaj zdaniem”; przykłady w „Dodaj zdaniem”; naprawa rozciągania paska górnego na telefonie; `confirmDialog` zamiast `window.confirm`;
+  wspólne `formatWhen/hhmm/dayKey` w `@jarvis/sdk`.
+- **Integracja:** `core/app/links.py` + `entity_links`/`entity_tags` (migracja 0014, kopiuje tagi notatek), haki `@module.resolve`/`@module.agenda`,
+  API `/api/hub/links|tags|agenda`, moduł `links` (strona z tagami + akcje dla asystenta), panel „Powiązane” (notatki, zadania, kalendarz, poczta,
+  zakupy), `[[` w notatkach, `#tag` w „Dodaj zdaniem”, „Utwórz z…” (poczta, notatka), nakładka zadań w kalendarzu, `GET /{id}` i `?id=` w zakupach
+  i alarmach, wyszukiwanie alarmów. Testy: `test_links.py`, `test_agenda.py`, `test_capture.py`.
+- **Nie zrobione / na później:** „Dzisiaj” w briefie nadal składa się z `BUILDERS` (nie z agendy); `#/today` został jako osobny ekran; „Utwórz z…”
+  w newsach (artykuły nie mają `resolve`); kalendarz nie tworzy wydarzeń cyklicznych; nie sprawdzone na prawdziwym telefonie ani w E2E. Link do maila
+  znika, gdy cache poczty usunie wiadomość (best effort).
 
 ### A. Weryfikacja na żywo (lista kontrolna, wciąż otwarta)
 Do listy poniżej doszły: przyciski w powiadomieniach (Android/desktop; iOS ich nie pokaże), share target i skróty PWA po instalacji,
@@ -155,16 +128,13 @@ Laptop docelowy: Linux, ≤ 8 GB RAM, bez GPU.
 ## 6. Gotowy prompt na start następnej sesji
 
 ```
-Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md, docs/HANDOFF.md (sekcja 4) i docs/MODULE_CONTRACT.md.
+Kontynuujemy projekt Jarvis w repo radio_europa. Przeczytaj CLAUDE.md, docs/HANDOFF.md (sekcje 1 i 4) i docs/MODULE_CONTRACT.md.
 Najpierw git pull, make test (albo make dev-local-init) i cd frontend && npm run build — wszystko ma być zielone.
 [Jeśli już uruchomiłem aplikację: napisz gdzie (Mac dev / Linux make up) i wklej moje uwagi z używania. Diagnostyki nie
 poprawiamy, dopóki sam nie wkleję jej wyniku.]
-Cel sesji: SPÓJNOŚĆ I INTEGRACJA MODUŁÓW. Najbardziej zależy mi na tym, żeby aplikacja była spójna: żeby notatki, kalendarz,
-zadania (i inne moduły) nie „żyły własnym życiem”, tylko były ze sobą zintegrowane i MOGŁY korzystać z tych samych danych. To tylko
-przykład, nie musi być zaimplementowane 1:1 — chcę, żebyś dokładnie zrozumiał, o co mi chodzi.
-Zacznij od BARDZO DOKŁADNEJ analizy tego, co już mamy (modele danych, API, hub i kontrakt v1, UI, wyszukiwanie, brief, „Dziś”,
-„Dodaj zdaniem”, asystent AI). Potem zaproponuj poprawki (warianty, koszty, ryzyka), PYTAJ MNIE o zdanie i dopiero po mojej akceptacji
-implementuj — nic nie implementuj przed akceptacją planu. Pracuję na macOS w VS Code bez Pythona/Node na hoście (dev w Dockerze) —
-komendy dla mnie podawaj w tej formie (make dev, make dev-test, make dev-build). Każdy ekran sprawdź we wszystkich motywach i na
-telefonie. Poprawki wypychaj na swoją gałąź; do main tylko gdy poproszę.
+Cel sesji: [wpisz]. Kandydaci z sekcji 4 „Nie zrobione”: poranny brief i „Dziś” z jednej agendy, „Utwórz z…” w newsach, wydarzenia
+cykliczne, weryfikacja na żywo. Zacznij od analizy, zaproponuj plan, PYTAJ MNIE o zdanie i implementuj dopiero po akceptacji.
+Pracuję na macOS w VS Code bez Pythona/Node na hoście (dev w Dockerze) — komendy dla mnie podawaj w tej formie (make dev,
+make dev-test, make dev-build). Każdy ekran sprawdź we wszystkich motywach i na telefonie. Poprawki wypychaj na swoją gałąź;
+do main tylko gdy poproszę.
 ```

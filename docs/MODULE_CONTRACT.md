@@ -93,6 +93,28 @@ który otwiera ten element: `#/<moduł>?id=<id>` (strona czyta go `useHashParam(
 (każde słowo musi wystąpić w którejś kolumnie, `%`/`_` są dosłowne). Jak diagnostyka — **poza manifestem**: służy tylko
 zalogowanemu użytkownikowi, nie jest akcją hubu ani narzędziem AI. Błąd jednego modułu jest logowany i pomijany.
 
+## Powiązania, tagi i oś czasu (`@module.resolve`, `@module.agenda`)
+
+Elementy różnych modułów łączy rdzeń (`app/links.py`, tabele `entity_links` i `entity_tags`), a moduły nie importują się nawzajem.
+Element ma adres **ref** `<moduł>:<id>` (np. `tasks:5`). Moduł, którego elementy mają się dać powiązywać i otagować, daje:
+
+- `@module.resolve` → `fn(ctx, ids) -> {id: ListItem}`: tytuł, podtytuł, czas i `href` (`#/<moduł>?id=N`) elementów, które **jeszcze istnieją**
+  (brak id = element usunięty, powiązanie znika z widoku). `ListItem.ref` jest opcjonalny; wyniki `@module.search` z `href` w postaci
+  `#/<moduł>?id=N` dostają `ref` automatycznie.
+- `@module.agenda` → `fn(ctx, start, end, tz) -> list[AgendaItem]` (UTC, `[start, end)`): elementy z datą dla wspólnej osi czasu
+  (`GET /api/hub/agenda?from&to&tz`; nakładka zadań w kalendarzu). `AgendaItem.done_action` = akcja hubu, którą odhacza element.
+  Tylko baza, ograniczona liczba elementów.
+- Przy usuwaniu elementu wołaj `links.forget(db, "<moduł>", id)` (usuwa powiązania i tagi). Moduły, które kasują wiersze same
+  (synchronizacja), nic nie robią: `scheduler.housekeeping` raz na dobę czyści osierocone powiązania (`links.purge_orphans`).
+- Tagi: `links.set_tags/get_tags/tags_for/tag_filter`; w wyszukiwaniu `text_match(q, kolumny…, tags=("<moduł>", Model.id))`
+  dopasowuje też tagi. Notatki oddają `tags: list[str]` z tej tabeli (kolumna `notes.tags` jest nieużywana).
+- HTTP (za logowaniem): `GET/POST /api/hub/links`, `DELETE /api/hub/links/{id}`, `GET/PUT /api/hub/tags`, `GET /api/hub/tags/{tag}/items`.
+  Wzmianki: link Markdown `[tytuł](#/<moduł>?id=N)` w notatce staje się powiązaniem `kind=mention` (synchronizowane przy zapisie).
+  Powiązanie utworzone z innego elementu (menu „Utwórz z…”) ma `kind=from`.
+- **Asystent AI** ma je przez moduł `links` (akcje `list_tags`, `find_by_tag`, `list_links` tylko do odczytu; `link`, `set_tags` po kliknięciu
+  „Wykonaj”). Moduły z zamkniętą bramką `assistant_access` (poczta bez zgody) są wycięte ze wszystkich odpowiedzi.
+- Frontend: `RelatedPanel`, `ItemTags`/`TagEditor`, `ItemPicker`, `CreateFrom` i `confirmDialog` z `@jarvis/ui` (jedno miejsce, jeden wygląd).
+
 ## WebSockety (`Module.ws_router`)
 
 `module.ws_router = APIRouter()` montuje się pod `/api/m/<id>` **bez** `require_user` (zależność oparta o `Request` nie działa

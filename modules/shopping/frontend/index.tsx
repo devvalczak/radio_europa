@@ -1,5 +1,5 @@
-import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Menu, Muted, PageTitle, Row, Tag } from "@jarvis/ui";
+import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, useHashParam } from "@jarvis/sdk";
+import { Button, Card, confirmDialog, ErrorText, ItemTags, Menu, Muted, PageTitle, RelatedPanel, Row, Tag } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -43,8 +43,8 @@ const Thumb = ({ src, size }: { src: string | null | undefined; size: number }) 
 };
 const reason = (e: unknown, fallback: string) => (e instanceof ApiError && e.detail.length > 2 ? e.detail : fallback);
 
-function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; setError: (m: string) => void }) {
-  const [editing, setEditing] = useState(false);
+function ItemRow({ item, reload, setError, autoEdit }: { item: Item; reload: () => void; setError: (m: string) => void; autoEdit?: boolean }) {
+  const [editing, setEditing] = useState(!!autoEdit);
   const [query, setQuery] = useState(item.query);
   const [qty, setQty] = useState(item.quantity);
   const [alts, setAlts] = useState<Product[] | null>(null);
@@ -85,7 +85,7 @@ function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; s
         trigger="⋯"
         entries={[
           { type: "item", label: t("edit"), onSelect: () => setEditing(!editing) },
-          { type: "item", label: t("delete"), danger: true, onSelect: () => window.confirm(t("confirmDelete")) && void run(api.del(`/${item.id}`)) },
+          { type: "item", label: t("delete"), danger: true, onSelect: () => void confirmDialog(t("confirmDelete")).then((ok) => { if (ok) void run(api.del(`/${item.id}`)); }) },
         ]}
       />
       {editing && (
@@ -108,6 +108,8 @@ function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; s
               ))}
             </div>
           )}
+          <ItemTags itemRef={`shopping:${item.id}`} />
+          <RelatedPanel itemRef={`shopping:${item.id}`} />
           <Row>
             <Button variant="primary" onClick={() => run(api.put(`/${item.id}`, { query, quantity: qty }))}>{t("save")}</Button>
             <Button onClick={() => setEditing(false)}>{t("cancel")}</Button>
@@ -126,6 +128,13 @@ function Page() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const deep = useHashParam("id"); // #/shopping?id=5 (search, links): opens that item for editing
+  const [focusId, setFocusId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!deep) return;
+    setFocusId(Number(deep));
+    clearHashParams();
+  }, [deep]);
 
   const load = useCallback(() => {
     api.get<Overview>("").then(setData).catch(() => setError(t("loadFailed")));
@@ -230,7 +239,7 @@ function Page() {
 
       <Card>
         <ul className="task-list">
-          {data?.items.map((i) => <ItemRow key={i.id} item={i} reload={load} setError={setError} />)}
+          {data?.items.map((i) => <ItemRow key={i.id} item={i} reload={load} setError={setError} autoEdit={i.id === focusId} />)}
         </ul>
         {data && data.items.length === 0 && <Muted>{t("none")}</Muted>}
       </Card>

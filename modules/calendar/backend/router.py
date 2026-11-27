@@ -421,7 +421,7 @@ def widget_upcoming(ctx: Ctx, opts: WidgetOpts):
     if not events:
         return [TextBlock(text=f"Nic zaplanowanego w najbliższych {label}."), ADD_EVENT]
     shown = events[:opts.limit(2, 3, 7)]
-    items = [ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href="#/calendar") for e in shown]
+    items = [ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href=f"#/calendar?id={e.id}") for e in shown]
     more = len(events) - len(shown)
     return [ListBlock(items=items)] + ([TextBlock(text=f"…i {more} więcej")] if more > 0 else [])
 
@@ -431,7 +431,7 @@ def widget_next(ctx: Ctx):
     events = _upcoming(ctx.db, 30)[:1]
     if not events:
         return [TextBlock(text="Brak wydarzeń w ciągu 30 dni."), ADD_EVENT]
-    return [ListBlock(items=[ListItem(title=events[0].title, time=iso_z(events[0].start), all_day=events[0].all_day, href="#/calendar")])]
+    return [ListBlock(items=[ListItem(title=events[0].title, time=iso_z(events[0].start), all_day=events[0].all_day, href=f"#/calendar?id={events[0].id}")])]
 
 
 # --- Diagnostyka ----------------------------------------------------------------------------------------------

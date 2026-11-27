@@ -1,4 +1,4 @@
-import { api, openQuick } from "@jarvis/sdk";
+import { api, formatWhen, openQuick } from "@jarvis/sdk";
 import { Dialog, Kbd } from "@jarvis/ui";
 import { KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { t } from "./i18n";
@@ -20,8 +20,6 @@ interface SearchGroup {
   items: { title: string; subtitle?: string; badge?: string; href?: string; time?: string; all_day?: boolean }[];
 }
 
-const when = (iso?: string, allDay?: boolean) =>
-  iso ? new Date(iso).toLocaleString("pl-PL", allDay ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 const openHref = (href: string) => {
   if (href.startsWith("https://")) window.open(href, "_blank", "noopener");
   else window.location.hash = href.replace(/^#/, "");
@@ -117,7 +115,7 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
         id: `s:${g.module}:${i}`,
         group: `${t.palette.found}: ${g.module_name}`,
         label: it.title,
-        hint: [it.badge, it.subtitle, when(it.time, it.all_day)].filter(Boolean).join(" · "),
+        hint: [it.badge, it.subtitle, formatWhen(it.time, it.all_day)].filter(Boolean).join(" · "),
         run: () => it.href && openHref(it.href),
         found: true,
       })),

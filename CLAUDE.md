@@ -69,6 +69,15 @@ używają SQLite w pamięci i uruchamiają prawdziwe migracje Alembic.
 - **Widgety są deklaratywne** (bloki z `app/widgets.py`). Własny komponent React tylko jako wyjątek (`ModuleDef.widgets`).
 - Uprawnienia z manifestu w modułach w procesie to deklaracja, nie izolacja — nie traktuj ich jako granicy bezpieczeństwa.
 
+## Powiązania, tagi, oś czasu
+
+Rdzeń łączy elementy modułów (`core/app/links.py`; tabele `entity_links`, `entity_tags`, migracja 0014): panel „Powiązane” z backlinkami,
+wzmianki `[[` w notatkach (zwykłe linki Markdown `#/moduł?id=N`), wspólne tagi (też w wyszukiwaniu i „Dodaj zdaniem”: `#tag`), menu „Utwórz z…”
+(poczta, notatka → zadanie/wydarzenie/notatka z powiązaniem), nakładka zadań w kalendarzu z `GET /api/hub/agenda`. Moduły dają haki poza
+manifestem `@module.resolve` i `@module.agenda`, kasując element wołają `links.forget`. Szczegóły: `docs/MODULE_CONTRACT.md`. Asystent używa
+modułu `links`; poczta bez zgody jest z jego odpowiedzi wycięta. Nowy moduł z elementami: dodaj `resolve`, `forget` i `ref`/`href ?id=`.
+Ekran startowy to Pulpit (kafelek „Dzisiaj” w `modules/brief`), pasek kart na telefonie wybiera użytkownik w Ustawieniach (`frontend/src/tabbar.ts`).
+
 ## Sieć, AI, zadania w tle
 
 - Zewnętrzne adresy tylko przez `app.http.get` (blokada SSRF, limity). Nigdy `httpx` wprost dla URL-i od użytkownika.
@@ -205,11 +214,9 @@ streszczenia AI), alarmy, poczta (IMAP, tylko odczyt, zgoda na AI), zakupy (EMMA
 narzędzia, zapis po potwierdzeniu), konsola SSH (2FA, TOFU, xterm.js), Diagnostyka, subskrypcja iCal, błędy przeglądarki w logach,
 automatyczne kopie zapasowe (+ lustro, pobranie ze świeżym 2FA, `make restore`), przypomnienie o 2FA na pulpicie, CI na GitHubie (pytest,
 build, E2E), zadania z terminami, poranny brief (push), wyszukiwanie we wszystkim (Ctrl+K), kalendarze zewnętrzne (CalDAV w obie
-strony, iCal/Google do odczytu). ekran „Dziś”, szybkie dodawanie zdaniem (parser PL `core/app/capture.py`, skróty PWA i udostępnianie), powiadomienia z przyciskami (Zrobione/Drzemka), zadania cykliczne, asystent dodający wpisy z rozmowy, AI jako zapasowy parser zdań. ~376 testów backendu.
+strony, iCal/Google do odczytu). ekran „Dziś”, szybkie dodawanie zdaniem (parser PL `core/app/capture.py`, skróty PWA i udostępnianie), powiadomienia z przyciskami (Zrobione/Drzemka), zadania cykliczne, asystent dodający wpisy z rozmowy, AI jako zapasowy parser zdań. ~395 testów backendu. Ostatnia migracja: `0014_links_tags`.
 
-Następna sesja: **spójność i integracja modułów** (notatki, kalendarz, zadania i reszta mają korzystać z tych samych danych, nie żyć
-osobno). Tryb ustalony przez użytkownika: bardzo dokładna analiza → propozycje → **pytania do użytkownika** → dopiero implementacja;
-szczegóły i checklista w `docs/HANDOFF.md` (sekcja 4). Opinie z używania i Diagnostyka dopiero, gdy użytkownik uruchomi aplikację
+Zrobione w ostatniej sesji: **spójność i integracja modułów** (powiązania, tagi, oś czasu, „Utwórz z…”, UX Pulpitu i telefonu; patrz wyżej i `docs/HANDOFF.md`). Opinie z używania i Diagnostyka dopiero, gdy użytkownik uruchomi aplikację
 (jeszcze nie uruchomił; nie zgaduj wyników). Zmieniając sposób uruchamiania (Makefile, compose, `.env`), aktualizuj też
 `docs/URUCHOMIENIE.md`.
 Dalej: weryfikacja na żywo (Gemini z narzędziami, OpenSSH, push na telefonie, Open-Meteo, EMMA, IMAP, CalDAV/iCloud/Google iCal),

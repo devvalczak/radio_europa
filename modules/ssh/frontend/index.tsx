@@ -1,5 +1,5 @@
 import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
-import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Row, Tag, Terminal, toast } from "@jarvis/ui";
+import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Row, Tag, Terminal, confirmDialog, toast } from "@jarvis/ui";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -211,7 +211,7 @@ function Page() {
     toast(r.detail, { tone: r.ok ? "ok" : "error" });
   };
   const remove = async (h: Host) => {
-    if (!window.confirm(t("confirmRemove", { label: h.label }))) return;
+    if (!(await confirmDialog(t("confirmRemove", { label: h.label })))) return;
     await api.del(`/hosts/${h.id}`);
     toast(t("removed"));
     load();

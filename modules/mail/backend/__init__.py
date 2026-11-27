@@ -252,7 +252,7 @@ def widget_inbox(ctx: Ctx, opts: WidgetOpts):
     rows = ctx.db.execute(stmt).scalars().all()
     return [ListBlock(
         items=[ListItem(title=("● " if opts.view == "recent" and not m.seen else "") + (m.subject or "(bez tematu)"), subtitle=m.from_name or m.from_addr,
-                        time=iso_z(m.received), href="#/mail") for m in rows],
+                        time=iso_z(m.received), href=f"#/mail?id={m.id}") for m in rows],
         empty="Brak nieprzeczytanych wiadomości." if opts.view != "recent" else "Brak wiadomości.",
     )]
 

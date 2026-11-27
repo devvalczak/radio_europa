@@ -1,5 +1,5 @@
 import { ApiError, clearHashParams, createT, hashParam, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
-import { Button, Card, ErrorText, MarkdownEditor, Muted, PageTitle, Row, Switch, Tag, toast } from "@jarvis/ui";
+import { Button, Card, confirmDialog, ErrorText, MarkdownEditor, Muted, PageTitle, CreateFrom, ItemPicker, RelatedPanel, Row, Switch, Tag, TagEditor, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -14,14 +14,14 @@ interface Note {
 }
 interface Draft {
   content: string;
-  tags: string;
+  tags: string[];
   pinned: boolean;
 }
 type Status = "idle" | "dirty" | "saving" | "saved" | "error";
 
 const t = createT(pl);
 const api = moduleApi("notes");
-const blank: Draft = { content: "", tags: "", pinned: false };
+const blank: Draft = { content: "", tags: [], pinned: false };
 const AUTOSAVE_MS = 1200;
 
 function Page() {
@@ -33,6 +33,8 @@ function Page() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
   const [editorKey, setEditorKey] = useState(0);
+  // "[[" in the editor: pick an item, the editor inserts a link to it (saved as plain Markdown)
+  const [mention, setMention] = useState<((title: string, href: string) => void) | null>(null);
   const selRef = useRef(sel);
   selRef.current = sel;
   const draftRef = useRef(draft);
@@ -47,7 +49,7 @@ function Page() {
       if (firstLoad.current && !q && !tag && !selRef.current && !hashParam("id") && list.length > 0) {
         const last = list.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
         setSel(last);
-        setDraft({ content: last.content, tags: last.tags.join(", "), pinned: last.pinned });
+        setDraft({ content: last.content, tags: last.tags, pinned: last.pinned });
         setEditorKey((k) => k + 1);
       }
       firstLoad.current = false;
@@ -66,7 +68,7 @@ function Page() {
     const d = draftRef.current;
     if (!d.content.trim() && !selRef.current) return; // nothing typed yet: do not create empty notes
     setStatus("saving");
-    const body = { content: d.content, tags: d.tags.split(","), pinned: d.pinned };
+    const body = { content: d.content, tags: d.tags, pinned: d.pinned };
     const run = (async () => {
       try {
         const cur = selRef.current;
@@ -114,7 +116,7 @@ function Page() {
     if (status === "dirty") await save(); // never lose what was typed
     else if (saving.current) await saving.current;
     setSel(n);
-    setDraft(n ? { content: n.content, tags: n.tags.join(", "), pinned: n.pinned } : blank);
+    setDraft(n ? { content: n.content, tags: n.tags, pinned: n.pinned } : blank);
     setStatus("idle");
     setEditorKey((k) => k + 1); // fresh editor (own undo history) per note
   };
@@ -129,7 +131,7 @@ function Page() {
   }, [deep]);
 
   async function remove() {
-    if (!sel || !window.confirm(t("confirmDelete"))) return;
+    if (!sel || !(await confirmDialog(t("confirmDelete")))) return;
     await api.del(`/${sel.id}`);
     toast(t("deleted"));
     notifyChanged("notes");
@@ -172,9 +174,10 @@ function Page() {
 
         <Card className="note-editor">
           <MarkdownEditor key={editorKey} value={draft.content} onChange={(content) => change({ content })}
-            placeholder={t("contentPh")} autoFocus={!sel} label={t("contentLabel")} minHeight={320} />
+            placeholder={t("contentPh")} autoFocus={!sel} label={t("contentLabel")} minHeight={320}
+            onMention={(insert) => setMention(() => insert)} />
           <Row>
-            <input className="grow" placeholder={t("tagsPh")} aria-label={t("tags")} value={draft.tags} onChange={(e) => change({ tags: e.target.value })} />
+            <div className="grow"><TagEditor value={draft.tags} onChange={(tags) => change({ tags })} /></div>
             <Switch checked={draft.pinned} onChange={(pinned) => change({ pinned })} label={t("pinned")} />
           </Row>
           <Row between>
@@ -187,7 +190,12 @@ function Page() {
             </Row>
           </Row>
           <ErrorText>{error}</ErrorText>
+          {sel && <Row><CreateFrom itemRef={`notes:${sel.id}`} title={sel.title || t("noTitle")} /></Row>}
+          {sel && <RelatedPanel itemRef={`notes:${sel.id}`} />}
         </Card>
+        <ItemPicker open={mention !== null} onClose={() => setMention(null)} title="Wzmianka"
+          exclude={sel ? [`notes:${sel.id}`] : []}
+          onPick={(i) => { mention?.(i.title, i.href ?? ""); setMention(null); }} />
       </div>
     </>
   );

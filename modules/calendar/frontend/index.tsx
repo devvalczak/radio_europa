@@ -1,5 +1,5 @@
-import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, useHashParam } from "@jarvis/sdk";
-import { Button, Card, Dialog, ErrorText, Field, Muted, PageTitle, Row, Switch, Tabs, Tag, toast } from "@jarvis/ui";
+import { hhmm, api as hubApi, ApiError, notifyChanged, clearHashParams, createT, moduleApi, ModuleDef, useHashParam } from "@jarvis/sdk";
+import { Button, Card, Dialog, ErrorText, Field, ItemTags, Muted, PageTitle, RelatedPanel, Row, Switch, Tabs, Tag, confirmDialog, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -24,7 +24,7 @@ const REMINDERS: (number | null)[] = [null, 0, 10, 30, 60, 1440];
 const pad = (n: number) => String(n).padStart(2, "0");
 const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const toLocalInput = (d: Date) => `${dayKey(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+const fmtTime = hhmm;
 
 /** Monday-first 6x7 grid covering the month of `anchor`. */
 function monthGrid(anchor: Date): Date[] {
@@ -32,6 +32,9 @@ function monthGrid(anchor: Date): Date[] {
   const offset = (first.getDay() + 6) % 7;
   return Array.from({ length: 42 }, (_, i) => new Date(first.getFullYear(), first.getMonth(), 1 - offset + i));
 }
+
+interface AgendaTask { ref: string; title: string; start: string; all_day: boolean; done?: boolean; badge?: string; href?: string; kind: string;
+  done_action?: { action: string; input: Record<string, unknown> } }
 
 const emptyDraft = (day: Date) => {
   const start = new Date(day);
@@ -44,6 +47,8 @@ function Page() {
   const [day, setDay] = useState(() => new Date());
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [showSync, setShowSync] = useState(false);
+  // tasks with a due date, from the shared timeline (hub agenda): drawn as a separate kind of entry, tickable here
+  const [tasks, setTasks] = useState<AgendaTask[]>([]);
   const [draft, setDraft] = useState<ReturnType<typeof emptyDraft> | null>(null);
   const [error, setError] = useState("");
 
@@ -54,10 +59,31 @@ function Page() {
       .get<CalEvent[]>("", { from: grid[0].toISOString(), to: new Date(grid[41].getTime() + 86_400_000).toISOString() })
       .then(setEvents)
       .catch(() => setError(t("loadFailed")));
+    hubApi<AgendaTask[]>("/hub/agenda", { query: { from: grid[0].toISOString(), to: new Date(grid[41].getTime() + 86_400_000).toISOString(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone } })
+      .then((items) => setTasks(items.filter((i) => i.kind === "task")))
+      .catch(() => setTasks([])); // the overlay is a bonus: the calendar works without it
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchor.getFullYear(), anchor.getMonth()]);
 
   useEffect(load, [load]);
+  // ticking a task elsewhere (Pulpit, Zadania) updates this page too
+  useEffect(() => {
+    const on = (e: Event) => (e as CustomEvent<{ module: string }>).detail.module === "tasks" && load();
+    window.addEventListener("jarvis:changed", on);
+    return () => window.removeEventListener("jarvis:changed", on);
+  }, [load]);
+
+  async function tick(task: AgendaTask) {
+    if (!task.done_action) return;
+    try {
+      await hubApi(`/hub/actions/${task.done_action.action}`, { method: "POST", body: { input: task.done_action.input } });
+      notifyChanged("tasks");
+      toast(t("taskDone", { title: task.title }));
+      load();
+    } catch {
+      toast(t("taskFailed"), { tone: "error" });
+    }
+  }
 
   const byDay = new Map<string, CalEvent[]>();
   for (const e of events) {
@@ -65,6 +91,12 @@ function Page() {
     byDay.set(k, [...(byDay.get(k) ?? []), e]);
   }
   const dayEvents = byDay.get(dayKey(day)) ?? [];
+  const tasksByDay = new Map<string, AgendaTask[]>();
+  for (const x of tasks) {
+    const k = dayKey(new Date(x.start));
+    tasksByDay.set(k, [...(tasksByDay.get(k) ?? []), x]);
+  }
+  const dayTasks = tasksByDay.get(dayKey(day)) ?? [];
 
   const edit = (e: CalEvent) =>
     setDraft({
@@ -110,6 +142,7 @@ function Page() {
       else await api.post("", body);
       setDraft(null);
       setError("");
+      notifyChanged("calendar");
       load();
     } catch (e) {
       setError(e instanceof ApiError && e.status === 422 ? t("invalid") : e instanceof ApiError && e.info ? e.info : t("saveFailed"));
@@ -117,10 +150,11 @@ function Page() {
   }
 
   async function remove() {
-    if (!draft?.id || !window.confirm(draft.source ? t("confirmDeleteSynced", { source: draft.source }) : t("confirmDelete"))) return;
+    if (!draft?.id || !(await confirmDialog(draft.source ? t("confirmDeleteSynced", { source: draft.source }) : t("confirmDelete")))) return;
     try {
       await api.del(`/${draft.id}`);
       setDraft(null);
+      notifyChanged("calendar");
       load();
     } catch (e) {
       setError(e instanceof ApiError && e.info ? e.info : t("saveFailed"));
@@ -145,11 +179,13 @@ function Page() {
             {grid.map((d) => {
               const k = dayKey(d);
               const n = byDay.get(k)?.length ?? 0;
+              const nt = (tasksByDay.get(k) ?? []).filter((x) => !x.done).length;
               const cls = [d.getMonth() !== anchor.getMonth() && "out", k === todayKey && "today", k === dayKey(day) && "sel"].filter(Boolean).join(" ");
               return (
                 <Button key={k} className={`day ${cls}`} onClick={() => setDay(d)}>
                   <span>{d.getDate()}</span>
                   {n > 0 && <span className="muted"><span className="dot" />{n}</span>}
+                  {nt > 0 && <span className="muted" title={t("tasksCount", { n: nt })}><span className="sq" aria-hidden />{nt}</span>}
                 </Button>
               );
             })}
@@ -161,7 +197,7 @@ function Page() {
             <b>{day.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" })}</b>
             <Button variant="primary" onClick={() => setDraft(emptyDraft(day))}>{t("add")}</Button>
           </Row>
-          {dayEvents.length === 0 && <Muted>{t("none")}</Muted>}
+          {dayEvents.length === 0 && dayTasks.length === 0 && <Muted>{t("none")}</Muted>}
           {dayEvents.map((e) => (
             <Button key={e.id} className="item" onClick={() => edit(e)}>
               <b>{e.title}</b>
@@ -172,6 +208,22 @@ function Page() {
               </span>
             </Button>
           ))}
+          {dayTasks.length > 0 && (
+            <>
+              <h3 className="eyebrow">{t("tasksOfDay")}</h3>
+              <ul className="task-list">
+                {dayTasks.map((x) => (
+                  <li key={x.ref}>
+                    <input type="checkbox" checked={!!x.done} disabled={!x.done_action} aria-label={t("markDone", { title: x.title })} onChange={() => void tick(x)} />
+                    <a className="task-main" href={x.href} style={{ opacity: x.done ? 0.5 : 1, textDecoration: x.done ? "line-through" : undefined }}>
+                      <span>{x.title}</span>
+                      <span className="muted">{x.all_day ? t("allDay") : fmtTime(x.start)}{x.badge ? ` · ${x.badge}` : ""}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </Card>
       </div>
 
@@ -197,6 +249,8 @@ function Page() {
             <input type="checkbox" checked={draft.all_day} onChange={(e) => setDraft({ ...draft, all_day: e.target.checked })} /> {t("allDayCheck")}
           </label>
           <textarea rows={3} placeholder={t("descPh")} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+          {draft.id > 0 && <ItemTags itemRef={`calendar:${draft.id}`} />}
+          {draft.id > 0 && <RelatedPanel itemRef={`calendar:${draft.id}`} />}
           <Row>
             {!draft.readOnly && <Button variant="primary" disabled={!draft.title.trim() || !draft.start} onClick={save}>{t("save")}</Button>}
             <Button onClick={() => setDraft(null)}>{draft.readOnly ? t("close") : t("cancel")}</Button>
@@ -247,7 +301,7 @@ function PhoneSync() {
   useEffect(load, [load]);
 
   async function create() {
-    if (feed?.enabled && !window.confirm(t("feed.confirmNew"))) return;
+    if (feed?.enabled && !(await confirmDialog(t("feed.confirmNew")))) return;
     setBusy(true);
     setErr("");
     try {
@@ -262,7 +316,7 @@ function PhoneSync() {
     }
   }
   async function disable() {
-    if (!window.confirm(t("feed.confirmOff"))) return;
+    if (!(await confirmDialog(t("feed.confirmOff")))) return;
     await api.del("/feed");
     setUrl("");
     toast(t("feed.disabled"));

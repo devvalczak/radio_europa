@@ -14,7 +14,8 @@ const pl = {
     hint: "Rozpoznaję daty (jutro, w piątek, 15 grudnia), godziny (o 9, 9:30, za 2 h), wykrzyknik = ważne. Przed zapisem zobaczysz podgląd.",
     preview: "Podgląd",
     examplesLabel: "Na przykład:",
-    examples: ["jutro 9 dentysta", "w piątek zapłacić za prąd !", "mleko 2 szt", "co tydzień wyrzucić śmieci", "notatka: pomysł na prezent"],
+    tagsFailed: "Zapisano, ale nie udało się dodać tagów.",
+    examples: ["jutro 9 dentysta", "w piątek zapłacić za prąd !", "mleko 2 szt #dom", "co tydzień wyrzucić śmieci", "notatka: pomysł na prezent"],
     kindLabel: "Rodzaj wpisu",
     kinds: { task: "Zadanie", event: "Wydarzenie", shopping: "Zakupy", note: "Notatka" },
     save: "Zapisz",
@@ -152,6 +153,7 @@ const pl = {
     close: "zamknij",
   },
   quick: {
+    linkFailed: "Zapisano, ale nie udało się powiązać z elementem źródłowym.",
     save: "Zapisz",
     saving: "Zapisywanie…",
     saveAndNext: "Zapisz i dodaj kolejną",

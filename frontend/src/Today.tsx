@@ -1,4 +1,4 @@
-import { api, ApiError, notifyChanged, openQuick } from "@jarvis/sdk";
+import { api, ApiError, dayKey, hhmm, notifyChanged, openQuick } from "@jarvis/sdk";
 import { Button, Card, PageTitle, Skeleton, Tag, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import { errorText, t } from "./i18n";
@@ -41,8 +41,6 @@ function useSection<T>(name: string, input: object = {}) {
   return { ...s, reload: load };
 }
 
-const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
 
 function Section<T>({ title, s, href, missing, children }: {
   title: string;

@@ -1,5 +1,5 @@
 import { api, ModuleDef } from "@jarvis/sdk";
-import { Dialog, ErrorBoundary, Kbd, ModuleIcon, Toaster } from "@jarvis/ui";
+import { ConfirmHost, Dialog, ErrorBoundary, Kbd, ModuleIcon, Toaster } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { Dashboard } from "./Dashboard";
@@ -165,6 +165,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       </nav>
 
       <Toaster />
+      <ConfirmHost />
       <QuickHost />
       <Palette modules={modules} />
 

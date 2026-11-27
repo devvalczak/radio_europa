@@ -267,7 +267,7 @@ EMPTY = {"soon": "Nic na najbliższe 7 dni.", "open": "Brak otwartych zadań.", 
 
 def _item(t: Task, now: datetime) -> ListItem:
     badge = "po terminie" if _overdue(t, now) else "ważne" if t.important else None
-    return ListItem(title=t.title, time=iso_z(t.due), all_day=t.all_day, badge=badge, href="#/tasks")
+    return ListItem(title=t.title, time=iso_z(t.due), all_day=t.all_day, badge=badge, href=f"#/tasks?id={t.id}")
 
 
 @module.widget("list")

@@ -1,4 +1,4 @@
-import { api, ApiError, notifyChanged } from "@jarvis/sdk";
+import { api, ApiError, notifyChanged, type QuickOpts } from "@jarvis/sdk";
 import { Button, Dialog, ErrorBoundary, ErrorText, Field, MarkdownEditor, Switch, toast } from "@jarvis/ui";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
@@ -111,8 +111,12 @@ function FieldInput({ f, value, set, autoFocus, submit }: {
   );
 }
 
-export function QuickForm({ q, onClose }: { q: QuickAction; onClose: () => void }) {
-  const [values, setValues] = useState<Values>(() => Object.fromEntries(q.fields.map((f) => [f.name, initial(f)])));
+// modules whose page opens one item from ?id=
+const DEEP = ["notes", "tasks", "calendar", "shopping", "alarms"];
+
+export function QuickForm({ q, onClose, opts = {} }: { q: QuickAction; onClose: () => void; opts?: QuickOpts }) {
+  const start = () => Object.fromEntries(q.fields.map((f) => [f.name, opts.values?.[f.name] ?? initial(f)]));
+  const [values, setValues] = useState<Values>(start);
   const [errors, setErrors] = useState<{ fields: Record<string, string>; general: string }>({ fields: {}, general: "" });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState("");
@@ -131,7 +135,12 @@ export function QuickForm({ q, onClose }: { q: QuickAction; onClose: () => void 
     setSaved("");
     const first = q.fields[0] ? String(values[q.fields[0].name] ?? "") : "";
     try {
-      await api(`/hub/actions/${q.action}`, { method: "POST", body: { input: toInput(q, values) } });
+      const res = await api<{ result?: { id?: number } }>(`/hub/actions/${q.action}`, { method: "POST", body: { input: toInput(q, values) } });
+      const newId = res?.result?.id;
+      if (opts.linkTo && newId) {
+        // created from another item: keep the two connected (a failure here must not undo the saved item)
+        await api("/hub/links", { method: "POST", body: { a: opts.linkTo, b: `${q.module}:${newId}`, kind: "from" } }).catch(() => toast(t.quick.linkFailed, { tone: "error" }));
+      }
       notifyChanged(q.module);
       if (again.current) {
         // stay in the form: confirm inline (a toast would sit above the dialog and swallow Esc) and get ready for the next one
@@ -140,7 +149,7 @@ export function QuickForm({ q, onClose }: { q: QuickAction; onClose: () => void 
         setTimeout(() => formRef.current?.querySelector<HTMLElement>("input:not([type=checkbox]), textarea, select")?.focus(), 0);
       } else {
         onClose();
-        toast(q.success || t.quick.done, { action: { label: t.quick.open, run: () => (window.location.hash = `#/${q.module}`) } });
+        toast(q.success || t.quick.done, { action: { label: t.quick.open, run: () => (window.location.hash = `#/${q.module}${newId && DEEP.includes(q.module) ? `?id=${newId}` : ""}`) } });
       }
     } catch (err) {
       setErrors(errorsOf(err, q));
@@ -190,8 +199,13 @@ export function QuickForm({ q, onClose }: { q: QuickAction; onClose: () => void 
 export function QuickHost() {
   const list = useQuick();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [opts, setOpts] = useState<QuickOpts>({});
   useEffect(() => {
-    const on = (e: Event) => setOpenId((e as CustomEvent<{ id: string }>).detail.id);
+    const on = (e: Event) => {
+      const { id, ...rest } = (e as CustomEvent<{ id: string } & QuickOpts>).detail;
+      setOpts(rest);
+      setOpenId(id);
+    };
     window.addEventListener("jarvis:quick", on);
     return () => window.removeEventListener("jarvis:quick", on);
   }, []);
@@ -200,7 +214,7 @@ export function QuickHost() {
   return (
     <Dialog open onClose={() => setOpenId(null)} title={q ? `${q.title} · ${q.module_name}` : t.loading}>
       <ErrorBoundary compact resetKey={openId}>
-        {q ? <QuickForm key={q.id} q={q} onClose={() => setOpenId(null)} /> : <p className="muted">{t.quick.unknown}</p>}
+        {q ? <QuickForm key={q.id} q={q} opts={opts} onClose={() => setOpenId(null)} /> : <p className="muted">{t.quick.unknown}</p>}
       </ErrorBoundary>
     </Dialog>
   );
