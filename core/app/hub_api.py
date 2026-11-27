@@ -159,24 +159,24 @@ def build_router(hub: Hub) -> APIRouter:
         return {"blocks": blocks, "updated_at": utcnow().isoformat() + "Z"}
 
     @router.post("/hub/capture/parse")
-    def capture_parse(body: CaptureIn):
+    def capture_parse(body: CaptureIn, db: Session = Depends(get_db)):
         """One Polish sentence -> a guess (kind, title, date) with the hub action to run. Saves nothing: the UI shows
         a preview and then calls the action like any other write (audit, toast)."""
         try:
             tz = ZoneInfo(body.tz)
         except (ZoneInfoNotFoundError, ValueError):
             raise HTTPException(422, "bad_timezone") from None
-        return {**capture.parse(body.text, tz, datetime.now(UTC), body.kind), "ai": ai.configured()}
+        return {**capture.parse(body.text, tz, datetime.now(UTC), body.kind), "ai": ai.configured("capture", db)}
 
     @router.post("/hub/capture/ai")
-    def capture_with_ai(body: CaptureIn, user: User = Depends(require_user)):
+    def capture_with_ai(body: CaptureIn, user: User = Depends(require_user), db: Session = Depends(get_db)):
         """The same preview as /hub/capture/parse, understood by the AI. Only on an explicit click (the sentence leaves the
         app); the model has no tools and its JSON is validated. Nothing about the sentence or the answer is logged."""
         try:
             tz = ZoneInfo(body.tz)
         except (ZoneInfoNotFoundError, ValueError):
             raise HTTPException(422, "bad_timezone") from None
-        if not ai.configured():
+        if not ai.configured("capture", db):
             raise HTTPException(503, "AI nie jest skonfigurowane (ustaw JARVIS_AI_* w .env).")
         now_ts = time.monotonic()
         recent = [t for t in ai_calls.get(user.id, []) if now_ts - t < 60]
@@ -184,7 +184,7 @@ def build_router(hub: Hub) -> APIRouter:
             raise HTTPException(429, "Za dużo zapytań do AI w ciągu minuty. Spróbuj za chwilę.")
         ai_calls[user.id] = [*recent, now_ts]
         try:
-            out = capture_ai.parse_with_ai(body.text, tz, datetime.now(UTC), body.kind)
+            out = capture_ai.parse_with_ai(body.text, tz, datetime.now(UTC), body.kind, db)
         except ai.AIError as exc:
             raise HTTPException(429 if exc.code == "rate_limited" else 502, exc.user_message()) from None
         except capture_ai.BadOutput:

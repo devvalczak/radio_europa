@@ -23,7 +23,7 @@ def _state(db: Session) -> dict:
 
     ctx = _ctx(db)
     names = sorted({hub.manifests[a.module]["name"] for a in hub.assistant_actions(db) if a.module != "assistant"})
-    return {"ai": ai.describe(), "modules": names, "mail": any(a.module == "mail" for a in hub.assistant_actions(db)),
+    return {"ai": ai.describe("assistant", db), "modules": names, "mail": any(a.module == "mail" for a in hub.assistant_actions(db)),
             "messages": service.view(ctx), "busy": False}
 
 

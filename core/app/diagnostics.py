@@ -23,6 +23,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from . import ai, backup, crypto, logs, scheduler
+from .ai_uses import USES
 from .config import settings
 from .hub import hub
 from .models import PushSubscription, User
@@ -245,20 +246,31 @@ def _push_send(env: Env) -> list[Check]:
 
 # --- AI -----------------------------------------------------------------------------------------------------
 @core_check("ai.config", "ai", "Konfiguracja AI")
-def _ai_config(env: Env) -> Check:
-    d = ai.describe()
-    if not d["configured"]:
-        return Check("skip", "AI wyłączone (brak JARVIS_AI_*) — streszczenia i czat nie działają",
-                     "Ustaw JARVIS_AI_PROVIDER, JARVIS_AI_MODEL i klucz w .env (przykład Gemini w README).")
-    return Check("ok", f"{d['provider']} · {d['model']} · {d['host']}")
+def _ai_config(env: Env) -> list[Check]:
+    """One row per function of the app: which connection it would use now (Ustawienia → AI)."""
+    out = []
+    if not any(ai.configured(u.key, env.db) for u in USES) and not any(ai.details(u.key, env.db)["problem"] in ("no_local", "budget") for u in USES):
+        return [Check("skip", "AI wyłączone (brak połączenia) — streszczenia i czat nie działają",
+                      "Dodaj połączenie w Ustawieniach → AI albo ustaw JARVIS_AI_PROVIDER, JARVIS_AI_MODEL i klucz w .env (przykład Gemini w README).")]
+    for u in USES:
+        d = ai.details(u.key, env.db)
+        if d["configured"]:
+            extra = f" (zapasowe: {d['fallback']})" if d.get("fallback") else ""
+            out.append(Check("ok", f"{d.get('name', d['provider'])} · {d['provider']} · {d['model']} · {d['host']}{extra}", title=u.label))
+        elif d.get("problem") in ("no_local", "budget"):
+            out.append(Check("warn", ai.AIError("", d["problem"]).user_message(), "Ustawienia → AI.", u.label))
+        else:
+            out.append(Check("skip", "brak połączenia AI", "Dodaj połączenie w Ustawieniach → AI (albo JARVIS_AI_* w .env).", u.label))
+    return out
 
 
 @core_check("ai.call", "ai", "Zapytanie testowe do AI", slow=True)
 def _ai_call(env: Env) -> Check:
-    if not ai.configured():
+    if not ai.configured("test", env.db):
         return Check("skip", "AI nie jest skonfigurowane")
     try:
-        answer = ai.complete("Jesteś testem łączności. Odpowiedz dokładnie jednym słowem.", "Napisz: OK", max_tokens=20, timeout=30)
+        answer = ai.complete("Jesteś testem łączności. Odpowiedz dokładnie jednym słowem.", "Napisz: OK", use="test", max_tokens=20, timeout=30,
+                             db=env.db)
     except ai.AIError as exc:
         return Check("error", exc.user_message())
     return Check("ok", f"Odpowiedź: {answer[:60]!r}")

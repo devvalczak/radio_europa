@@ -166,7 +166,7 @@ class SettingsIn(BaseModel):
 def _settings_out(db: Session) -> dict:
     from app import ai
 
-    return {"allow_ai": service.ai_allowed(db), "ai": ai.describe()}
+    return {"allow_ai": service.ai_allowed(db), "ai": ai.describe("mail", db)}
 
 
 @router.get("/settings")

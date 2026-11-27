@@ -163,7 +163,7 @@ def advance(ctx: Ctx, tz: str) -> None:
     system = system_prompt(ctx, tz, modules, any(a.module == "mail" for a in by_name.values()))
     for _ in range(MAX_STEPS):
         try:
-            reply = ai_chat.chat(system, history(ctx), tool_list)
+            reply = ai_chat.chat(system, history(ctx), tool_list, db=ctx.db)
         except AIError as exc:
             _save(ctx, "error", exc.user_message(), code=exc.code)
             return
@@ -172,7 +172,10 @@ def advance(ctx: Ctx, tz: str) -> None:
             action = by_name.get(c["name"])
             calls.append({**c, "input": _with_tz(action, c.get("input"), tz), "action": action.full_name if action else None,
                           "state": "pending" if action and not action.readonly else "auto"})
-        msg = _save(ctx, "assistant", reply.text, calls=calls, raw=reply.raw)
+        text = reply.text
+        if reply.via and text:  # the main model hit a limit: say which one answered
+            text += f"\n\n(Odpowiedział zapasowy model „{reply.via}”, bo główny osiągnął limit.)"
+        msg = _save(ctx, "assistant", text, calls=calls, raw=reply.raw)
         if not calls:
             return
         waiting = False

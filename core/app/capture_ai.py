@@ -87,7 +87,7 @@ def build(data: dict, tz: ZoneInfo, kind_hint: str | None = None) -> dict:
     return capture._result(kind, title, due, all_day, priority == "high", ["ai"], title, quantity, repeat, tz.key, priority, duration)
 
 
-def parse_with_ai(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> dict:
+def parse_with_ai(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None, db=None) -> dict:
     """Raises ai.AIError (not configured, rate limit, provider trouble) or BadOutput."""
-    reply = ai.complete(_system(tz, now), f"Zdanie użytkownika:\n<<<\n{text}\n>>>", max_tokens=300, timeout=30)
+    reply = ai.complete(_system(tz, now), f"Zdanie użytkownika:\n<<<\n{text}\n>>>", use="capture", max_tokens=300, timeout=30, db=db)
     return build(_json(reply), tz, kind if kind in KINDS else None)

@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 
 from . import ai
 from .ai import AIError, ANTHROPIC_URL, GEMINI_THINKING_HEADROOM, GEMINI_URL, OPENAI_URL
-from .config import settings
 
 NAME_RE = re.compile(r"[^a-zA-Z0-9_]")
 
@@ -36,6 +35,7 @@ class Reply:
     text: str
     calls: list[dict] = field(default_factory=list)  # [{"id", "name", "input"}]
     raw: dict | None = None
+    via: str | None = None  # name of the fallback connection when it answered instead of the main one
 
 
 def tool_name(action: str) -> str:
@@ -89,7 +89,7 @@ def clean_schema(schema: dict | None, for_gemini: bool = False) -> dict:
 
 
 # --- providers ------------------------------------------------------------------------------------------------
-def _anthropic(system: str, messages: list[dict], tools: list[Tool], max_tokens: int, timeout: float) -> Reply:
+def _anthropic(p: ai.Profile, system: str, messages: list[dict], tools: list[Tool], max_tokens: int, timeout: float) -> Reply:
     out = []
     for m in messages:
         if m["role"] == "user":
@@ -108,10 +108,10 @@ def _anthropic(system: str, messages: list[dict], tools: list[Tool], max_tokens:
                 out[-1]["content"].append(block)  # several results of one turn go in one user message
             else:
                 out.append({"role": "user", "content": [block]})
-    body = {"model": settings.ai_model, "max_tokens": max_tokens, "system": system, "messages": out}
+    body = {"model": p.model, "max_tokens": max_tokens, "system": system, "messages": out}
     if tools:
         body["tools"] = [{"name": t.name, "description": t.description, "input_schema": clean_schema(t.schema)} for t in tools]
-    data = ai._post(settings.ai_base_url or ANTHROPIC_URL, {"x-api-key": settings.ai_api_key, "anthropic-version": "2023-06-01"},
+    data = ai._post(p.base_url or ANTHROPIC_URL, {"x-api-key": p.api_key, "anthropic-version": "2023-06-01"},
                     body, timeout)
     content = data.get("content") or []
     text = "".join(b.get("text", "") for b in content if b.get("type") == "text")
@@ -119,7 +119,7 @@ def _anthropic(system: str, messages: list[dict], tools: list[Tool], max_tokens:
     return Reply(text.strip(), calls, {"provider": "anthropic", "content": content})
 
 
-def _openai(system: str, messages: list[dict], tools: list[Tool], max_tokens: int, timeout: float) -> Reply:
+def _openai(p: ai.Profile, system: str, messages: list[dict], tools: list[Tool], max_tokens: int, timeout: float) -> Reply:
     out: list[dict] = [{"role": "system", "content": system}]
     for m in messages:
         if m["role"] == "user":
@@ -133,12 +133,12 @@ def _openai(system: str, messages: list[dict], tools: list[Tool], max_tokens: in
             out.append(msg)
         else:
             out.append({"role": "tool", "tool_call_id": m["id"], "content": json.dumps(m["result"], ensure_ascii=False, default=str)})
-    body: dict = {"model": settings.ai_model, "max_tokens": max_tokens, "messages": out}
+    body: dict = {"model": p.model, "max_tokens": max_tokens, "messages": out}
     if tools:
         body["tools"] = [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": clean_schema(t.schema)}}
                          for t in tools]
-    headers = {"Authorization": f"Bearer {settings.ai_api_key}"} if settings.ai_api_key else {}
-    data = ai._post((settings.ai_base_url or OPENAI_URL).rstrip("/") + "/chat/completions", headers, body, timeout)
+    headers = {"Authorization": f"Bearer {p.api_key}"} if p.api_key else {}
+    data = ai._post((p.base_url or OPENAI_URL).rstrip("/") + "/chat/completions", headers, body, timeout)
     try:
         msg = data["choices"][0]["message"]
     except (KeyError, IndexError, TypeError) as exc:
@@ -153,7 +153,7 @@ def _openai(system: str, messages: list[dict], tools: list[Tool], max_tokens: in
     return Reply((msg.get("content") or "").strip(), calls, None)
 
 
-def _gemini(system: str, messages: list[dict], tools: list[Tool], max_tokens: int, timeout: float) -> Reply:
+def _gemini(p: ai.Profile, system: str, messages: list[dict], tools: list[Tool], max_tokens: int, timeout: float) -> Reply:
     contents: list[dict] = []
     for m in messages:
         if m["role"] == "user":
@@ -179,9 +179,9 @@ def _gemini(system: str, messages: list[dict], tools: list[Tool], max_tokens: in
     if tools:
         body["tools"] = [{"functionDeclarations": [{"name": t.name, "description": t.description,
                                                     "parameters": clean_schema(t.schema, for_gemini=True)} for t in tools]}]
-    base = (settings.ai_base_url or GEMINI_URL).rstrip("/")
-    data = ai._post(f"{base}/models/{settings.ai_model.removeprefix('models/')}:generateContent",
-                    {"x-goog-api-key": settings.ai_api_key}, body, timeout)
+    base = (p.base_url or GEMINI_URL).rstrip("/")
+    data = ai._post(f"{base}/models/{p.model.removeprefix('models/')}:generateContent",
+                    {"x-goog-api-key": p.api_key}, body, timeout)
     if (data.get("promptFeedback") or {}).get("blockReason"):
         raise AIError("prompt blocked by the provider", "blocked")
     cands = data.get("candidates")
@@ -202,11 +202,20 @@ def _gemini(system: str, messages: list[dict], tools: list[Tool], max_tokens: in
     return Reply(text.strip(), calls, {"provider": "gemini", "content": copy.deepcopy(parts)})
 
 
-def chat(system: str, messages: list[dict], tools: list[Tool], *, max_tokens: int = 1000, timeout: float = 90.0) -> Reply:
-    if not ai.configured():
-        raise AIError("AI is not configured", "not_configured")
-    fn = {"anthropic": _anthropic, "gemini": _gemini}.get(settings.ai_provider, _openai)
-    reply = fn(system, messages, tools, max_tokens, timeout)
-    if not reply.text and not reply.calls:
-        raise AIError("empty AI response")
+def chat(system: str, messages: list[dict], tools: list[Tool], *, use: str = "assistant", max_tokens: int = 1000,
+         timeout: float = 90.0, db=None) -> Reply:
+    """One model turn on the connection of this function (default: the assistant's); a limit moves on to its fallback.
+    `reply.via` is the fallback connection's name when it answered, else None."""
+
+    def one(p: ai.Profile) -> Reply:
+        fn = {"anthropic": _anthropic, "gemini": _gemini}.get(p.provider, _openai)
+        reply = fn(p, system, messages, tools, max_tokens, timeout)
+        if not reply.text and not reply.calls:
+            raise AIError("empty AI response")
+        return reply
+
+    res = ai.run(use, one, db)
+    reply: Reply = res.value  # type: ignore[assignment]
+    if res.fallback:
+        reply.via = res.profile.name
     return reply

@@ -215,7 +215,7 @@ def autofill(task_id: int, db: Session = Depends(get_db)):
 
     nothing = {"changes": []}
     t = _get(db, task_id)
-    if not ai.configured() or t.done or (t.priority != "normal" and t.duration_minutes is not None):
+    if not ai.configured("autofill", db) or t.done or (t.priority != "normal" and t.duration_minutes is not None):
         return nothing
     now = time.monotonic()
     _autofill_calls[:] = [x for x in _autofill_calls if now - x < 60]
@@ -224,7 +224,7 @@ def autofill(task_id: int, db: Session = Depends(get_db)):
     _autofill_calls.append(now)
     before = _out(t)
     try:
-        reply = ai.complete(AUTOFILL_SYSTEM, f"Zadanie:\n<<<\n{t.title}\n{t.notes[:500]}\n>>>", max_tokens=120, timeout=20)
+        reply = ai.complete(AUTOFILL_SYSTEM, f"Zadanie:\n<<<\n{t.title}\n{t.notes[:500]}\n>>>", use="autofill", max_tokens=120, timeout=20, db=db)
         a, b = reply.find("{"), reply.rfind("}")
         data = json.loads(reply[a:b + 1])
     except (ai.AIError, ValueError):

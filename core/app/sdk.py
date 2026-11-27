@@ -200,14 +200,15 @@ class Ctx:
     def emit(self, event: str, payload: dict[str, Any] | None = None) -> None:
         self.hub.emit(self.module, event, payload or {}, self.db)
 
-    def ai(self, system: str, prompt: str, max_tokens: int = 600) -> str:
-        """Text completion through the configured provider (permission `ai.complete`). Raises AIError."""
+    def ai(self, system: str, prompt: str, max_tokens: int = 600, use: str | None = None) -> str:
+        """Text completion through the connection chosen for this function (permission `ai.complete`). `use` is the
+        function's key in Ustawienia → AI; by default the module id, so each module can have its own model. Raises AIError."""
         self._need("ai.complete")
-        return _ai.complete(system, prompt, max_tokens=max_tokens)
+        return _ai.complete(system, prompt, use=use or self.module, max_tokens=max_tokens, db=self.db)
 
     @property
     def ai_available(self) -> bool:
-        return _ai.configured()
+        return _ai.configured(self.module, self.db)
 
     def push(self, reminder: Reminder) -> int:
         self._need("push.send")
