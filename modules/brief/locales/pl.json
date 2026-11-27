@@ -46,5 +46,7 @@
   "today.more": "…i {n} więcej",
   "today.tomorrowBtn": "Na jutro",
   "today.tomorrow.one": "Jutro: 1 wydarzenie",
-  "today.tomorrow.many": "Jutro: {n} wydarzeń"
+  "today.tomorrow.many": "Jutro: {n} wydarzeń",
+  "today.plan": "Zaplanuj dzień",
+  "today.planPrompt": "Zaplanuj mój dzień na dziś. Obejrzyj moje otwarte zadania i dzisiejsze wydarzenia, zaproponuj kolejność i godziny według priorytetu, terminów i czasu trwania, a zmiany terminów przygotuj do zatwierdzenia."
 }

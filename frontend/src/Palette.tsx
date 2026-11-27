@@ -3,6 +3,7 @@ import { Dialog, Kbd } from "@jarvis/ui";
 import { KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { t } from "./i18n";
 import { useQuick } from "./quick";
+import { frontendModules } from "./registry";
 import type { ModuleInfo } from "./Shell";
 import { applyTheme, listThemes, ThemeInfo } from "./theme";
 
@@ -98,7 +99,7 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
       { id: "nav:capture", group: t.palette.create, label: t.capture.title, run: go("capture") },
       { id: "nav:today", group: t.palette.goto, label: t.today.title, run: go("today") },
       { id: "nav:dashboard", group: t.palette.goto, label: t.dashboard, run: go("dashboard") },
-      ...modules.filter((m) => m.status === "ok").map((m) => ({ id: `nav:${m.id}`, group: t.palette.goto, label: m.name, run: go(m.id) })),
+      ...modules.filter((m) => m.status === "ok" && frontendModules[m.id]).map((m) => ({ id: `nav:${m.id}`, group: t.palette.goto, label: m.name, run: go(m.id) })),
       { id: "nav:debug", group: t.palette.goto, label: t.debug.title, run: go("debug") },
       { id: "nav:system", group: t.palette.goto, label: t.journal, run: go("system") },
       { id: "nav:settings", group: t.palette.goto, label: t.settings, run: go("settings") },

@@ -1,5 +1,5 @@
 import { api, ApiError, notifyChanged, type QuickOpts } from "@jarvis/sdk";
-import { Button, Dialog, ErrorBoundary, ErrorText, Field, MarkdownEditor, Switch, toast } from "@jarvis/ui";
+import { Button, Dialog, ErrorBoundary, ErrorText, Field, MarkdownEditor, Switch, autofillTask, toast } from "@jarvis/ui";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./i18n";
 
@@ -144,6 +144,7 @@ export function QuickForm({ q, onClose, opts = {} }: { q: QuickAction; onClose: 
         await api("/hub/links", { method: "POST", body: { a: opts.linkTo, b: `${q.module}:${newId}`, kind: "from" } }).catch(() => toast(t.quick.linkFailed, { tone: "error" }));
       }
       notifyChanged(q.module);
+      if (q.action === "tasks.add_task" && newId && !String(values.priority ?? "")) void autofillTask(newId, () => notifyChanged("tasks"));
       if (again.current) {
         // stay in the form: confirm inline (a toast would sit above the dialog and swallow Esc) and get ready for the next one
         setSaved(`${q.success || t.quick.done}${first && first !== "true" && first !== "false" ? `: „${first}”` : ""}`);

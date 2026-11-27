@@ -1,5 +1,5 @@
 import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
-import { Button, Card, Dialog, ErrorText, Field, ItemTags, Muted, PageTitle, RelatedPanel, Skeleton, Switch, Tabs, Tag, toast } from "@jarvis/ui";
+import { Button, Card, Dialog, ErrorText, Field, ItemTags, Muted, PageTitle, RelatedPanel, Skeleton, Switch, Tabs, Tag, autofillTask, toast } from "@jarvis/ui";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -128,10 +128,11 @@ function Page() {
     const title = quick.trim();
     if (!title) return;
     try {
-      await api.post("", { title, remind_minutes: null });
+      const made = await api.post<{ id: number }>("", { title, remind_minutes: null });
       setQuick("");
       toast(t("added"));
       changed();
+      void autofillTask(made.id, changed); // AI (if configured) suggests a priority and a length
     } catch (err) {
       toast(errMsg(err), { tone: "error" });
     }

@@ -51,5 +51,11 @@
   "repeat.weekdays": "w dni robocze",
   "repeat.weekly": "co tydzień",
   "repeat.monthly": "co miesiąc",
-  "repeat.yearly": "co rok"
+  "repeat.yearly": "co rok",
+  "approveAll": "Wykonaj wszystkie ({n})",
+  "field.priority": "Priorytet",
+  "field.duration_minutes": "Czas (min)",
+  "pri.high": "wysoki",
+  "pri.normal": "normalny",
+  "pri.low": "niski"
 }

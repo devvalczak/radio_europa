@@ -254,3 +254,43 @@ def test_prompt_explains_how_to_pick_the_tool_for_adding(authed, model):
     send(authed, "cześć")
     prompt = _system_prompt(seen)
     assert "calendar__create_event" in prompt and "tasks__add_task" in prompt and "all_day=true" in prompt
+
+
+def test_planning_the_day_is_one_plan_the_user_approves_call_by_call(authed, model):
+    """The assistant reads tasks and events (no click), proposes several task changes at once (pending), and nothing changes
+    until each one is approved; after the last approval the model gets the results and answers."""
+    script, seen, use = model
+    use("openai")
+    a = authed.post("/api/m/tasks", json={"title": "Raport", "due": "2026-11-27T10:00:00Z"}).json()
+    b = authed.post("/api/m/tasks", json={"title": "Telefon", "due": "2026-11-27T11:00:00Z"}).json()
+
+    def two_updates():
+        return {"choices": [{"message": {"content": None, "tool_calls": [
+            {"id": "u1", "type": "function", "function": {"name": "tasks__update_task", "arguments": json.dumps(
+                {"id": a["id"], "due": "2026-11-27T13:00:00+01:00", "priority": "high", "duration_minutes": 90})}},
+            {"id": "u2", "type": "function", "function": {"name": "tasks__update_task", "arguments": json.dumps(
+                {"id": b["id"], "due": "2026-11-27T15:00:00+01:00", "duration_minutes": 15})}},
+        ]}}]}
+
+    script += [oa_call("tasks__list_tasks", {}, "r1"), oa_call("calendar__list_events", {"days": 1}, "r2"), two_updates()]
+    state = send(authed, "Zaplanuj mój dzień")
+    calls = state["messages"][-1]["calls"]
+    assert [c["state"] for c in calls] == ["pending", "pending"]
+    assert authed.get(f"/api/m/tasks/{a['id']}").json()["duration_minutes"] is None  # nothing applied yet
+
+    script += [oa_text("Gotowe: Raport o 13:00, Telefon o 15:00.")]
+    authed.post("/api/m/assistant/chat/calls/u1", json={"approve": True, "tz": "Europe/Warsaw"})
+    assert authed.get(f"/api/m/tasks/{a['id']}").json()["priority"] == "high"
+    assert authed.get(f"/api/m/tasks/{b['id']}").json()["duration_minutes"] is None  # the second is still waiting
+    state = authed.post("/api/m/assistant/chat/calls/u2", json={"approve": True, "tz": "Europe/Warsaw"}).json()
+    assert authed.get(f"/api/m/tasks/{b['id']}").json()["duration_minutes"] == 15
+    assert state["messages"][-1]["text"].startswith("Gotowe")
+
+
+def test_prompt_covers_priorities_and_planning(authed, model):
+    script, seen, use = model
+    use("openai")
+    script += [oa_text("ok")]
+    send(authed, "cześć")
+    prompt = _system_prompt(seen)
+    assert "tasks__update_task" in prompt and "Planowanie dnia" in prompt and "calendar__delete_event" in prompt

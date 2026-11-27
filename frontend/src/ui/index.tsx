@@ -265,3 +265,4 @@ export const Terminal = (props: import("./terminal/TerminalView").TerminalProps)
 
 export { ConfirmHost, confirmDialog, CreateFrom, ItemPicker, ItemTags, MODULE_LABEL, RelatedPanel, TagEditor } from "./related";
 export type { PickedItem } from "./related";
+export { autofillTask } from "./autofill";

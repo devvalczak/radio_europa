@@ -1,5 +1,5 @@
 import { api, ApiError, clearHashParams, notifyChanged, useHashParam } from "@jarvis/sdk";
-import { Button, Card, ErrorText, PageTitle, Tabs, toast } from "@jarvis/ui";
+import { autofillTask, Button, Card, ErrorText, PageTitle, Tabs, toast } from "@jarvis/ui";
 import { useEffect, useRef, useState } from "react";
 import { errorText, t } from "./i18n";
 
@@ -102,6 +102,8 @@ export function Capture() {
         await api("/hub/tags", { method: "PUT", body: { ref: `${module}:${itemId}`, tags: parsed.tags } }).catch(() => toast(t.capture.tagsFailed, { tone: "error" }));
       }
       const id = ["notes", "tasks", "calendar"].includes(module) ? itemId : undefined;
+      // a task written without a priority or a length: the AI (if configured) suggests them, with "Cofnij"
+      if (module === "tasks" && itemId && parsed.priority !== "high" && parsed.priority !== "low" && !parsed.duration_minutes) void autofillTask(itemId, () => notifyChanged("tasks"));
       toast(t.capture.saved[parsed.kind], { action: { label: t.quick.open, run: () => (window.location.hash = `#/${module}${id ? `?id=${id}` : ""}`) } });
       setText("");
       setKind(null);

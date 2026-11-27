@@ -94,6 +94,12 @@ Po analizie kodu i przejściu przez uruchomioną aplikację (desktop + telefon) 
   API `/api/hub/links|tags|agenda`, moduł `links` (strona z tagami + akcje dla asystenta), panel „Powiązane” (notatki, zadania, kalendarz, poczta,
   zakupy), `[[` w notatkach, `#tag` w „Dodaj zdaniem”, „Utwórz z…” (poczta, notatka), nakładka zadań w kalendarzu, `GET /{id}` i `?id=` w zakupach
   i alarmach, wyszukiwanie alarmów. Testy: `test_links.py`, `test_agenda.py`, `test_capture.py`.
+- **Druga tura (UX i AI w istniejących miejscach, bez nowych modułów/ekranów):** zadania mają priorytet (wysoki/normalny/niski, `important` = wysoki)
+  i czas trwania (migracja 0015); `tasks.update_task` oraz `calendar.update_event`/`delete_event` (confirm) dla asystenta; „Dodaj zdaniem” rozpoznaje
+  priorytet i czas („pilne”, „mało ważne”, „na 2 h”); przycisk „+” w pasku telefonu; `POST /api/m/tasks/{id}/autofill` (AI uzupełnia tylko domyślny
+  priorytet i czas, po cichu, z „Cofnij”; tylko gdy AI skonfigurowane); „Zaplanuj dzień” w kafelku „Dzisiaj” otwiera asystenta (`#/assistant?ask=…`),
+  zbiorcze „Wykonaj wszystkie”; strona modułu `links` usunięta (zostały akcje dla asystenta). **Całe AI sprawdzone tylko na nagranych odpowiedziach** —
+  użytkownik nie ma jeszcze klucza dostawcy.
 - **Nie zrobione / na później:** „Dzisiaj” w briefie nadal składa się z `BUILDERS` (nie z agendy); `#/today` został jako osobny ekran; „Utwórz z…”
   w newsach (artykuły nie mają `resolve`); kalendarz nie tworzy wydarzeń cyklicznych; nie sprawdzone na prawdziwym telefonie ani w E2E. Link do maila
   znika, gdy cache poczty usunie wiadomość (best effort).

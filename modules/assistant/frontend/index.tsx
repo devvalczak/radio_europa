@@ -1,4 +1,4 @@
-import { ApiError, createT, moduleApi, ModuleDef, notifyChanged } from "@jarvis/sdk";
+import { api as hubApi, ApiError, clearHashParams, createT, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
 import { Button, Card, ErrorText, Muted, PageTitle, Row, confirmDialog, toast } from "@jarvis/ui";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import pl from "../locales/pl.json";
@@ -40,6 +40,8 @@ const HIDDEN = new Set(["tz"]); // filled in by the app, not worth the user's at
 function fmtValue(key: string, v: unknown, allDay: boolean): string {
   if (typeof v === "boolean") return v ? t("yes") : t("no");
   if (key === "repeat" && typeof v === "string") return t(`repeat.${v}`);
+  if (key === "priority" && typeof v === "string") return t(`pri.${v}`);
+  if (key === "duration_minutes" && typeof v === "number") return `${v} min`;
   if (typeof v === "string" && ISO.test(v) && !Number.isNaN(Date.parse(v))) {
     const d = new Date(v);
     return allDay
@@ -53,7 +55,22 @@ const fieldLabel = (k: string) => {
   return label === `field.${k}` ? k : label;
 };
 
+// what an existing item is called, so "Numer: 5" becomes the title the user knows (update/complete/delete cards)
+const ITEM_ROUTE: Record<string, string> = {
+  "tasks.update_task": "/m/tasks", "tasks.complete_task": "/m/tasks", "calendar.update_event": "/m/calendar", "calendar.delete_event": "/m/calendar",
+};
+function useItemTitle(action: string | null, id: unknown): string {
+  const [title, setTitle] = useState("");
+  useEffect(() => {
+    const route = action ? ITEM_ROUTE[action] : undefined;
+    if (!route || typeof id !== "number") return;
+    hubApi<{ title: string }>(`${route}/${id}`).then((x) => setTitle(x.title)).catch(() => undefined);
+  }, [action, id]);
+  return title;
+}
+
 function CallLine({ c, busy, decide }: { c: Call; busy: boolean; decide: (id: string, ok: boolean) => void }) {
+  const itemTitle = useItemTitle(c.action, (c.input ?? {}).id); // a hook: before any early return
   const what = `${c.module ?? "?"}: ${short(c.description)}`;
   if (c.state !== "pending") {
     const mark = { done: "✓", auto: "✓", rejected: "✕", failed: "!" }[c.state];
@@ -62,11 +79,11 @@ function CallLine({ c, busy, decide }: { c: Call; busy: boolean; decide: (id: st
   }
   const input = c.input ?? {};
   const allDay = input.all_day === true;
-  const entries = Object.entries(input).filter(([k, v]) => !HIDDEN.has(k) && !(k === "all_day" && v === false) && v !== null && v !== "");
+  const entries = Object.entries(input).filter(([k, v]) => !HIDDEN.has(k) && !(k === "id" && itemTitle) && !(k === "all_day" && v === false) && v !== null && v !== "");
   return (
     <div className="chat-confirm" role="group" aria-label={t("confirmTitle")}>
       <b>{t("confirmTitle")}</b>
-      <span>{what}</span>
+      <span>{what}{itemTitle ? ` — „${itemTitle}”` : ""}</span>
       {entries.length > 0 && (
         <dl>
           {entries.map(([k, v]) => (
@@ -82,7 +99,7 @@ function CallLine({ c, busy, decide }: { c: Call; busy: boolean; decide: (id: st
   );
 }
 
-function ChatPanel({ compact = false }: { compact?: boolean }) {
+function ChatPanel({ compact = false, ask }: { compact?: boolean; ask?: string | null }) {
   const [state, setState] = useState<State | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -123,6 +140,31 @@ function ChatPanel({ compact = false }: { compact?: boolean }) {
     setState((s) => s && { ...s, messages: [...s.messages, { id: -1, role: "user", text: msg, at: new Date().toISOString() }] });
     void run(() => api.post<State>("/chat", { text: msg, tz: tz() }));
   };
+  // "Zaplanuj dzień" and similar buttons open the assistant with a ready question (#/assistant?ask=…): send it once
+  const asked = useRef(false);
+  useEffect(() => {
+    if (!ask || asked.current || !state || !state.ai.configured || busy) return;
+    asked.current = true;
+    clearHashParams();
+    send(ask);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ask, state]);
+  const approveAll = async (ids: string[]) => {
+    // one click for a whole plan: the calls are approved one after another; the model continues after the last one
+    setBusy(true);
+    setErr("");
+    try {
+      const before = state;
+      let s: State | null = null;
+      for (const id of ids) s = await api.post<State>(`/chat/calls/${id}`, { approve: true, tz: tz() });
+      if (s) apply(s, before);
+    } catch {
+      setErr(t("sendFailed"));
+      api.get<State>("/chat").then(setState).catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  };
   const decide = (id: string, approve: boolean) => void run(() => api.post<State>(`/chat/calls/${id}`, { approve, tz: tz() }));
   const clear = async () => {
     if (!(await confirmDialog(t("confirmClear")))) return;
@@ -144,7 +186,8 @@ function ChatPanel({ compact = false }: { compact?: boolean }) {
         <a href="#/debug">{t("offLink")}</a>
       </div>
     );
-  const pending = state.messages.some((m) => m.calls?.some((c) => c.state === "pending"));
+  const pendingIds = state.messages.flatMap((m) => m.calls ?? []).filter((c) => c.state === "pending").map((c) => c.id);
+  const pending = pendingIds.length > 0;
 
   return (
     <div className={`chat ${compact ? "compact" : ""}`}>
@@ -169,6 +212,11 @@ function ChatPanel({ compact = false }: { compact?: boolean }) {
         {busy && <div className="chat-msg assistant"><div className="chat-bubble typing">{t("thinking")}</div></div>}
       </div>
       <ErrorText>{err}</ErrorText>
+      {pendingIds.length > 1 && (
+        <Row>
+          <Button variant="primary" disabled={busy} onClick={() => void approveAll(pendingIds)}>{t("approveAll", { n: pendingIds.length })}</Button>
+        </Row>
+      )}
       <div className="chat-input">
         <textarea rows={compact ? 1 : 2} value={text} maxLength={4000} placeholder={pending ? t("placeholderPending") : compact ? t("placeholderShort") : t("placeholder")}
           aria-label={t("placeholder")} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} />
@@ -185,10 +233,11 @@ function ChatPanel({ compact = false }: { compact?: boolean }) {
 }
 
 function Page() {
+  const ask = useHashParam("ask");
   return (
     <>
       <PageTitle sub={t("subtitle")}>{t("title")}</PageTitle>
-      <Card className="chat-page"><ChatPanel /></Card>
+      <Card className="chat-page"><ChatPanel ask={ask} /></Card>
     </>
   );
 }

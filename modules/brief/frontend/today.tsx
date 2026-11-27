@@ -18,6 +18,10 @@ export function TodayTile() {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [events, setEvents] = useState<Ev[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [aiOn, setAiOn] = useState(false); // the plan button needs the AI assistant: shown only when it is configured
+  useEffect(() => {
+    api<{ configured: boolean }>("/system/ai").then((r) => setAiOn(r.configured)).catch(() => setAiOn(false));
+  }, []);
 
   const load = useCallback(() => {
     Promise.all([call<Task[]>("tasks.list_tasks", { scope: "open", limit: 100 }), call<Ev[]>("calendar.list_events", { days: 2 })])
@@ -84,6 +88,11 @@ export function TodayTile() {
 
   return (
     <div className="stack today-tile">
+      {aiOn && (
+        <div className="row">
+          <Button onClick={() => (window.location.hash = `#/assistant?ask=${encodeURIComponent(t("today.planPrompt"))}`)}>{t("today.plan")}</Button>
+        </div>
+      )}
       <section aria-label={t("today.tasks")}>
         <h3 className="eyebrow">{t("today.tasks")}</h3>
         {myTasks.length === 0 ? (
