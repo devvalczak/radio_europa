@@ -1,5 +1,5 @@
 import { ApiError, createT, moduleApi, ModuleDef } from "@jarvis/sdk";
-import { Button, Card, ErrorText, Muted, PageTitle, Row, Tag } from "@jarvis/ui";
+import { Button, Card, ErrorText, Menu, Muted, PageTitle, Row, Tag } from "@jarvis/ui";
 import { useCallback, useEffect, useState } from "react";
 import pl from "../locales/pl.json";
 
@@ -63,30 +63,31 @@ function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; s
 
   const loadAlts = () => api.get<Product[]>(`/${item.id}/alternatives`).then(setAlts).catch(() => setError(t("shopFailed")));
 
+  const price = item.product ? `${item.quantity} × ${money(item.product.price_cents)} = ${money(item.subtotal_cents)}` : t("unmatched");
   return (
-    <Card>
-      <Row between>
-        <Row>
-          <Thumb src={item.product?.image_url} size={64} />
-          <div style={{ opacity: item.done ? 0.5 : 1 }}>
-            <b>{item.product ? <a href={item.product.url} target="_blank" rel="noreferrer">{item.product.name}</a> : item.query}</b>
-            <div className="muted">
-              {item.product ? `${item.quantity} × ${money(item.product.price_cents)} = ${money(item.subtotal_cents)}` : t("unmatched")}
-              {item.added_by && ` · ${t("addedBy", { who: item.added_by })}`}
-            </div>
-          </div>
-        </Row>
-        <Row>
-          <Button onClick={() => run(api.put(`/${item.id}`, { done: !item.done }))}>{item.done ? t("undo") : t("done")}</Button>
-          <Button onClick={() => setEditing(!editing)}>{t("edit")}</Button>
-          <Button
-            variant="danger"
-            onClick={() => window.confirm(t("confirmDelete")) && run(api.del(`/${item.id}`))}
-          >
-            {t("delete")}
-          </Button>
-        </Row>
-      </Row>
+    <li className="shop-item">
+      <input
+        type="checkbox"
+        checked={item.done}
+        aria-label={item.done ? t("undo") : t("done")}
+        onChange={() => run(api.put(`/${item.id}`, { done: !item.done }))}
+      />
+      {item.product?.image_url && <Thumb src={item.product.image_url} size={40} />}
+      <div className="task-main" style={{ opacity: item.done ? 0.5 : 1, textDecoration: item.done ? "line-through" : undefined }}>
+        <b>{item.product ? <a href={item.product.url} target="_blank" rel="noreferrer">{item.product.name}</a> : item.query}</b>
+        <span className="muted">
+          {item.product ? price : `${item.quantity} szt. · ${t("unmatched")}`}
+          {item.added_by && ` · ${t("addedBy", { who: item.added_by })}`}
+        </span>
+      </div>
+      <Menu
+        label={`${t("more")}: ${item.query}`}
+        trigger="⋯"
+        entries={[
+          { type: "item", label: t("edit"), onSelect: () => setEditing(!editing) },
+          { type: "item", label: t("delete"), danger: true, onSelect: () => window.confirm(t("confirmDelete")) && void run(api.del(`/${item.id}`)) },
+        ]}
+      />
       {editing && (
         <div className="stack">
           <Row>
@@ -113,7 +114,7 @@ function ItemRow({ item, reload, setError }: { item: Item; reload: () => void; s
           </Row>
         </div>
       )}
-    </Card>
+    </li>
   );
 }
 
@@ -227,10 +228,12 @@ function Page() {
         </Card>
       )}
 
-      <div className="stack">
-        {data?.items.map((i) => <ItemRow key={i.id} item={i} reload={load} setError={setError} />)}
+      <Card>
+        <ul className="task-list">
+          {data?.items.map((i) => <ItemRow key={i.id} item={i} reload={load} setError={setError} />)}
+        </ul>
         {data && data.items.length === 0 && <Muted>{t("none")}</Muted>}
-      </div>
+      </Card>
     </>
   );
 }

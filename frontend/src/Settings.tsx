@@ -1,5 +1,5 @@
 import { api, ApiError } from "@jarvis/sdk";
-import { PageTitle, Switch } from "@jarvis/ui";
+import { Button, PageTitle, Switch } from "@jarvis/ui";
 import { useEffect, useState } from "react";
 import type { AuthStatus } from "./App";
 import { errorText, t } from "./i18n";
@@ -7,6 +7,8 @@ import { getHome, setHome } from "./homeRoute";
 import { enablePush, pushSupported } from "./push";
 import type { ModuleInfo } from "./Shell";
 import { Backups } from "./Backups";
+import { isDefaultTabbar, resetTabbar, setTabbar, TAB_MAX, tabbarIds, useTabbarVersion } from "./tabbar";
+import { frontendModules } from "./registry";
 import { applyTheme, currentTheme, listThemes, loadTheme, ThemeInfo } from "./theme";
 
 export function Settings({ status, onChange, modules }: { status: AuthStatus; onChange: () => void; modules: ModuleInfo[] }) {
@@ -14,6 +16,13 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
   const [theme, setTheme] = useState(currentTheme());
   const [msg, setMsg] = useState("");
   const [homeToday, setHomeToday] = useState(getHome() === "today");
+  const tabVersion = useTabbarVersion();
+  const tabPages = [
+    { id: "dashboard", name: t.dashboard },
+    { id: "today", name: t.today.title },
+    ...modules.filter((m) => m.status === "ok" && frontendModules[m.id]).map((m) => ({ id: m.id, name: m.name })),
+  ];
+  const pinned = tabbarIds(tabPages.map((p) => p.id), tabVersion);
   const [totp, setTotp] = useState<{ secret: string; uri: string } | null>(null);
   const [code, setCode] = useState("");
   const [ai, setAi] = useState<{ configured: boolean; provider: string | null; model: string | null; host: string | null } | null>(null);
@@ -50,6 +59,25 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
           label={t.today.homeToday}
         />
         <p className="muted">{t.today.homeHint}</p>
+      </section>
+      <section className="card stack">
+        <h2>{t.tabbar.title}</h2>
+        <p className="muted">{t.tabbar.hint(TAB_MAX)}</p>
+        {tabPages.map((p) => (
+          <Switch
+            key={p.id}
+            checked={pinned.includes(p.id)}
+            disabled={!pinned.includes(p.id) && pinned.length >= TAB_MAX}
+            onChange={(v) => setTabbar(v ? [...pinned, p.id] : pinned.filter((x) => x !== p.id))}
+            label={p.name}
+          />
+        ))}
+        {pinned.length >= TAB_MAX && <small className="muted">{t.tabbar.full}</small>}
+        {!isDefaultTabbar() && (
+          <div>
+            <Button onClick={resetTabbar}>{t.tabbar.reset}</Button>
+          </div>
+        )}
       </section>
       <section className="card stack">
         <h2>{t.theme}</h2>

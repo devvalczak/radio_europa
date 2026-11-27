@@ -88,10 +88,12 @@ export function Capture() {
     setBusy(true);
     setError("");
     try {
-      await api(`/hub/actions/${parsed.action}`, { method: "POST", body: { input: parsed.input } });
+      const res = await api<{ result?: { id?: number } }>(`/hub/actions/${parsed.action}`, { method: "POST", body: { input: parsed.input } });
       const module = parsed.action.split(".")[0];
       notifyChanged(module);
-      toast(t.capture.saved[parsed.kind], { action: { label: t.quick.open, run: () => (window.location.hash = `#/${module}`) } });
+      // these pages open a single item from ?id= (the others only open the page)
+      const id = ["notes", "tasks", "calendar"].includes(module) ? res?.result?.id : undefined;
+      toast(t.capture.saved[parsed.kind], { action: { label: t.quick.open, run: () => (window.location.hash = `#/${module}${id ? `?id=${id}` : ""}`) } });
       setText("");
       setKind(null);
       setParsed(null);
@@ -125,6 +127,16 @@ export function Capture() {
           {Rec && <Button type="button" onClick={dictate} disabled={listening}>{listening ? t.capture.listening : t.capture.dictate}</Button>}
         </div>
         <p className="muted">{t.capture.hint}</p>
+        {!text.trim() && (
+          <div className="stack">
+            <small className="muted">{t.capture.examplesLabel}</small>
+            <div className="row">
+              {t.capture.examples.map((ex) => (
+                <Button key={ex} type="button" onClick={() => { setText(ex); setAiMode(false); }}>{ex}</Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {parsed && (
           <Card title={t.capture.preview}>
@@ -149,7 +161,7 @@ export function Capture() {
               </div>
             )}
             <div className="row">
-              <Button type="submit" disabled={busy || !!parsed.problem}>{t.capture.save}</Button>
+              <Button type="submit" variant="primary" disabled={busy || !!parsed.problem}>{t.capture.save}</Button>
             </div>
           </Card>
         )}

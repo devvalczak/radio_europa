@@ -102,5 +102,8 @@
   "sync.removed": "Odłączono kalendarz",
   "sync.loadFailed": "Nie udało się wczytać kalendarzy zewnętrznych.",
   "sync.readOnlyEvent": "Tylko do odczytu — zmień je w oryginalnym kalendarzu (iCal albo seria powtarzających się wydarzeń).",
-  "sync.syncedEvent": "Zmiany trafią też do tego kalendarza przy najbliższej synchronizacji."
+  "sync.syncedEvent": "Zmiany trafią też do tego kalendarza przy najbliższej synchronizacji.",
+  "syncSettings.open": "Synchronizacja i kalendarze zewnętrzne",
+  "syncSettings.close": "Ukryj synchronizację",
+  "syncSettings.hint": "Podłącz Google, iCloud lub Nextcloud albo subskrybuj ten kalendarz w telefonie."
 }

@@ -9,7 +9,7 @@
   "items": "Pozycji: {n}",
   "delivery": "Dostawa: {text}",
   "deliveryNone": "Termin dostawy: brak danych",
-  "unmatched": "Nie znaleziono w EMMA",
+  "unmatched": "Bez dopasowanego produktu",
   "noPrice": "brak ceny",
   "edit": "Edytuj",
   "save": "Zapisz",
@@ -31,5 +31,6 @@
   "close": "Zamknij",
   "loadFailed": "Nie udało się wczytać listy.",
   "saveFailed": "Nie udało się zapisać.",
-  "shopFailed": "Sklep EMMA jest teraz niedostępny."
+  "shopFailed": "Sklep EMMA jest teraz niedostępny.",
+  "more": "Więcej o pozycji"
 }

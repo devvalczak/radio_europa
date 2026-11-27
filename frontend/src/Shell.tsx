@@ -14,6 +14,7 @@ import { System } from "./System";
 import { Capture } from "./Capture";
 import { Today } from "./Today";
 import { homeRoute } from "./homeRoute";
+import { tabbarIds, useTabbarVersion } from "./tabbar";
 
 export interface ModuleInfo {
   id: string;
@@ -57,6 +58,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
   const route = useRoute();
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [drawer, setDrawer] = useState(false);
+  const tabVersion = useTabbarVersion(); // Settings changes the bar from another tree
 
   useEffect(() => {
     installErrorReporting(); // the shell renders only after login: the report endpoint needs a session
@@ -74,9 +76,15 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
     .filter((x): x is { m: ModuleInfo; def: ModuleDef } => !!x.def);
   const active = mods.find((x) => x.m.id === route);
   const icon = (m: ModuleInfo) => <ModuleIcon id={m.has_icon ? m.id : ""} />;
-  // phone tab bar: today + dashboard + first two apps + "more" (app drawer with everything)
-  const tabMods = mods.slice(0, 2);
-  const inDrawer = !["dashboard", "today", ...tabMods.map((x) => x.m.id)].includes(route);
+  // phone tab bar: the pages the user pinned in Settings (default: dashboard, tasks, calendar, notes) + "more" (app drawer)
+  const tabItems = tabbarIds(["dashboard", "today", ...mods.map((x) => x.m.id)], tabVersion).map((id) => {
+    const found = mods.find((x) => x.m.id === id);
+    if (found) return { id, label: found.m.name, el: icon(found.m) };
+    return id === "today"
+      ? { id, label: t.today.title, el: <span className="glyph" aria-hidden>☀</span> }
+      : { id, label: t.dashboard, el: <span className="glyph" aria-hidden>◎</span> };
+  });
+  const inDrawer = !tabItems.some((x) => x.id === route);
 
   return (
     <div className="shell">
@@ -144,18 +152,10 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       </main>
 
       <nav className="tabbar" aria-label={t.apps}>
-        <a href="#/today" className={route === "today" ? "on" : ""}>
-          <span className="glyph" aria-hidden>☀</span>
-          <span className="lbl">{t.today.title}</span>
-        </a>
-        <a href="#/dashboard" className={route === "dashboard" ? "on" : ""}>
-          <span className="glyph" aria-hidden>◎</span>
-          <span className="lbl">{t.dashboard}</span>
-        </a>
-        {tabMods.map(({ m }) => (
-          <a key={m.id} href={`#/${m.id}`} className={route === m.id ? "on" : ""}>
-            {icon(m)}
-            <span className="lbl">{m.name}</span>
+        {tabItems.map((x) => (
+          <a key={x.id} href={`#/${x.id}`} className={route === x.id ? "on" : ""} aria-current={route === x.id ? "page" : undefined}>
+            {x.el}
+            <span className="lbl">{x.label}</span>
           </a>
         ))}
         <button className={`bare ${inDrawer ? "on" : ""}`} onClick={() => setDrawer(true)} aria-haspopup="dialog">
@@ -169,12 +169,23 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       <Palette modules={modules} />
 
       <Dialog open={drawer} onClose={() => setDrawer(false)} title={t.apps}>
+        <div className="nav-label">{t.apps}</div>
         <div className="app-grid">
-          {[...mods.map(({ m }) => ({ id: m.id, label: m.name, el: icon(m) })),
-            ...CORE.map((c) => ({ id: c.id, label: c.label(), el: <span aria-hidden>{c.glyph}</span> }))].map((x) => (
+          {[{ id: "today", label: t.today.title, el: <span aria-hidden>☀</span> },
+            { id: "dashboard", label: t.dashboard, el: <span aria-hidden>◎</span> },
+            ...mods.map(({ m }) => ({ id: m.id, label: m.name, el: icon(m) }))].map((x) => (
             <a key={x.id} href={`#/${x.id}`} className={route === x.id ? "on" : ""}>
               <span className="app-tile">{x.el}</span>
               {x.label}
+            </a>
+          ))}
+        </div>
+        <div className="nav-label">{t.system}</div>
+        <div className="app-grid">
+          {CORE.map((c) => (
+            <a key={c.id} href={`#/${c.id}`} className={route === c.id ? "on" : ""}>
+              <span className="app-tile"><span aria-hidden>{c.glyph}</span></span>
+              {c.label()}
             </a>
           ))}
         </div>

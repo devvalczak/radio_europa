@@ -43,6 +43,7 @@ function Page() {
   const [anchor, setAnchor] = useState(() => new Date());
   const [day, setDay] = useState(() => new Date());
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [showSync, setShowSync] = useState(false);
   const [draft, setDraft] = useState<ReturnType<typeof emptyDraft> | null>(null);
   const [error, setError] = useState("");
 
@@ -204,8 +205,21 @@ function Page() {
         </Card>
       )}
       <ErrorText>{error}</ErrorText>
-      <ExternalCalendars onChange={load} />
-      <PhoneSync />
+      {/* sync setup is rare: collapsed by default so the page stays about the days */}
+      {showSync ? (
+        <>
+          <ExternalCalendars onChange={load} />
+          <PhoneSync />
+          <Button onClick={() => setShowSync(false)}>{t("syncSettings.close")}</Button>
+        </>
+      ) : (
+        <Card>
+          <Row between>
+            <Muted>{t("syncSettings.hint")}</Muted>
+            <Button onClick={() => setShowSync(true)}>{t("syncSettings.open")}</Button>
+          </Row>
+        </Card>
+      )}
     </>
   );
 }

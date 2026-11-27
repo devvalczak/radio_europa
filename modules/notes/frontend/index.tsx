@@ -1,4 +1,4 @@
-import { ApiError, clearHashParams, createT, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
+import { ApiError, clearHashParams, createT, hashParam, moduleApi, ModuleDef, notifyChanged, useHashParam } from "@jarvis/sdk";
 import { Button, Card, ErrorText, MarkdownEditor, Muted, PageTitle, Row, Switch, Tag, toast } from "@jarvis/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import pl from "../locales/pl.json";
@@ -39,8 +39,19 @@ function Page() {
   draftRef.current = draft;
   const saving = useRef<Promise<void> | null>(null);
 
+  const firstLoad = useRef(true);
   const load = useCallback(() => {
-    api.get<Note[]>("", { q, tag }).then(setNotes).catch(() => setError(t("loadFailed")));
+    api.get<Note[]>("", { q, tag }).then((list) => {
+      setNotes(list);
+      // opening Notes shows the note you edited last, not an empty editor (a deep link or a search wins)
+      if (firstLoad.current && !q && !tag && !selRef.current && !hashParam("id") && list.length > 0) {
+        const last = list.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
+        setSel(last);
+        setDraft({ content: last.content, tags: last.tags.join(", "), pinned: last.pinned });
+        setEditorKey((k) => k + 1);
+      }
+      firstLoad.current = false;
+    }).catch(() => setError(t("loadFailed")));
   }, [q, tag]);
 
   useEffect(() => {
@@ -149,7 +160,10 @@ function Page() {
             {notes.map((n) => (
               <Button key={n.id} className={`item ${sel?.id === n.id ? "on" : ""}`} onClick={() => void open(n)}>
                 <b>{n.pinned ? "📌 " : ""}{n.title || t("noTitle")}</b>
-                {n.snippet && <span className="muted">{n.snippet}</span>}
+                <span className="muted">
+                  {new Date(n.updated_at).toLocaleDateString("pl-PL", { day: "numeric", month: "short" })}
+                  {n.snippet ? ` · ${n.snippet}` : ""}
+                </span>
               </Button>
             ))}
             {notes.length === 0 && <Muted>{q || tag ? t("noMatch") : t("none")}</Muted>}

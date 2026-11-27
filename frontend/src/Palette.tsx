@@ -126,7 +126,8 @@ export function Palette({ modules }: { modules: ModuleInfo[] }) {
     const capture: Command[] = text.length >= 3
       ? [{ id: "capture:text", group: t.palette.create, label: `${t.capture.open}: ${text}`, run: () => (window.location.hash = `#/capture?text=${encodeURIComponent(text)}`) }]
       : [];
-    return [...local, ...capture, ...results];
+    // search results before the "add as a sentence" fallback, so Enter opens what you typed for
+    return [...local, ...results, ...capture];
   }, [commands, q, found]);
 
   const run = (c: Command | undefined) => {
