@@ -127,6 +127,7 @@ export function Shell({ status, onChange }: { status: AuthStatus; onChange: () =
       <header className="topbar">
         <Brand />
         <span className="grow" />
+        <a href="#/capture" className="topbar-btn add-btn" aria-label={t.capture.open}>+</a>
         <button className="bare topbar-btn" onClick={openPalette} aria-label={t.palette.search}>⌕</button>
         <a href="#/settings" className="avatar" aria-label={t.settings}>{(status.username ?? "?").slice(0, 1).toUpperCase()}</a>
       </header>

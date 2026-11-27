@@ -319,8 +319,8 @@ button.search-btn { display: flex; align-items: center; gap: 10px; margin: 0 0 1
   background: var(--panel-2); border: var(--border-width) solid var(--line); color: var(--muted); font: 500 13.5px/1.2 var(--font); cursor: pointer; text-align: left; }
 button.search-btn:hover { color: var(--text); border-color: var(--border); }
 button.search-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-button.topbar-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--text); font-size: 20px; cursor: pointer; margin-right: 6px; }
-button.topbar-btn:focus-visible { outline: 2px solid var(--focus); }
+button.topbar-btn, a.topbar-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--text); font-size: 20px; cursor: pointer; margin-right: 6px; }
+button.topbar-btn:focus-visible, a.topbar-btn:focus-visible { outline: 2px solid var(--focus); }
 
 /* menu (Radix dropdown) */
 .ui-menu { z-index: 50; min-width: 220px; padding: 6px; display: flex; flex-direction: column; gap: 1px; animation: fade .12s; }
@@ -637,3 +637,5 @@ button.term-key:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .alarm-row.marked { background: var(--accent-soft); box-shadow: var(--glow); }
 
 .ui-menu-wide { white-space: nowrap; }
+
+a.add-btn { background: var(--accent); color: var(--accent-contrast); font-size: 24px; line-height: 1; text-decoration: none; }

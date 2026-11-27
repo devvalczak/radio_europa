@@ -11,6 +11,8 @@ interface Parsed {
   due: string | null;
   all_day: boolean;
   important: boolean;
+  priority?: "high" | "normal" | "low";
+  duration_minutes?: number | null;
   repeat: string | null;
   tags?: string[];
   ai: boolean;
@@ -19,6 +21,7 @@ interface Parsed {
   input: Record<string, unknown>;
 }
 
+const durText = (m: number) => (m % 60 === 0 ? `${m / 60} h` : m > 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const when = (p: Parsed) =>
   p.due
@@ -153,8 +156,12 @@ export function Capture() {
               items={(["task", "event", "shopping", "note"] as Kind[]).map((k) => ({ value: k, label: t.capture.kinds[k] }))}
             />
             <p><b>{parsed.title}</b></p>
-            {parsed.due && <p className="muted">{when(parsed)}{parsed.important ? ` · ${t.today.important}` : ""}{parsed.repeat ? ` · ${t.capture.repeats[parsed.repeat] ?? ""}` : ""}</p>}
-            {!parsed.due && parsed.important && <p className="muted">{t.today.important}</p>}
+            {parsed.due && <p className="muted">{when(parsed)}{parsed.repeat ? ` · ${t.capture.repeats[parsed.repeat] ?? ""}` : ""}</p>}
+            {(parsed.priority && parsed.priority !== "normal" || parsed.duration_minutes) && (
+              <p className="muted">
+                {[parsed.priority === "high" ? t.capture.priHigh : parsed.priority === "low" ? t.capture.priLow : "", parsed.duration_minutes ? durText(parsed.duration_minutes) : ""].filter(Boolean).join(" · ")}
+              </p>
+            )}
             {parsed.tags && parsed.tags.length > 0 && <p className="muted">{parsed.tags.map((x) => `#${x}`).join(" ")}</p>}
             {parsed.input.quantity != null && Number(parsed.input.quantity) > 1 && <p className="muted">{t.capture.quantity(Number(parsed.input.quantity))}</p>}
             {parsed.problem && <p className="error">{t.capture.noDate}</p>}

@@ -71,7 +71,7 @@ def test_action_payloads():
     assert r["action"] == "calendar.create_event"
     assert r["input"] == {"title": "Dentysta", "start": "2026-11-27T08:00:00Z", "all_day": False}
     t = run("w piątek zapłacić za prąd !")
-    assert t["action"] == "tasks.add_task" and t["input"]["important"] is True and t["input"]["all_day"] is True
+    assert t["action"] == "tasks.add_task" and t["input"]["priority"] == "high" and t["important"] is True and t["input"]["all_day"] is True
 
 
 def test_title_never_empty():
@@ -108,3 +108,29 @@ def test_hash_words_become_tags_and_leave_the_title():
     assert run("#tylkotag")["tags"] == []  # nothing else written: kept as the text itself
     assert run("numer #5 w kolejce")["tags"] == []  # "#5" is not a tag
     assert run("notatka: pomysł #praca")["tags"] == ["praca"]
+
+
+@pytest.mark.parametrize("text,priority,duration,title", [
+    ("jutro 9 raport pilne na 2 h", "high", 120, "Raport"),
+    ("napisać raport na 90 min", "normal", 90, "Napisać raport"),
+    ("napisać raport na godzinę", "normal", 60, "Napisać raport"),
+    ("wyjście na pół godziny", "normal", 30, "Wyjście"),
+    ("praca nad umową na 1,5 h", "normal", 90, "Praca nad umową"),
+    ("posprzątać garaż mało ważne", "low", None, "Posprzątać garaż"),
+    ("zadzwonić do banku niski priorytet na 15 min", "low", 15, "Zadzwonić do banku"),
+    ("wysoki priorytet oddać wniosek", "high", None, "Oddać wniosek"),
+    ("zapłacić rachunek !!", "high", None, "Zapłacić rachunek"),
+    ("zadzwonić za 30 min", "normal", None, "Zadzwonić"),  # "za 30 min" is a time, not a length
+])
+def test_priority_and_duration_in_the_sentence(text, priority, duration, title):
+    r = run(text)
+    assert (r["priority"], r["duration_minutes"], r["title"]) == (priority, duration, title)
+    assert r["important"] is (priority == "high")
+
+
+def test_task_payload_carries_priority_and_duration_and_events_get_an_end():
+    t = run("jutro napisać raport pilne na 2 h")
+    assert t["input"]["priority"] == "high" and t["input"]["duration_minutes"] == 120
+    e = run("jutro o 9 spotkanie na 45 min")
+    assert e["kind"] == "event" and e["input"]["end"] == "2026-11-27T08:45:00Z"
+    assert "duration_minutes" not in e["input"]

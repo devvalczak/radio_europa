@@ -14,7 +14,9 @@ class Task(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
     due: Mapped[datetime | None] = mapped_column(DateTime, default=None, index=True)  # naive UTC
     all_day: Mapped[bool] = mapped_column(Boolean, default=False)  # due is a date (midnight in the user's zone)
-    important: Mapped[bool] = mapped_column(Boolean, default=False)
+    important: Mapped[bool] = mapped_column(Boolean, default=False)  # derived: priority == "high" (kept for older code and the API)
+    priority: Mapped[str] = mapped_column(String(6), default="normal", server_default="normal")  # high | normal | low
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, default=None)  # estimated length, for planning the day
     remind_minutes: Mapped[int | None] = mapped_column(Integer, default=None)  # before `due`; None = no reminder
     repeat: Mapped[str | None] = mapped_column(String(10), default=None)  # daily|weekdays|weekly|monthly|yearly
     repeat_tz: Mapped[str] = mapped_column(String(64), default="Europe/Warsaw")  # zone the repeat is computed in

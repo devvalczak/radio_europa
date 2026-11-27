@@ -51,6 +51,15 @@
       "description": "Dodaje wydarzenie do kalendarza (start z strefą czasową, opcjonalnie koniec i przypomnienie)."
     },
     {
+      "name": "update_event",
+      "description": "Zmienia istniejące wydarzenie (id z list_events): tylko podane pola — tytuł, opis, początek (start ze strefą), koniec, all_day, remind_minutes. Przesunięcie początku zachowuje długość wydarzenia. Nie działa na wydarzenia tylko do odczytu."
+    },
+    {
+      "name": "delete_event",
+      "description": "Usuwa wydarzenie o podanym id (id z list_events); w kalendarzu zewnętrznym zniknie też tam. Nieodwracalne.",
+      "confirm": true
+    },
+    {
       "name": "list_events",
       "description": "Zwraca wydarzenia z najbliższych N dni.",
       "readonly": true

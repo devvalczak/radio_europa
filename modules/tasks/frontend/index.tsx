@@ -10,6 +10,8 @@ interface Task {
   due: string | null;
   all_day: boolean;
   important: boolean;
+  priority: "high" | "normal" | "low";
+  duration_minutes: number | null;
   remind_minutes: number | null;
   repeat: string | null;
   done: boolean;
@@ -26,7 +28,8 @@ interface Draft {
   time: string; // hh:mm
   remind: string; // "" = none, else minutes
   repeat: string; // "" = does not repeat
-  important: boolean;
+  priority: string; // high | normal | low
+  duration: string; // minutes, "" = unknown
 }
 
 const t = createT(pl);
@@ -37,7 +40,7 @@ const localTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 function blank(): Draft {
   const d = new Date(Date.now() + 86400_000);
-  return { id: null, title: "", notes: "", hasDue: false, allDay: true, date: localDate(d), time: "09:00", remind: "0", repeat: "", important: false };
+  return { id: null, title: "", notes: "", hasDue: false, allDay: true, date: localDate(d), time: "09:00", remind: "0", repeat: "", priority: "normal", duration: "" };
 }
 
 function toDraft(x: Task): Draft {
@@ -46,7 +49,8 @@ function toDraft(x: Task): Draft {
   return {
     id: x.id, title: x.title, notes: x.notes, hasDue: !!d, allDay: d ? x.all_day : b.allDay,
     date: d ? localDate(d) : b.date, time: d && !x.all_day ? localTime(d) : b.time,
-    remind: x.remind_minutes === null ? (d && !x.all_day ? "" : "0") : String(x.remind_minutes), repeat: x.repeat ?? "", important: x.important,
+    remind: x.remind_minutes === null ? (d && !x.all_day ? "" : "0") : String(x.remind_minutes), repeat: x.repeat ?? "", priority: x.priority ?? (x.important ? "high" : "normal"),
+    duration: x.duration_minutes ? String(x.duration_minutes) : "",
   };
 }
 
@@ -57,10 +61,13 @@ function toBody(d: Draft) {
     const [hh, mm] = d.allDay ? [0, 0] : d.time.split(":").map(Number);
     due = new Date(y, m - 1, day, hh, mm).toISOString(); // local midnight / local time, sent as UTC
   }
-  return { title: d.title, notes: d.notes, due, all_day: d.hasDue && d.allDay, important: d.important,
+  return { title: d.title, notes: d.notes, due, all_day: d.hasDue && d.allDay, priority: d.priority,
+    duration_minutes: d.duration ? Number(d.duration) : null,
     remind_minutes: d.remind === "" ? null : Number(d.remind),
     repeat: d.hasDue && d.repeat ? d.repeat : null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone };
 }
+
+const durText = (m: number) => (m % 60 === 0 ? `${m / 60} h` : m > 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 
 /** "jutro 09:00", "pt 14 lis", … in the viewer's timezone. */
 function fmtDue(x: Task): string {
@@ -220,7 +227,9 @@ function Page() {
                     ) : (
                       <span className={x.overdue ? "task-overdue" : "muted"}>{x.overdue ? `${t("overdue")} · ` : ""}{fmtDue(x)}</span>
                     )}
-                    {x.important && !x.done && <Tag>{t("important")}</Tag>}
+                    {x.priority === "high" && !x.done && <Tag>{t("important")}</Tag>}
+                    {x.priority === "low" && !x.done && <Tag>{t("lowTag")}</Tag>}
+                    {x.duration_minutes && !x.done && <span className="muted">{durText(x.duration_minutes)}</span>}
                     {x.repeat && !x.done && <Tag>{t("repeatTag_" + x.repeat)}</Tag>}
                   </span>
                 </button>
@@ -292,7 +301,22 @@ function Page() {
                 )}
               </>
             )}
-            <Switch checked={draft.important} onChange={(v) => set({ important: v })} label={t("fImportant")} />
+            <div className="row">
+              <Field label={t("fPriority")}>
+                <select value={draft.priority} onChange={(e) => set({ priority: e.target.value })}>
+                  <option value="high">{t("priHigh")}</option>
+                  <option value="normal">{t("priNormal")}</option>
+                  <option value="low">{t("priLow")}</option>
+                </select>
+              </Field>
+              <Field label={t("fDuration")}>
+                <select value={draft.duration} onChange={(e) => set({ duration: e.target.value })}>
+                  <option value="">{t("durNone")}</option>
+                  {[15, 30, 45, 60, 90, 120, 180, 240].map((m) => <option key={m} value={m}>{durText(m)}</option>)}
+                  {draft.duration && ![15, 30, 45, 60, 90, 120, 180, 240].includes(Number(draft.duration)) && <option value={draft.duration}>{durText(Number(draft.duration))}</option>}
+                </select>
+              </Field>
+            </div>
             {draft.id && <ItemTags itemRef={`tasks:${draft.id}`} />}
             <ErrorText>{formError}</ErrorText>
             {draft.id && <RelatedPanel itemRef={`tasks:${draft.id}`} onOpen={() => setDraft(null)} />}

@@ -27,6 +27,7 @@ from .recurrence import next_due
 router = APIRouter()  # /api/m/tasks, login required
 module = Module(router=router)
 
+PRIORITY_RANK = {"high": 0, "normal": 1, "low": 2}
 MAX_REMIND_MINUTES = 7 * 24 * 60
 STALE_AFTER = timedelta(hours=6)  # a reminder this late is not sent (e.g. the server was off)
 
@@ -36,7 +37,11 @@ class TaskIn(BaseModel):
     notes: str = Field(default="", max_length=10_000)
     due: AwareDatetime | None = None
     all_day: bool = False
-    important: bool = False
+    # None: "high" when the older `important` flag is set, else "normal". The labels are for the quick-add form.
+    priority: Literal["high", "normal", "low"] | None = Field(
+        default=None, json_schema_extra={"enumLabels": {"high": "Wysoki", "low": "Niski"}, "emptyLabel": "Normalny"})
+    important: bool = False  # older clients and sentences ("pilne"); `priority` wins when both are given
+    duration_minutes: int | None = Field(default=None, ge=1, le=24 * 60)  # estimated length, used to plan the day
     remind_minutes: int | None = Field(default=0, ge=0, le=MAX_REMIND_MINUTES)
     repeat: Literal["daily", "weekdays", "weekly", "monthly", "yearly"] | None = None  # needs a due date
     tz: str = Field(default="Europe/Warsaw", max_length=64)  # the user's zone (browser), for the repeat
@@ -53,7 +58,7 @@ class TaskIn(BaseModel):
 
 def _out(t: Task) -> dict:
     return {"id": t.id, "title": t.title, "notes": t.notes, "due": iso_z(t.due), "all_day": t.all_day,
-            "important": t.important, "remind_minutes": t.remind_minutes, "repeat": t.repeat, "done": t.done, "done_at": iso_z(t.done_at),
+            "important": t.priority == "high", "priority": t.priority, "duration_minutes": t.duration_minutes, "remind_minutes": t.remind_minutes, "repeat": t.repeat, "done": t.done, "done_at": iso_z(t.done_at),
             "created_at": iso_z(t.created_at), "overdue": _overdue(t, utcnow())}
 
 
@@ -70,7 +75,10 @@ def _overdue(t: Task, now: datetime) -> bool:
 
 
 def _apply(t: Task, body: TaskIn) -> None:
-    t.title, t.notes, t.important = body.title.strip(), body.notes, body.important
+    t.title, t.notes = body.title.strip(), body.notes
+    t.priority = body.priority or ("high" if body.important else "normal")
+    t.important = t.priority == "high"
+    t.duration_minutes = body.duration_minutes
     t.due = to_utc_naive(body.due) if body.due else None
     t.all_day = body.all_day and body.due is not None
     t.remind_minutes = body.remind_minutes if (t.due is not None and not t.all_day) else None
@@ -102,7 +110,7 @@ def _set_done(db: Session, t: Task, done: bool, emit=None) -> dict:
         t.done, t.done_at = done, (utcnow() if done else None)
         if done and t.repeat and t.due is not None and t.next_id is None:
             # a repeating task comes back: the follow-up is a new row, the finished one stays in "Zrobione"
-            nxt = Task(title=t.title, notes=t.notes, important=t.important, all_day=t.all_day, remind_minutes=t.remind_minutes,
+            nxt = Task(title=t.title, notes=t.notes, important=t.important, priority=t.priority, duration_minutes=t.duration_minutes, all_day=t.all_day, remind_minutes=t.remind_minutes,
                        repeat=t.repeat, repeat_tz=t.repeat_tz, created_at=utcnow(),
                        due=next_due(t.due, t.all_day, t.repeat, t.repeat_tz, utcnow()))
             db.add(nxt)
@@ -129,11 +137,11 @@ def open_tasks(db: Session, scope: str = "open", days: int = 7, now: datetime | 
     elif scope == "overdue":
         stmt = stmt.where(Task.due.is_not(None), Task.due < now)
     elif scope == "important":
-        stmt = stmt.where(Task.important.is_(True))
+        stmt = stmt.where(Task.priority == "high")
     tasks = list(db.scalars(stmt).all())
     if scope == "overdue":
         tasks = [t for t in tasks if _overdue(t, now)]
-    return sorted(tasks, key=lambda t: (not _overdue(t, now), t.due is None, t.due or now, not t.important, t.id))
+    return sorted(tasks, key=lambda t: (not _overdue(t, now), t.due is None, t.due or now, PRIORITY_RANK.get(t.priority, 1), t.id))
 
 
 # --- HTTP -----------------------------------------------------------------------------------------------------
@@ -225,6 +233,46 @@ class CompleteIn(BaseModel):
     id: int = Field(ge=1)
 
 
+class UpdateIn(BaseModel):
+    """Changes only the fields that are given (the rest stays). `due: null` is not accepted here: use complete_task or the page."""
+
+    id: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    notes: str | None = Field(default=None, max_length=10_000)
+    due: AwareDatetime | None = None
+    all_day: bool | None = None
+    priority: Literal["high", "normal", "low"] | None = None
+    duration_minutes: int | None = Field(default=None, ge=1, le=24 * 60)
+
+
+@module.action("update_task", input=UpdateIn)
+def action_update_task(ctx: Ctx, data: UpdateIn):
+    t = ctx.db.get(Task, data.id)
+    if t is None:
+        raise ActionError("Nie ma zadania o tym numerze.", 404, "task_not_found")
+    given = data.model_fields_set
+    if "title" in given and data.title:
+        t.title = data.title.strip()
+    if "notes" in given and data.notes is not None:
+        t.notes = data.notes
+    if "due" in given and data.due is not None:
+        t.due = to_utc_naive(data.due)
+        t.all_day = bool(data.all_day)
+        t.reminded, t.snoozed_until = False, None  # a new time re-arms the reminder
+        if t.all_day:
+            t.remind_minutes = None
+        elif t.remind_minutes is None:
+            t.remind_minutes = 0
+    elif "all_day" in given and data.all_day is not None and t.due is not None:
+        t.all_day = data.all_day
+    if "priority" in given and data.priority:
+        t.priority, t.important = data.priority, data.priority == "high"
+    if "duration_minutes" in given and data.duration_minutes is not None:
+        t.duration_minutes = data.duration_minutes
+    ctx.db.commit()
+    return _out(t)
+
+
 @module.action("complete_task", input=CompleteIn)
 def action_complete_task(ctx: Ctx, data: CompleteIn):
     t = ctx.db.get(Task, data.id)
@@ -266,8 +314,8 @@ EMPTY = {"soon": "Nic na najbliższe 7 dni.", "open": "Brak otwartych zadań.", 
 
 
 def _item(t: Task, now: datetime) -> ListItem:
-    badge = "po terminie" if _overdue(t, now) else "ważne" if t.important else None
-    return ListItem(title=t.title, time=iso_z(t.due), all_day=t.all_day, badge=badge, href=f"#/tasks?id={t.id}")
+    badge = "po terminie" if _overdue(t, now) else "ważne" if t.priority == "high" else None
+    return ListItem(title=t.title, subtitle=_duration_text(t.duration_minutes), time=iso_z(t.due), all_day=t.all_day, badge=badge, href=f"#/tasks?id={t.id}")
 
 
 @module.widget("list")
@@ -321,6 +369,13 @@ def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
                      badge="zrobione" if t.done else "po terminie" if _overdue(t, now) else None) for t in rows]
 
 
+def _duration_text(minutes: int | None) -> str | None:
+    if not minutes:
+        return None
+    h, m = divmod(minutes, 60)
+    return f"{h} h {m} min" if h and m else f"{h} h" if h else f"{m} min"
+
+
 def _badge(t: Task, now: datetime) -> str | None:
     return "zrobione" if t.done else "po terminie" if _overdue(t, now) else None
 
@@ -340,6 +395,6 @@ def agenda(ctx: Ctx, start: datetime, end: datetime, tz: str) -> list[AgendaItem
     now = utcnow()
     rows = ctx.db.scalars(select(Task).where(Task.due >= lo, Task.due < hi).order_by(Task.due, Task.id)).all()
     return [AgendaItem(ref=f"tasks:{t.id}", module="tasks", kind="task", title=t.title, start=iso_z(t.due), all_day=t.all_day, done=t.done,
-                       badge=("ważne" if t.important and not t.done else "po terminie" if _overdue(t, now) else None), href=f"#/tasks?id={t.id}",
+                       badge=("ważne" if t.priority == "high" and not t.done else "po terminie" if _overdue(t, now) else None), href=f"#/tasks?id={t.id}",
                        done_action=None if t.done else {"action": "tasks.complete_task", "input": {"id": t.id}})
             for t in rows]

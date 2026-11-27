@@ -16,6 +16,8 @@ export interface QuickField {
   maximum?: number;
   default?: unknown;
   enum?: string[];
+  enumLabels?: Record<string, string>; // Polish labels for enum values (json_schema_extra)
+  emptyLabel?: string; // what the empty choice of an optional list means ("Normalny"), instead of "—"
   items?: { type?: string };
 }
 export interface QuickAction {
@@ -96,8 +98,8 @@ function FieldInput({ f, value, set, autoFocus, submit }: {
   if (f.enum)
     return (
       <select {...common} value={String(value)} onChange={(e) => set(e.target.value)}>
-        {!f.required && <option value="">—</option>}
-        {f.enum.map((o) => <option key={o}>{o}</option>)}
+        {!f.required && <option value="">{f.emptyLabel ?? "—"}</option>}
+        {f.enum.map((o) => <option key={o} value={o}>{f.enumLabels?.[o] ?? o}</option>)}
       </select>
     );
   if (f.type === "string" && (f.maxLength ?? 0) > 500)

@@ -20,7 +20,6 @@
   "remind15": "15 min wcześniej",
   "remind60": "1 h wcześniej",
   "remind1440": "Dzień wcześniej",
-  "fImportant": "Ważne",
   "save": "Zapisz",
   "cancel": "Anuluj",
   "delete": "Usuń",
@@ -58,5 +57,12 @@
   "repeatTag_weekdays": "dni robocze",
   "repeatTag_weekly": "co tydzień",
   "repeatTag_monthly": "co miesiąc",
-  "repeatTag_yearly": "co rok"
+  "repeatTag_yearly": "co rok",
+  "fPriority": "Priorytet",
+  "priHigh": "Wysoki",
+  "priNormal": "Normalny",
+  "priLow": "Niski",
+  "lowTag": "niski",
+  "fDuration": "Ile to zajmie",
+  "durNone": "Nie wiem"
 }

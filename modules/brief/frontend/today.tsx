@@ -48,14 +48,14 @@ export function TodayTile() {
   // "Na jutro": same time of day (or the whole day) one calendar day after today, in the viewer's zone
   const tomorrow = async (task: Task) => {
     try {
-      const full = await api<{ title: string; notes: string; due: string | null; all_day: boolean; important: boolean; remind_minutes: number | null; repeat: string | null }>(`/m/tasks/${task.id}`);
+      const full = await api<{ title: string; notes: string; due: string | null; all_day: boolean; priority: string; duration_minutes: number | null; remind_minutes: number | null; repeat: string | null }>(`/m/tasks/${task.id}`);
       const base = full.due ? new Date(full.due) : new Date();
       const next = new Date();
       next.setDate(next.getDate() + 1);
       next.setHours(base.getHours(), base.getMinutes(), 0, 0);
       await api(`/m/tasks/${task.id}`, {
         method: "PUT",
-        body: { title: full.title, notes: full.notes, due: next.toISOString(), all_day: full.all_day, important: full.important,
+        body: { title: full.title, notes: full.notes, due: next.toISOString(), all_day: full.all_day, priority: full.priority, duration_minutes: full.duration_minutes,
           remind_minutes: full.remind_minutes, repeat: full.repeat, tz: tz() },
       });
       notifyChanged("tasks");

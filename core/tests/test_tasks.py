@@ -83,7 +83,7 @@ def test_actions_and_widgets(authed):
 def test_quick_action(authed):
     quick = {q["id"]: q for q in authed.get("/api/hub/quick").json()}
     q = quick["tasks.new"]
-    assert [f["name"] for f in q["fields"]] == ["title", "due", "important"]
+    assert [f["name"] for f in q["fields"]] == ["title", "due", "priority"]
     assert next(f for f in q["fields"] if f["name"] == "due")["format"] == "date-time"
 
 
@@ -194,3 +194,77 @@ def test_task_reminder_has_buttons_and_snooze_brings_it_back(authed):
     authed.post(f"/api/m/tasks/{t['id']}/snooze", json={"minutes": 5})
     with SessionLocal() as db:
         assert collect_reminders(db, naive + timedelta(hours=3)) == []
+
+
+# --- priority, duration, update_task ---------------------------------------------------------------------------
+def test_priority_and_duration_are_stored_and_important_stays_in_sync(authed):
+    t = add(authed, title="Raport", priority="high", duration_minutes=90)
+    assert t["priority"] == "high" and t["important"] is True and t["duration_minutes"] == 90
+    older = add(authed, title="Starszy klient", important=True)  # the older flag still works
+    assert older["priority"] == "high"
+    low = add(authed, title="Kiedyś", priority="low", important=True)  # priority wins
+    assert low["priority"] == "low" and low["important"] is False
+    assert add(authed, title="Zwykłe")["priority"] == "normal"
+    assert authed.post("/api/m/tasks", json={"title": "x", "priority": "urgent"}).status_code == 422
+    assert authed.post("/api/m/tasks", json={"title": "x", "duration_minutes": 0}).status_code == 422
+
+
+def test_open_tasks_sort_by_priority_on_equal_dates(authed):
+    for title, p in [("niski", "low"), ("normalny", "normal"), ("wysoki", "high")]:
+        add(authed, title=title, priority=p)
+    titles = [x["title"] for x in authed.post("/api/hub/actions/tasks.list_tasks", json={"input": {}}).json()["result"]]
+    assert titles == ["wysoki", "normalny", "niski"]
+    high = authed.post("/api/hub/actions/tasks.list_tasks", json={"input": {"scope": "important"}}).json()["result"]
+    assert [x["title"] for x in high] == ["wysoki"]
+
+
+def test_update_task_changes_only_given_fields(authed):
+    from datetime import UTC, datetime, timedelta
+
+    due = iso(datetime.now(UTC) + timedelta(days=1))
+    t = add(authed, title="Spotkanie", due=due, remind_minutes=15, notes="agenda")
+    call = lambda **kw: authed.post("/api/hub/actions/tasks.update_task", json={"input": {"id": t["id"], **kw}, "confirmed": True})
+    r = call(priority="high", duration_minutes=45)
+    assert r.status_code == 200
+    got = authed.get(f"/api/m/tasks/{t['id']}").json()
+    assert (got["priority"], got["duration_minutes"], got["title"], got["notes"], got["due"]) == ("high", 45, "Spotkanie", "agenda", t["due"])
+    new_due = iso(datetime.now(UTC) + timedelta(days=3))
+    call(due=new_due)
+    moved = authed.get(f"/api/m/tasks/{t['id']}").json()
+    assert moved["due"] == new_due and moved["priority"] == "high" and moved["remind_minutes"] == 15  # reminder kept, re-armed
+    assert call(title="").status_code == 422 or call(title="").json().get("detail")
+    assert authed.post("/api/hub/actions/tasks.update_task", json={"input": {"id": 9999, "priority": "low"}, "confirmed": True}).status_code == 404
+
+
+def test_update_task_is_not_read_only_for_the_assistant(client):
+    from app.hub import hub
+
+    assert hub.actions["tasks.update_task"].readonly is False  # the assistant asks before changing a task
+
+
+def test_repeating_task_keeps_priority_and_duration_in_the_follow_up(authed):
+    from datetime import UTC, datetime, timedelta
+
+    t = add(authed, title="Cotygodniowe", due=iso(datetime.now(UTC) + timedelta(hours=2)), repeat="weekly", priority="high", duration_minutes=30)
+    authed.post(f"/api/m/tasks/{t['id']}/done", json={"done": True})
+    follow = [x for x in authed.get("/api/m/tasks").json() if not x["done"]][0]
+    assert follow["priority"] == "high" and follow["duration_minutes"] == 30
+
+
+def test_migration_turns_important_into_high_priority(tmp_path):
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine
+
+    from app import migrate
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    cfg = Config(str(migrate._INI))
+    with engine.begin() as conn:
+        cfg.attributes["connection"] = conn
+        command.upgrade(cfg, "0014")
+        conn.exec_driver_sql("INSERT INTO tasks (title, notes, all_day, important, remind_minutes, repeat_tz, reminded, done, created_at) "
+                             "VALUES ('a','',0,1,0,'Europe/Warsaw',0,0,'2026-01-01'), ('b','',0,0,0,'Europe/Warsaw',0,0,'2026-01-01')")
+        command.upgrade(cfg, "0015")
+        rows = conn.exec_driver_sql("SELECT title, priority, duration_minutes FROM tasks ORDER BY title").fetchall()
+    assert [tuple(r) for r in rows] == [("a", "high", None), ("b", "normal", None)]

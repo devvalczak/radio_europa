@@ -33,6 +33,15 @@ AT_HOUR = re.compile(r"\bo\s+(\d{1,2})\b(?!\s*(?:szt|zł|x\b|kg))")
 PERIOD_RE = re.compile(rf"\b({_PERIOD})\b")
 REPEATS = {"codziennie": "daily", "co dzień": "daily", "w dni robocze": "weekdays", "co tydzień": "weekly",
            "co miesiąc": "monthly", "co rok": "yearly", "co roku": "yearly"}
+LOW_RE = re.compile(r"\b(?:niski\s+priorytet|mało\s+ważne|bez\s+pośpiechu|nie\s+pilne)\b")
+HIGH_RE = re.compile(r"\bwysoki\s+priorytet\b")
+# "na 30 min", "na 2 h", "na godzinę", "na pół godziny", "na 1,5 h": how long it takes (always with "na": "za 30 min" is a time)
+DURATION_RES = (
+    (re.compile(r"\bna\s+(\d{1,3})\s*(?:min(?:ut\w*)?|m)\b"), lambda m: int(m.group(1))),
+    (re.compile(r"\bna\s+(\d{1,2})(?:[,.](5))?\s*(?:h|godz\w*)\b"), lambda m: int(m.group(1)) * 60 + (30 if m.group(2) else 0)),
+    (re.compile(r"\bna\s+pół\s+godziny\b"), lambda m: 30),
+    (re.compile(r"\bna\s+godzinę\b"), lambda m: 60),
+)
 REPEAT_RE = re.compile(r"\b(codziennie|co\s+dzień|w\s+dni\s+robocze|co\s+tydzień|co\s+miesiąc|co\s+roku?)\b")
 IMPORTANT = re.compile(r"(?:^|\s)!+(?=\s|$)|\bpilne\b|\bważne\b")
 SHOP_QTY = re.compile(r"^(?P<name>.+?)\s+(?P<q>\d{1,2})\s*(?:szt\.?|sztuk\w*|x|op\.?)?$")
@@ -164,12 +173,27 @@ def _parse(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> d
             at = at.replace(hour=at.hour + 12)
         elif at is None and relative is None:
             at = period_time
-    important = bool(IMPORTANT.search(low))
-    if important:
+    priority = "normal"
+    for rx, level in ((LOW_RE, "low"), (HIGH_RE, "high")):
+        if (r := rx.search(low)):
+            priority = level
+            found.append(r.group(0).strip())
+            low, raw = _cut(low, r.span()), _cut(raw, r.span())
+    if IMPORTANT.search(low):
         for r in list(IMPORTANT.finditer(low))[::-1]:
             raw = _cut(raw, r.span())
             low = _cut(low, r.span())
         found.append("!")
+        if priority != "low":  # "mało ważne" wins over the "ważne" inside it
+            priority = "high"
+    important = priority == "high"
+    duration: int | None = None
+    for rx, minutes in DURATION_RES:
+        if (r := rx.search(low)) and 1 <= (n := minutes(r)) <= 24 * 60:
+            duration = n
+            found.append(r.group(0).strip())
+            low, raw = _cut(low, r.span()), _cut(raw, r.span())
+            break
 
     title = " ".join(raw.split()).strip(" ,;:-–.")
     title = re.sub(r"^(?:o|w|we|na|do)\s+", "", title) if found else title
@@ -202,23 +226,30 @@ def _parse(text: str, tz: ZoneInfo, now: datetime, kind: str | None = None) -> d
 
     chosen = forced or ("event" if (due is not None and not all_day and relative is None and not repeat) else "task")
     return _result(chosen, title or text.strip(), due, all_day, important, found, raw,
-                   repeat=repeat if chosen == "task" else None, tz=tz.key)
+                   repeat=repeat if chosen == "task" else None, tz=tz.key, priority=priority, duration=duration)
 
 
 def _result(kind: str, title: str, due: datetime | None, all_day: bool, important: bool, found: list[str], raw: str,
-            quantity: int = 1, repeat: str | None = None, tz: str = "Europe/Warsaw") -> dict:
+            quantity: int = 1, repeat: str | None = None, tz: str = "Europe/Warsaw", priority: str | None = None,
+            duration: int | None = None) -> dict:
     due_iso = _iso(due) if due else None
+    priority = priority or ("high" if important else "normal")
+    important = priority == "high"
     if kind == "event":
         action, payload = "calendar.create_event", {"title": title, "start": due_iso, "all_day": all_day}
+        if duration and due and not all_day:  # an event lasts as long as it was said to
+            payload["end"] = _iso(due + timedelta(minutes=duration))
     elif kind == "shopping":
         action, payload = "shopping.add_item", {"query": title, "quantity": quantity}
     elif kind == "note":
         action, payload = "notes.create", {"content": title}
     else:
         action = "tasks.add_task"
-        payload = {"title": title, "due": due_iso, "all_day": all_day, "important": important}
+        payload = {"title": title, "due": due_iso, "all_day": all_day, "priority": priority}
+        if duration:
+            payload["duration_minutes"] = duration
         if repeat:
             payload.update(repeat=repeat, tz=tz)
     problem = "no_date" if kind == "event" and due is None else None  # an event needs a start
     return {"kind": kind, "problem": problem, "title": title, "due": due_iso, "all_day": all_day, "important": important,
-            "repeat": repeat, "found": found, "action": action, "input": payload}
+            "priority": priority, "duration_minutes": duration, "repeat": repeat, "found": found, "action": action, "input": payload}

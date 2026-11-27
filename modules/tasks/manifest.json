@@ -47,12 +47,16 @@
   "actions": [
     {
       "name": "add_task",
-      "description": "Dodaje zadanie: tytuł, opcjonalnie termin (due ze strefą; all_day=true gdy liczy się tylko dzień), notatka, important, remind_minutes (push przed terminem, 0 = o czasie, null = brak), repeat (daily/weekdays/weekly/monthly/yearly, wymaga terminu) i tz (strefa IANA)."
+      "description": "Dodaje zadanie: tytuł, opcjonalnie termin (due ze strefą; all_day=true gdy tylko dzień), notatka, priority (high/normal/low), duration_minutes, remind_minutes (0 = o czasie, null = brak), repeat (daily/weekdays/weekly/monthly/yearly, wymaga terminu), tz (IANA)."
     },
     {
       "name": "list_tasks",
-      "description": "Zwraca otwarte zadania. scope: open (wszystkie), soon (po terminie + w ciągu `days` dni), overdue (po terminie), important. Każde zadanie ma id potrzebne do complete_task.",
+      "description": "Zwraca otwarte zadania z priorytetem i szacowanym czasem. scope: open (wszystkie), soon (po terminie + w ciągu `days` dni), overdue (po terminie), important (priorytet wysoki). Każde zadanie ma id potrzebne do complete_task i update_task.",
       "readonly": true
+    },
+    {
+      "name": "update_task",
+      "description": "Zmienia istniejące zadanie (id z list_tasks): tylko podane pola — tytuł, notatka, termin (due ze strefą; all_day=true gdy liczy się tylko dzień), priorytet (high/normal/low) albo szacowany czas w minutach. Używaj do przesuwania terminów, nadawania priorytetów i planowania dnia."
     },
     {
       "name": "complete_task",
@@ -81,8 +85,8 @@
           "label": "Termin (opcjonalnie)"
         },
         {
-          "name": "important",
-          "label": "Ważne"
+          "name": "priority",
+          "label": "Priorytet"
         }
       ],
       "success": "Dodano zadanie"

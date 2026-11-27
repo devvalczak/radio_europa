@@ -5,7 +5,7 @@ import secrets
 import time
 from collections import deque
 from urllib.parse import urlsplit
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app import crypto, links
 from app.db import get_db
-from app.sdk import AgendaItem, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts, text_match
+from app.sdk import ActionError, AgendaItem, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from . import caldav, ical, sync
@@ -351,16 +351,22 @@ def update_event(event_id: int, body: EventIn, db: Session = Depends(get_db)):
     return _out(event)
 
 
+def _delete(db: Session, event: Event) -> None:
+    """Shared by the page and the assistant: a synced event is also deleted on the server by the next sync."""
+    if event.source_id is not None and event.remote_href:  # already on the server: delete it there on the next sync
+        db.add(CalendarPendingDelete(source_id=event.source_id, href=event.remote_href, etag=event.etag))
+    event_id = event.id
+    db.delete(event)
+    links.forget(db, "calendar", event_id)
+    db.commit()
+
+
 @router.delete("/{event_id}", status_code=204)
 def delete_event(event_id: int, db: Session = Depends(get_db)):
     event = _get(db, event_id)
     if event.read_only:
         raise HTTPException(409, {"code": "event_read_only", "detail": READ_ONLY})
-    if event.source_id is not None and event.remote_href:  # already on the server: delete it there on the next sync
-        db.add(CalendarPendingDelete(source_id=event.source_id, href=event.remote_href, etag=event.etag))
-    db.delete(event)
-    links.forget(db, "calendar", event_id)
-    db.commit()
+    _delete(db, event)
 
 
 @module.reminders
@@ -403,6 +409,59 @@ def _upcoming(db: Session, days: int) -> list[Event]:
 @module.action("create_event", input=EventIn)
 def action_create_event(ctx: Ctx, data: EventIn):
     return _create(ctx.db, data, emit=ctx.emit)
+
+
+class UpdateEventIn(BaseModel):
+    """Changes only the given fields. `end: null` is not accepted here (it means "not given"); use the page to clear an end."""
+
+    id: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=10_000)
+    start: AwareDatetime | None = None
+    end: AwareDatetime | None = None
+    all_day: bool | None = None
+    remind_minutes: int | None = Field(default=None, ge=0, le=MAX_REMIND_MINUTES)
+
+
+class DeleteEventIn(BaseModel):
+    id: int = Field(ge=1)
+
+
+def _editable(ctx: Ctx, event_id: int) -> Event:
+    event = ctx.db.get(Event, event_id)
+    if event is None:
+        raise ActionError("Nie ma wydarzenia o tym numerze.", 404, "event_not_found")
+    if event.read_only:
+        raise ActionError(READ_ONLY, 409, "event_read_only")
+    return event
+
+
+@module.action("update_event", input=UpdateEventIn)
+def action_update_event(ctx: Ctx, data: UpdateEventIn):
+    event = _editable(ctx, data.id)
+    g = data.model_fields_set
+    start = data.start if "start" in g and data.start else event.start.replace(tzinfo=UTC)
+    end = data.end if "end" in g and data.end else (event.end.replace(tzinfo=UTC) if event.end else None)
+    if "start" in g and data.start and "end" not in g and event.end:  # moving an event keeps its length
+        end = start + (event.end - event.start)
+    try:
+        body = EventIn(title=data.title if "title" in g and data.title else event.title,
+                       description=data.description if "description" in g and data.description is not None else event.description,
+                       start=start, end=end, all_day=data.all_day if "all_day" in g and data.all_day is not None else event.all_day,
+                       remind_minutes=data.remind_minutes if "remind_minutes" in g else event.remind_minutes)
+    except ValueError as exc:
+        raise ActionError("Koniec wydarzenia nie może być przed jego początkiem.", 422, "bad_range") from exc
+    _apply(event, body)
+    ctx.db.commit()
+    return _out(event)
+
+
+@module.action("delete_event", input=DeleteEventIn)
+def action_delete_event(ctx: Ctx, data: DeleteEventIn):
+    event = _editable(ctx, data.id)
+    title = event.title
+    _delete(ctx.db, event)
+    return {"deleted": data.id, "title": title}
 
 
 @module.action("list_events", input=ListEventsIn)
