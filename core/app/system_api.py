@@ -13,7 +13,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import ai, backup, logs
+from . import backup, logs
 from .auth import require_user
 from .db import get_db
 from .config import settings
@@ -42,11 +42,6 @@ def logins(limit: int = Query(50, ge=1, le=200), before_id: int | None = None, d
         stmt = stmt.where(LoginEvent.id < before_id)
     return [{"id": r.id, "ts": r.ts.isoformat() + "Z", "username": r.username, "ok": r.ok, "reason": r.reason,
              "ip": r.ip, "user_agent": r.user_agent} for r in db.scalars(stmt)]
-
-
-@router.get("/ai")
-def ai_status():
-    return ai.describe()
 
 
 # --- Diagnostyka ---------------------------------------------------------------------------------------------
@@ -142,6 +137,21 @@ def _audit(db: Session, user: User, action: str, data: dict, ok: bool = True, er
     db.commit()
 
 
+def require_second_factor(user: User, code: str, db: Session, *, scope: str, action: str, data: dict) -> None:
+    """A sensitive change needs a fresh TOTP code (or the account password when 2FA is off): a stolen session cookie alone
+    must not be enough. Failures are counted (lock after a few) and audited; raises 401/429."""
+    key = f"{scope}:{user.id}"
+    if limiter.locked(key):
+        raise HTTPException(429, "too_many_attempts")
+    ok = (pyotp.TOTP(user.totp_secret).verify(code.strip(), valid_window=1) if user.totp_enabled
+          else verify_password(user.password_hash, code))
+    if not ok:
+        limiter.fail(key)
+        _audit(db, user, action, data, ok=False, error="second factor")
+        raise HTTPException(401, "invalid_totp" if user.totp_enabled else "invalid_credentials")
+    limiter.reset(key)
+
+
 def _backup_error(exc: backup.BackupError) -> HTTPException:
     return HTTPException(409 if exc.code in ("disabled", "not_sqlite") else 500,
                          {"code": f"backup_{exc.code}", "detail": exc.message})
@@ -186,16 +196,7 @@ def backups_download(name: str, body: SecondFactorIn, user: User = Depends(requi
     path = backup.path_for(name)
     if path is None:
         raise HTTPException(404, "backup_not_found")
-    key = f"backup:{user.id}"
-    if limiter.locked(key):
-        raise HTTPException(429, "too_many_attempts")
-    ok = (pyotp.TOTP(user.totp_secret).verify(body.code.strip(), valid_window=1) if user.totp_enabled
-          else verify_password(user.password_hash, body.code))
-    if not ok:
-        limiter.fail(key)
-        _audit(db, user, "system.backup.download", {"name": name}, ok=False, error="second factor")
-        raise HTTPException(401, "invalid_totp" if user.totp_enabled else "invalid_credentials")
-    limiter.reset(key)
+    require_second_factor(user, body.code, db, scope="backup", action="system.backup.download", data={"name": name})
     _audit(db, user, "system.backup.download", {"name": name})
     return FileResponse(path, media_type="application/gzip", filename=name,
                         headers={"Cache-Control": "no-store"})

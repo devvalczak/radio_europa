@@ -165,16 +165,22 @@ def resolve(use: str, db: Session) -> Route:
         db.rollback()
         routes = {}
     mine, default = routes.get(use), routes.get(DEFAULT)
-    primary_id = next((r.profile_id for r in (mine, default) if r and r.profile_id), None)
-    fallback_id = next((r.fallback_id for r in (mine, default) if r and r.fallback_id), None)
-    wanted = [i for i in (primary_id, fallback_id) if i]
+    primary_id = next((r.profile_id for r in (mine, default) if r and r.profile_id is not None), None)
+    fallback_id = next((r.fallback_id for r in (mine, default) if r and r.fallback_id is not None), None)
+    wanted = [i for i in (primary_id, fallback_id) if i]  # id 0 = the .env connection, chosen explicitly
     rows = {r.id: r for r in db.scalars(select(AiProfile).where(AiProfile.id.in_(wanted))).all()} if wanted else {}
+
+    def pick(i: int | None) -> Profile | None:
+        if i == 0:
+            return env_profile()
+        return _stored_profile(rows[i]) if i in rows else None
+
     chain: list[Profile] = []
-    if primary_id and primary_id in rows and (p := _stored_profile(rows[primary_id])):
+    if (p := pick(primary_id)) is not None:
         chain.append(p)
     if not chain and (e := env_profile()):  # no (usable) choice: the .env connection keeps older setups working
         chain.append(e)
-    if fallback_id and fallback_id in rows and (p := _stored_profile(rows[fallback_id])) and all(p.key != c.key for c in chain):
+    if (p := pick(fallback_id)) is not None and all(p.key != c.key for c in chain):
         chain.append(p)
     if not chain:
         return Route([], "not_configured")

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 
-from . import auth, db, logs, migrate, push, scheduler, system_api
+from . import ai_settings, auth, db, logs, migrate, push, scheduler, system_api
 from .config import settings
 from .hub import hub
 from .hub_api import build_router
@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api")
     app.include_router(push.router, prefix="/api")
     app.include_router(system_api.router, prefix="/api")
+    app.include_router(ai_settings.router, prefix="/api")
     app.include_router(build_router(hub), prefix="/api")
     load_modules(app, hub, settings.modules_dir)  # imports module models before migrations run
     return app

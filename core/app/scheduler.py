@@ -10,7 +10,7 @@ from . import backup
 from .config import settings
 from .db import SessionLocal
 from .hub import hub
-from .models import AuditLog, LoginEvent
+from .models import AiUsage, AuditLog, LoginEvent
 from .push import send_push
 from .sdk import Ctx
 from .timeutil import utcnow
@@ -77,6 +77,7 @@ def purge_old(days: int | None = None) -> int:
     with SessionLocal() as db:
         n = db.execute(delete(AuditLog).where(AuditLog.ts < cutoff)).rowcount
         n += db.execute(delete(LoginEvent).where(LoginEvent.ts < cutoff)).rowcount
+        n += db.execute(delete(AiUsage).where(AiUsage.day < (utcnow() - timedelta(days=35)).strftime("%Y-%m-%d"))).rowcount
         db.commit()
     if n:
         log.info("retention: deleted %d audit/login rows older than %d days", n, days)
