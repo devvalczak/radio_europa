@@ -81,7 +81,11 @@ Ekran startowy to Pulpit (kafelek „Dzisiaj” w `modules/brief`), pasek kart n
 ## Sieć, AI, zadania w tle
 
 - Zewnętrzne adresy tylko przez `app.http.get` (blokada SSRF, limity). Nigdy `httpx` wprost dla URL-i od użytkownika.
-- AI przez `ctx.ai(...)` (uprawnienie `ai.complete`), konfiguracja `JARVIS_AI_*` (`anthropic` | `gemini` | `openai`); bez niej moduły
+- AI przez `ctx.ai(...)` (uprawnienie `ai.complete`; `use=` = funkcja, domyślnie id modułu). **Wybór modelu w Ustawieniach → AI**: połączenia (dostawca
+  + model + klucz + adres, klucz szyfrowany `app.crypto`, zmiana klucza/adresu po świeżym 2FA/haśle), model domyślny, osobny model per funkcja
+  (`core/app/ai_uses.py`: assistant, capture, autofill, news, mail, test), zapasowe przy limicie, „tylko lokalnie” (poczta), dzienny limit wywołań,
+  test połączenia/narzędzi i lista modeli. Kod: `core/app/ai.py` (`resolve`/`run`), `core/app/ai_settings.py` (trasy `/api/system/ai/*`, nie akcje hubu),
+  `frontend/src/AiSettings.tsx`. `.env` (`JARVIS_AI_*`) zostaje jako połączenie „z pliku .env”. Bez żadnego połączenia moduły
   mają działać bez AI. Łap `AIError` i pokazuj `exc.user_message()`; `exc.code == "rate_limited"` → 429, bez ponawiania w pętli.
   Wysyłanie prywatnych danych (np. poczty) do AI wymaga zgody użytkownika zapisanej trasą HTTP modułu, nie akcją hubu.
   Treść z internetu w promptach jest niezaufana — model bez narzędzi, wynik jako zwykły tekst.

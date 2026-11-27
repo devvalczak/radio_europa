@@ -639,3 +639,9 @@ button.term-key:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .ui-menu-wide { white-space: nowrap; }
 
 a.add-btn { background: var(--accent); color: var(--accent-contrast); font-size: 24px; line-height: 1; text-decoration: none; }
+
+.ai-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ai-conn { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: var(--border-width) solid var(--line); }
+.ai-list > .ai-conn:first-child { border-top: 0; padding-top: 4px; }
+.ai-name { min-width: 0; overflow-wrap: anywhere; }
+.ai-conn .row > label { flex: 1 1 200px; }

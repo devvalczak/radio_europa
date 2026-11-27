@@ -100,6 +100,10 @@ Po analizie kodu i przejściu przez uruchomioną aplikację (desktop + telefon) 
   priorytet i czas, po cichu, z „Cofnij”; tylko gdy AI skonfigurowane); „Zaplanuj dzień” w kafelku „Dzisiaj” otwiera asystenta (`#/assistant?ask=…`),
   zbiorcze „Wykonaj wszystkie”; strona modułu `links` usunięta (zostały akcje dla asystenta). **Całe AI sprawdzone tylko na nagranych odpowiedziach** —
   użytkownik nie ma jeszcze klucza dostawcy.
+- **Ustawienia → AI (trzecia tura):** połączenia z szyfrowanymi kluczami (migracja 0016: `ai_profiles`, `ai_routes`, `ai_usage`), model domyślny i osobny per funkcja
+  (assistant, capture, autofill, news, mail, test), zapasowe przy limicie/awarii (nie przy złym kluczu), „tylko lokalnie” (domyślnie wyłączone także dla poczty, bo
+  zgoda `allow_ai` już obowiązuje; ustawienia zalecają włączenie), dzienny limit wywołań i licznik, test połączenia i narzędzi, lista modeli od dostawcy, zmiana klucza/adresu po
+  świeżym 2FA/haśle (`system_api.require_second_factor`). Sprawdzone na atrapie zgodnej z OpenAI (UI + backend), **nie** na prawdziwym dostawcy.
 - **Nie zrobione / na później:** „Dzisiaj” w briefie nadal składa się z `BUILDERS` (nie z agendy); `#/today` został jako osobny ekran; „Utwórz z…”
   w newsach (artykuły nie mają `resolve`); kalendarz nie tworzy wydarzeń cyklicznych; nie sprawdzone na prawdziwym telefonie ani w E2E. Link do maila
   znika, gdy cache poczty usunie wiadomość (best effort).

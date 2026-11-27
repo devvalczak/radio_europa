@@ -20,7 +20,9 @@ export function TodayTile() {
   const [failed, setFailed] = useState(false);
   const [aiOn, setAiOn] = useState(false); // the plan button needs the AI assistant: shown only when it is configured
   useEffect(() => {
-    api<{ configured: boolean }>("/system/ai").then((r) => setAiOn(r.configured)).catch(() => setAiOn(false));
+    api<{ uses: { key: string; effective: { configured: boolean } }[] }>("/system/ai")
+      .then((r) => setAiOn(!!r.uses.find((u) => u.key === "assistant")?.effective.configured))
+      .catch(() => setAiOn(false));
   }, []);
 
   const load = useCallback(() => {

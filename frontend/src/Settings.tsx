@@ -6,6 +6,7 @@ import { errorText, t } from "./i18n";
 import { getHome, setHome } from "./homeRoute";
 import { enablePush, pushSupported } from "./push";
 import type { ModuleInfo } from "./Shell";
+import { AiSettings } from "./AiSettings";
 import { Backups } from "./Backups";
 import { isDefaultTabbar, resetTabbar, setTabbar, TAB_MAX, tabbarIds, useTabbarVersion } from "./tabbar";
 import { frontendModules } from "./registry";
@@ -25,14 +26,12 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
   const pinned = tabbarIds(tabPages.map((p) => p.id), tabVersion);
   const [totp, setTotp] = useState<{ secret: string; uri: string } | null>(null);
   const [code, setCode] = useState("");
-  const [ai, setAi] = useState<{ configured: boolean; provider: string | null; model: string | null; host: string | null } | null>(null);
 
   useEffect(() => {
     listThemes()
       .then((list) => Promise.all(list.map(async (x) => ({ ...x, tok: await loadTheme(x) }))))
       .then(setThemes)
       .catch(() => undefined);
-    api<typeof ai>("/system/ai").then(setAi).catch(() => undefined);
   }, []);
 
   const run = async (fn: () => Promise<unknown>, ok = "") => {
@@ -154,16 +153,7 @@ export function Settings({ status, onChange, modules }: { status: AuthStatus; on
 
       <Backups />
 
-      <section className="card stack">
-        <h2>{t.aiStatus}</h2>
-        {ai?.configured ? (
-          <p>
-            {ai.provider} · <b>{ai.model}</b> <span className="muted">({ai.host})</span>
-          </p>
-        ) : (
-          <p className="muted">{t.aiOff}</p>
-        )}
-      </section>
+      <AiSettings />
 
       {modules.some((m) => m.status === "error") && (
         <section className="card stack">
