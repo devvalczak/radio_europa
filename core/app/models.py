@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -60,3 +60,31 @@ class LoginEvent(Base):
     reason: Mapped[str] = mapped_column(String(32))
     ip: Mapped[str] = mapped_column(String(64), default="")
     user_agent: Mapped[str] = mapped_column(String(200), default="")
+
+
+class EntityLink(Base):
+    """A link between two items of any modules ("tasks:5" <-> "notes:12"). Direction only says who pointed at whom
+    (kind "mention" = a note's text links to the target, "from" = created out of the source); reads use both sides."""
+
+    __tablename__ = "entity_links"
+    __table_args__ = (UniqueConstraint("src_module", "src_id", "dst_module", "dst_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    src_module: Mapped[str] = mapped_column(String(32), index=True)
+    src_id: Mapped[int] = mapped_column(index=True)
+    dst_module: Mapped[str] = mapped_column(String(32), index=True)
+    dst_id: Mapped[int] = mapped_column(index=True)
+    kind: Mapped[str] = mapped_column(String(10), default="manual")  # manual | mention | from
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class EntityTag(Base):
+    """Tags shared by every module: one row per (item, tag); tags are lowercase without '#'."""
+
+    __tablename__ = "entity_tags"
+    __table_args__ = (UniqueConstraint("module", "item_id", "tag"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    module: Mapped[str] = mapped_column(String(32))
+    item_id: Mapped[int] = mapped_column()
+    tag: Mapped[str] = mapped_column(String(40), index=True)

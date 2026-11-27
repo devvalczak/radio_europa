@@ -1,0 +1,16 @@
+{
+  "title": "Tagi i powiązania",
+  "subtitle": "Wspólne tagi notatek, zadań, wydarzeń i zakupów. Powiązania ustawiasz w panelu „Powiązane” przy elemencie.",
+  "none": "Nie ma jeszcze żadnych tagów. Dodaj tag do notatki, zadania lub wydarzenia.",
+  "loadFailed": "Nie udało się wczytać tagów.",
+  "retry": "Spróbuj ponownie",
+  "items": "Elementy z tagiem #{tag}",
+  "noItems": "Nic już nie ma tego tagu.",
+  "all": "Wszystkie tagi",
+  "module.notes": "Notatka",
+  "module.tasks": "Zadanie",
+  "module.calendar": "Wydarzenie",
+  "module.shopping": "Zakupy",
+  "module.alarms": "Alarm",
+  "module.mail": "Poczta"
+}

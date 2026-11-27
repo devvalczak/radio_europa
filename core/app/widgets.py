@@ -22,6 +22,24 @@ class ListItem(BaseModel):
     href: str | None = None
     time: str | None = None  # ISO-8601 UTC ('...Z'); the browser shows it in the viewer's timezone
     all_day: bool = False  # with `time`: show the date only
+    ref: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{1,31}:\d{1,12}$")  # "<module>:<id>" (search, links)
+    _href = field_validator("href")(_safe_href)
+
+
+class AgendaItem(BaseModel):
+    """One dated item on the shared timeline (the calendar overlay, "Dzisiaj"). `kind` tells how to draw it."""
+
+    ref: str  # "<module>:<id>"
+    module: str
+    kind: str = "event"  # event | task | alarm
+    title: str
+    start: str  # ISO-8601 UTC ('...Z'); all-day items: the local day's midnight in the viewer's zone, as UTC
+    end: str | None = None
+    all_day: bool = False
+    done: bool | None = None  # tasks: ticked
+    badge: str | None = None
+    href: str | None = None
+    done_action: dict | None = None  # {"action": "tasks.complete_task", "input": {...}}: what ticking the item runs
     _href = field_validator("href")(_safe_href)
 
 

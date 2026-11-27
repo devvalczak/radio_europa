@@ -7,9 +7,11 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import links
 from app.db import get_db
-from app.sdk import ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts
-from app.timeutil import iso_z, utcnow
+from app.sdk import (ActionError, AgendaItem, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts,
+                     text_match)
+from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from . import schedule
 from .models import Alarm
@@ -90,6 +92,11 @@ def list_alarms(db: Session = Depends(get_db)):
     return [_out(a, now) for a in db.scalars(select(Alarm).order_by(Alarm.time, Alarm.id)).all()]
 
 
+@router.get("/{alarm_id}")
+def get_alarm(alarm_id: int, db: Session = Depends(get_db)):
+    return _out(_get(db, alarm_id))
+
+
 @router.post("", status_code=201)
 def create_alarm(body: AlarmIn, db: Session = Depends(get_db)):
     try:
@@ -109,6 +116,7 @@ def update_alarm(alarm_id: int, body: AlarmIn, db: Session = Depends(get_db)):
 @router.delete("/{alarm_id}", status_code=204)
 def delete_alarm(alarm_id: int, db: Session = Depends(get_db)):
     db.delete(_get(db, alarm_id))
+    links.forget(db, "alarms", alarm_id)
     db.commit()
 
 
@@ -188,7 +196,7 @@ def widget_next(ctx: Ctx, opts: WidgetOpts):
                 ButtonsBlock(buttons=[ButtonSpec(label="Ustaw alarm", quick="alarms.new", primary=True)])]
     return [ListBlock(items=[
         ListItem(title=a.label or "Alarm", subtitle=None if opts.small else ("codziennie" if len(a.days) == 7 else "cyklicznie" if a.days else "jednorazowo"),
-                 time=iso_z(when), href="#/alarms")
+                 time=iso_z(when), href=f"#/alarms?id={a.id}")
         for a, when in upcoming[:opts.limit(1, 3, 3)]])]
 
 
@@ -210,4 +218,42 @@ def diag_alarms(ctx: Ctx) -> list[Check]:
         out.append(Check("ok", f"{len(alarms)} włączonych; najbliższy {upcoming[0]:%Y-%m-%d %H:%M} UTC"))
     if not settings.vapid_private_key:
         out.append(Check("error", "Alarmy idą jako push, a serwer nie ma kluczy VAPID", "Patrz grupa Powiadomienia push."))
+    return out
+
+
+def _alarm_item(a: Alarm, now: datetime) -> ListItem:
+    nxt = schedule.next_fire(a.time, a.days, a.tz, now) if a.enabled else None
+    return ListItem(title=a.label or f"Alarm {a.time}", subtitle=a.time, badge=None if a.enabled else "wyłączony", time=iso_z(nxt),
+                    href=f"#/alarms?id={a.id}", ref=f"alarms:{a.id}")
+
+
+@module.search
+def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
+    cond = text_match(q, Alarm.label, Alarm.time)
+    if cond is None:
+        return []
+    now = utcnow()
+    return [_alarm_item(a, now) for a in ctx.db.scalars(select(Alarm).where(cond).order_by(Alarm.time).limit(limit)).all()]
+
+
+@module.resolve
+def resolve(ctx: Ctx, ids: list[int]) -> dict[int, ListItem]:
+    now = utcnow()
+    return {a.id: _alarm_item(a, now) for a in ctx.db.scalars(select(Alarm).where(Alarm.id.in_(ids))).all()}
+
+
+@module.agenda
+def agenda(ctx: Ctx, start: datetime, end: datetime, tz: str) -> list[AgendaItem]:
+    """Each enabled alarm's next rings inside the range (at most 40 per alarm, so a daily alarm over 100 days stays bounded)."""
+    lo, hi = to_utc_naive(start), to_utc_naive(end)
+    out: list[AgendaItem] = []
+    for a in ctx.db.scalars(select(Alarm).where(Alarm.enabled.is_(True))).all():
+        cursor = lo - timedelta(seconds=1)
+        for _ in range(40):
+            when = schedule.next_fire(a.time, a.days, a.tz, cursor)
+            if when is None or when >= hi:
+                break
+            out.append(AgendaItem(ref=f"alarms:{a.id}", module="alarms", kind="alarm", title=a.label or f"Alarm {a.time}", start=iso_z(when),
+                                  href=f"#/alarms?id={a.id}"))
+            cursor = when
     return out

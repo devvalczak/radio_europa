@@ -55,6 +55,8 @@ class Hub:
         self.diagnostics: list[tuple[str, str, str, bool, Callable]] = []  # (module, id, title, slow, fn)
         self.assistant_gates: dict[str, Callable] = {}  # module -> fn(ctx) -> bool
         self.searchers: list[tuple[str, Callable]] = []  # (module, fn(ctx, q, limit)) for the global search
+        self.resolvers: list[tuple[str, Callable]] = []  # (module, fn(ctx, ids) -> {id: ListItem}) for links and tags
+        self.agendas: list[tuple[str, Callable]] = []  # (module, fn(ctx, start, end, tz) -> [AgendaItem]) for the timeline
 
     # --- registration -------------------------------------------------------------
     def check(self, manifest: dict, module: Module) -> None:
@@ -123,6 +125,10 @@ class Hub:
             self.assistant_gates[mid] = module.assistant_gate
         if module.search_hook:
             self.searchers.append((mid, module.search_hook))
+        if module.resolve_hook:
+            self.resolvers.append((mid, module.resolve_hook))
+        if module.agenda_hook:
+            self.agendas.append((mid, module.agenda_hook))
         for did, (title, slow, fn) in module.diagnostics.items():
             self.diagnostics.append((mid, did, title, slow, fn))
 

@@ -318,3 +318,12 @@ def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
                           .order_by(MailMessage.received.desc()).limit(limit)).all()
     return [ListItem(title=m.subject or "(bez tematu)", subtitle=m.from_name or m.from_addr, time=iso_z(m.received),
                      href=f"#/mail?id={m.id}") for m in rows]
+
+
+@module.resolve
+def resolve(ctx: Ctx, ids: list[int]) -> dict[int, ListItem]:
+    """Titles of stored messages for links ("task from this mail"). Rows can disappear when the cache is rebuilt: such
+    links just stop showing."""
+    return {m.id: ListItem(title=m.subject or "(bez tematu)", subtitle=m.from_name or m.from_addr, time=iso_z(m.received),
+                           href=f"#/mail?id={m.id}", ref=f"mail:{m.id}")
+            for m in ctx.db.scalars(select(MailMessage).where(MailMessage.id.in_(ids))).all()}

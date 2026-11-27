@@ -24,12 +24,13 @@ from sqlalchemy.orm import Session
 
 from . import ai as _ai
 from .push import Reminder, send_push
-from .widgets import ButtonsBlock, ButtonSpec, ListBlock, ListItem, ProgressBlock, StatBlock, TextBlock
+from .widgets import AgendaItem, ButtonsBlock, ButtonSpec, ListBlock, ListItem, ProgressBlock, StatBlock, TextBlock
 
 if TYPE_CHECKING:
     from .hub import Hub
 
 __all__ = [
+    "AgendaItem",
     "Module", "Ctx", "ActionError", "Reminder", "ListBlock", "ListItem", "StatBlock", "TextBlock",
     "ProgressBlock", "ButtonsBlock", "ButtonSpec", "WidgetOpts", "Check", "text_match",
 ]
@@ -98,6 +99,8 @@ class Module:
         self.tasks: dict[str, Callable] = {}
         self.reminder_hook: Callable | None = None
         self.search_hook: Callable | None = None
+        self.resolve_hook: Callable | None = None
+        self.agenda_hook: Callable | None = None
 
     def action(self, name: str, input: type[BaseModel] | None = None):
         def deco(fn: Callable) -> Callable:
@@ -157,6 +160,20 @@ class Module:
         self.search_hook = fn
         return fn
 
+    def resolve(self, fn: Callable) -> Callable:
+        """`fn(ctx, ids) -> {id: ListItem}`: what the items with these ids are (title, subtitle, time, `href`), so the core
+        can show links and tags ("Powiązane"). Return only items that still exist. Database only; not in the manifest
+        and never an assistant tool (the core filters by the module's assistant gate)."""
+        self.resolve_hook = fn
+        return fn
+
+    def agenda(self, fn: Callable) -> Callable:
+        """`fn(ctx, start, end, tz) -> list[AgendaItem]`: this module's dated items between two UTC datetimes, for the
+        shared timeline (calendar overlay, Dzisiaj). `tz` is the viewer's zone name (all-day items belong to a local
+        day). Database only. Not in the manifest."""
+        self.agenda_hook = fn
+        return fn
+
     def reminders(self, fn: Callable) -> Callable:
         """fn(db, now) -> list[Reminder]; polled by the scheduler. Needs the push.send permission."""
         self.reminder_hook = fn
@@ -197,10 +214,13 @@ class Ctx:
         return send_push(self.db, reminder)
 
 
-def text_match(q: str, *columns):
-    """SQL condition: every word of `q` occurs (case-insensitive substring) in at least one of `columns`.
-    LIKE wildcards in the query are escaped. Empty query -> None (callers return no results)."""
-    from sqlalchemy import and_, or_
+def text_match(q: str, *columns, tags: tuple[str, Any] | None = None):
+    """SQL condition: every word of `q` occurs (case-insensitive substring) in at least one of `columns` or, with
+    `tags=("<module>", Model.id)`, in one of the item's shared tags. LIKE wildcards in the query are escaped.
+    Empty query -> None (callers return no results)."""
+    from sqlalchemy import and_, or_, select
+
+    from .models import EntityTag
 
     words = [w for w in q.split() if w][:8]
     if not words:
@@ -209,4 +229,12 @@ def text_match(q: str, *columns):
     def pat(w: str) -> str:
         return "%" + w.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
-    return and_(*[or_(*[c.ilike(pat(w), escape="\\") for c in columns]) for w in words])
+    def one(w: str):
+        conds = [c.ilike(pat(w), escape="\\") for c in columns]
+        if tags is not None:
+            module, id_col = tags
+            conds.append(id_col.in_(select(EntityTag.item_id).where(
+                EntityTag.module == module, EntityTag.tag.like(pat(w.lstrip("#").lower()), escape="\\"))))
+        return or_(*conds)
+
+    return and_(*[one(w) for w in words])

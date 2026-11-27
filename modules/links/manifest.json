@@ -1,0 +1,33 @@
+{
+  "contract": 1,
+  "id": "links",
+  "name": "Tagi i powiązania",
+  "version": "0.1.0",
+  "description": "Tagi wspólne dla notatek, zadań, wydarzeń i zakupów oraz powiązania między elementami (np. zadanie z maila).",
+  "permissions": [],
+  "actions": [
+    {
+      "name": "list_tags",
+      "description": "Zwraca wszystkie tagi z liczbą oznaczonych nimi elementów (notatki, zadania, wydarzenia, zakupy).",
+      "readonly": true
+    },
+    {
+      "name": "find_by_tag",
+      "description": "Zwraca elementy (notatki, zadania, wydarzenia, zakupy) oznaczone danym tagiem: moduł, tytuł i adres.",
+      "readonly": true
+    },
+    {
+      "name": "list_links",
+      "description": "Zwraca elementy powiązane z danym elementem. 'ref' to 'moduł:id', np. 'tasks:5' albo 'notes:12'.",
+      "readonly": true
+    },
+    {
+      "name": "link",
+      "description": "Powiązuje dwa istniejące elementy (np. zadanie z notatką). 'a' i 'b' to 'moduł:id', np. 'tasks:5' i 'notes:12'."
+    },
+    {
+      "name": "set_tags",
+      "description": "Ustawia tagi elementu ('ref' to 'moduł:id'); zastępuje dotychczasowe tagi tej listy. Tagi są małymi literami, bez #."
+    }
+  ]
+}

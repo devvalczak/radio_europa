@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import links
 from app.auth import require_user
 from app.db import get_db
 from app.models import User
@@ -155,6 +156,11 @@ def cart(db: Session = Depends(get_db)):
     return _cart(db)
 
 
+@router.get("/{item_id:int}")
+def get_item(item_id: int, db: Session = Depends(get_db)):
+    return _out(_http(lambda: _get(db, item_id)))
+
+
 @router.post("", status_code=201)
 def add_item(body: ItemIn, user: Annotated[User, Depends(require_user)], db: Session = Depends(get_db)):
     return _http(lambda: _add(db, body, f"user:{user.username}"))
@@ -168,6 +174,7 @@ def update_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db)):
 @router.delete("/{item_id}", status_code=204)
 def delete_item(item_id: int, db: Session = Depends(get_db)):
     db.delete(_http(lambda: _get(db, item_id)))
+    links.forget(db, "shopping", item_id)
     db.commit()
 
 
@@ -284,4 +291,11 @@ def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
     rows = ctx.db.scalars(select(ShoppingItem).where(text_match(q, ShoppingItem.query, ShoppingItem.product_name))
                           .order_by(ShoppingItem.done, ShoppingItem.updated_at.desc()).limit(limit)).all()
     return [ListItem(title=i.product_name or i.query, subtitle=i.query if i.product_name else None,
-                     badge="kupione" if i.done else None, href="#/shopping") for i in rows]
+                     badge="kupione" if i.done else None, href=f"#/shopping?id={i.id}") for i in rows]
+
+
+@module.resolve
+def resolve(ctx: Ctx, ids: list[int]) -> dict[int, ListItem]:
+    return {i.id: ListItem(title=i.product_name or i.query, subtitle=None if i.quantity == 1 else f"{i.quantity} szt.",
+                           badge="kupione" if i.done else None, href=f"#/shopping?id={i.id}", ref=f"shopping:{i.id}")
+            for i in ctx.db.scalars(select(ShoppingItem).where(ShoppingItem.id.in_(ids))).all()}

@@ -15,8 +15,9 @@ from pydantic import AwareDatetime, BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import links
 from app.db import get_db
-from app.sdk import (ActionError, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, StatBlock,
+from app.sdk import (ActionError, AgendaItem, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, StatBlock,
                      TextBlock, WidgetOpts, text_match)
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
@@ -188,6 +189,7 @@ def snooze_task(task_id: int, body: SnoozeIn, db: Session = Depends(get_db)):
 @router.delete("/{task_id}", status_code=204)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
     db.delete(_get(db, task_id))
+    links.forget(db, "tasks", task_id)
     db.commit()
 
 
@@ -197,6 +199,7 @@ def clear_done(db: Session = Depends(get_db)):
     rows = db.scalars(select(Task).where(Task.done.is_(True))).all()
     for t in rows:
         db.delete(t)
+        links.forget(db, "tasks", t.id)
     db.commit()
     return {"deleted": len(rows)}
 
@@ -311,7 +314,32 @@ def diag_reminders(ctx: Ctx) -> Check:
 def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
     """Open tasks first, then done ones."""
     now = utcnow()
-    rows = ctx.db.scalars(select(Task).where(text_match(q, Task.title, Task.notes))
+    cond = text_match(q, Task.title, Task.notes, tags=("tasks", Task.id))
+    rows = ctx.db.scalars(select(Task).where(cond)
                           .order_by(Task.done, Task.due.is_(None), Task.due, Task.id.desc()).limit(limit)).all()
     return [ListItem(title=t.title, time=iso_z(t.due), all_day=t.all_day, href=f"#/tasks?id={t.id}",
                      badge="zrobione" if t.done else "po terminie" if _overdue(t, now) else None) for t in rows]
+
+
+def _badge(t: Task, now: datetime) -> str | None:
+    return "zrobione" if t.done else "po terminie" if _overdue(t, now) else None
+
+
+@module.resolve
+def resolve(ctx: Ctx, ids: list[int]) -> dict[int, ListItem]:
+    now = utcnow()
+    return {t.id: ListItem(title=t.title, time=iso_z(t.due), all_day=t.all_day, badge=_badge(t, now), href=f"#/tasks?id={t.id}",
+                           ref=f"tasks:{t.id}")
+            for t in ctx.db.scalars(select(Task).where(Task.id.in_(ids))).all()}
+
+
+@module.agenda
+def agenda(ctx: Ctx, start: datetime, end: datetime, tz: str) -> list[AgendaItem]:
+    """Tasks with a due date in the range (done ones too, ticked). All-day tasks sit at the local midnight they were saved with."""
+    lo, hi = to_utc_naive(start), to_utc_naive(end)
+    now = utcnow()
+    rows = ctx.db.scalars(select(Task).where(Task.due >= lo, Task.due < hi).order_by(Task.due, Task.id)).all()
+    return [AgendaItem(ref=f"tasks:{t.id}", module="tasks", kind="task", title=t.title, start=iso_z(t.due), all_day=t.all_day, done=t.done,
+                       badge=("ważne" if t.important and not t.done else "po terminie" if _overdue(t, now) else None), href=f"#/tasks?id={t.id}",
+                       done_action=None if t.done else {"action": "tasks.complete_task", "input": {"id": t.id}})
+            for t in rows]

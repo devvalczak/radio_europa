@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,7 +14,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import ai, capture, capture_ai
+from . import ai, capture, capture_ai, links
 from .auth import require_user
 from .config import settings
 from .db import get_db
@@ -22,7 +23,7 @@ from .logs import redact_text
 from .models import AuditLog, User, UserLayout
 from .sdk import AUTO_FIELDS, ActionError, Ctx
 from .timeutil import utcnow
-from .widgets import Block, ListItem
+from .widgets import AgendaItem, Block, ListItem
 
 _blocks = TypeAdapter(list[Block])
 search_log = logging.getLogger("jarvis.search")
@@ -39,6 +40,17 @@ class CaptureIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
     tz: str = Field(default="Europe/Warsaw", max_length=64)
     kind: str | None = Field(default=None, pattern="^(task|event|shopping|note)$")
+
+
+class LinkIn(BaseModel):
+    a: str = Field(max_length=48)
+    b: str = Field(max_length=48)
+    kind: str = Field(default="manual", pattern="^(manual|mention|from)$")
+
+
+class TagsIn(BaseModel):
+    ref: str = Field(max_length=48)
+    tags: list[str] = Field(default_factory=list, max_length=links.MAX_TAGS + 8)
 
 
 class LayoutItem(BaseModel):
@@ -197,10 +209,103 @@ def build_router(hub: Hub) -> APIRouter:
                 search_log.exception("search hook of %s failed", mid)
                 db.rollback()
                 continue
+            for it in items:  # modules that open items by "#/<module>?id=N" get a ref for free (the item picker needs it)
+                if it.ref is None and it.href and (mt := re.fullmatch(rf"#/{mid}\?id=(\d+)", it.href)):
+                    it.ref = f"{mid}:{mt.group(1)}"
             if items:
                 out.append({"module": mid, "module_name": names[mid],
                             "items": [i.model_dump(exclude_none=True) for i in items[:limit]]})
         return out
+
+    # --- links, tags, agenda (shared by every module) -------------------------------------------------
+    def _bad(exc: links.LinkError):
+        return HTTPException(422, str(exc))
+
+    def _exists(db: Session, ref: str) -> None:
+        try:
+            if ref not in links.resolve(hub, db, [ref]):
+                raise HTTPException(404, "Nie ma takiego elementu.")
+        except links.LinkError as exc:
+            raise _bad(exc) from None
+
+    @router.get("/hub/links")
+    def get_links(ref: str = Query(max_length=48), db: Session = Depends(get_db)):
+        try:
+            return links.related(hub, db, ref)
+        except links.LinkError as exc:
+            raise _bad(exc) from None
+
+    @router.post("/hub/links")
+    def add_link(body: LinkIn, db: Session = Depends(get_db)):
+        _exists(db, body.a)
+        _exists(db, body.b)
+        try:
+            row = links.link(db, body.a, body.b, body.kind)
+        except links.LinkError as exc:
+            raise _bad(exc) from None
+        db.commit()
+        return {"id": row.id}
+
+    @router.delete("/hub/links/{link_id}", status_code=204)
+    def remove_link(link_id: int, db: Session = Depends(get_db)):
+        if not links.unlink(db, link_id):
+            raise HTTPException(404, "Nie ma takiego powiązania.")
+        db.commit()
+
+    @router.get("/hub/tags")
+    def list_tags(ref: str | None = Query(default=None, max_length=48), db: Session = Depends(get_db)):
+        """Without `ref`: every tag with its count. With `ref`: the tags of that item."""
+        if ref is None:
+            return links.all_tags(db)
+        try:
+            module, item_id = links.parse_ref(ref)
+        except links.LinkError as exc:
+            raise _bad(exc) from None
+        return links.get_tags(db, module, item_id)
+
+    @router.get("/hub/tags/{tag}/items")
+    def tag_items(tag: str, db: Session = Depends(get_db)):
+        refs = links.refs_with_tag(db, tag)
+        found = links.resolve(hub, db, refs)
+        return [{"ref": r, "module": r.split(":")[0], **found[r].model_dump(exclude_none=True)} for r in refs if r in found]
+
+    @router.put("/hub/tags")
+    def put_tags(body: TagsIn, db: Session = Depends(get_db)):
+        _exists(db, body.ref)
+        try:
+            module, item_id = links.parse_ref(body.ref)
+            saved = links.set_tags(db, module, item_id, body.tags)
+        except links.LinkError as exc:
+            raise _bad(exc) from None
+        db.commit()
+        return saved
+
+    @router.get("/hub/agenda")
+    def agenda(start: datetime = Query(alias="from"), end: datetime = Query(alias="to"), tz: str = Query(default="Europe/Warsaw", max_length=64),
+               db: Session = Depends(get_db)):
+        """Dated items of every module with an agenda hook between two moments (shared timeline), soonest first."""
+        if start.tzinfo is None or end.tzinfo is None:
+            raise HTTPException(422, "Daty muszą mieć strefę czasową.")
+        if end <= start or (end - start).days > 100:
+            raise HTTPException(422, "Zakres musi mieć od 1 do 100 dni.")
+        try:
+            ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise HTTPException(422, "Nieznana strefa czasowa.") from None
+        names = {m["id"] for m in hub.modules if m["status"] == "ok"}
+        out: list[dict] = []
+        for mid, fn in hub.agendas:
+            if mid not in names:
+                continue
+            try:
+                items = [AgendaItem.model_validate(x) if isinstance(x, dict) else x
+                         for x in fn(Ctx(db, mid, hub), start.astimezone(UTC), end.astimezone(UTC), tz)]
+            except Exception:
+                search_log.exception("agenda hook of %s failed", mid)
+                db.rollback()
+                continue
+            out.extend(i.model_dump(exclude_none=True) for i in items)
+        return sorted(out, key=lambda i: (i["start"], i["title"]))
 
     @router.get("/hub/quick")
     def quick():

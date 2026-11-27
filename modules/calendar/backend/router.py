@@ -13,9 +13,9 @@ from pydantic import AwareDatetime, BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crypto
+from app import crypto, links
 from app.db import get_db
-from app.sdk import ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts, text_match
+from app.sdk import AgendaItem, ButtonSpec, ButtonsBlock, Check, Ctx, ListBlock, ListItem, Module, Reminder, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z, to_utc_naive, utcnow
 
 from . import caldav, ical, sync
@@ -359,6 +359,7 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
     if event.source_id is not None and event.remote_href:  # already on the server: delete it there on the next sync
         db.add(CalendarPendingDelete(source_id=event.source_id, href=event.remote_href, etag=event.etag))
     db.delete(event)
+    links.forget(db, "calendar", event_id)
     db.commit()
 
 
@@ -478,7 +479,7 @@ def diag_reminders(ctx: Ctx) -> Check:
 @module.search
 def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
     """Upcoming matches first (soonest), then past ones (most recent)."""
-    cond = text_match(q, Event.title, Event.description)
+    cond = text_match(q, Event.title, Event.description, tags=("calendar", Event.id))
     now = utcnow()
     future = ctx.db.scalars(select(Event).where(cond, Event.start >= now - timedelta(days=1)).order_by(Event.start).limit(limit)).all()
     past = ctx.db.scalars(select(Event).where(cond, Event.start < now - timedelta(days=1)).order_by(Event.start.desc())
@@ -506,3 +507,19 @@ def diag_sources(ctx: Ctx) -> list[Check]:
             out.append(Check("warn" if late else "ok", f"{s.last_count} wydarzeń · synchronizacja {_ago(s.last_ok_at)}",
                              "Synchronizacja stoi — sprawdź Zadania w tle." if late else "", f"{s.label} ({kind})"))
     return out
+
+
+@module.resolve
+def resolve(ctx: Ctx, ids: list[int]) -> dict[int, ListItem]:
+    return {e.id: ListItem(title=e.title, time=iso_z(e.start), all_day=e.all_day, href=f"#/calendar?id={e.id}", ref=f"calendar:{e.id}")
+            for e in ctx.db.scalars(select(Event).where(Event.id.in_(ids))).all()}
+
+
+@module.agenda
+def agenda(ctx: Ctx, start: datetime, end: datetime, tz: str) -> list[AgendaItem]:
+    lo, hi = to_utc_naive(start), to_utc_naive(end)
+    rows = ctx.db.scalars(select(Event).where(
+        Event.start < hi, (Event.end >= lo) | ((Event.end.is_(None)) & (Event.start >= lo))).order_by(Event.start, Event.id)).all()
+    return [AgendaItem(ref=f"calendar:{e.id}", module="calendar", kind="event", title=e.title, start=iso_z(e.start), end=iso_z(e.end),
+                       all_day=e.all_day, badge=e.source.label if e.source_id and e.source else None, href=f"#/calendar?id={e.id}")
+            for e in rows]

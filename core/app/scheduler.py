@@ -94,6 +94,14 @@ def housekeeping() -> None:
         purge_old()
     except Exception:
         log.exception("housekeeping failed")
+    try:
+        from . import links
+
+        with SessionLocal() as db:
+            if n := links.purge_orphans(hub, db):
+                log.info("links: removed links and tags of %d deleted items", n)
+    except Exception:
+        log.exception("link cleanup failed")
 
 
 async def run() -> None:

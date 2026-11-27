@@ -1,8 +1,11 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app import links
 from app.db import get_db
 from app.sdk import ButtonsBlock, ButtonSpec, Ctx, ListBlock, ListItem, Module, TextBlock, WidgetOpts, text_match
 from app.timeutil import iso_z
@@ -22,26 +25,39 @@ class NoteIn(BaseModel):
     pinned: bool = False
 
 
-def _clean_tags(tags: list[str]) -> str:
-    seen: list[str] = []
-    for tag in tags:
-        tag = tag.strip().lower().replace(",", " ")[:30]
-        if tag and tag not in seen:
-            seen.append(tag)
-    return ",".join(seen)
+# a link to another item inside the text, as the editor writes it: [title](#/tasks?id=5)
+MENTION = re.compile(r"\]\(#/([a-z][a-z0-9_]{1,31})\?id=(\d{1,12})\)")
 
 
-def _out(n: Note) -> dict:
+def _sync(db: Session, note: Note, tags: list[str]) -> None:
+    """Tags live in the shared tag table; links written in the text become "mention" links (and vanish with the text)."""
+    links.set_tags(db, "notes", note.id, tags)
+    found = {f"{m}:{i}" for m, i in MENTION.findall(note.content) if m != "notes" or int(i) != note.id}
+    me = f"notes:{note.id}"
+    links.unlink_kind(db, me, "mention", found)
+    for ref in sorted(found):
+        try:
+            links.link(db, me, ref, "mention")
+        except links.LinkError:
+            continue
+
+
+def _out(n: Note, tags: list[str]) -> dict:
     return {
         "id": n.id,
         "title": n.title,
         "content": n.content,
         "snippet": snippet(n.content),
-        "tags": [t for t in n.tags.split(",") if t],
+        "tags": tags,
         "pinned": n.pinned,
         "created_at": iso_z(n.created_at),
         "updated_at": iso_z(n.updated_at),
     }
+
+
+def _outs(db: Session, notes: list[Note]) -> list[dict]:
+    tags = links.tags_for(db, "notes", [n.id for n in notes])
+    return [_out(n, tags.get(n.id, [])) for n in notes]
 
 
 def _get(db: Session, note_id: int) -> Note:
@@ -58,16 +74,8 @@ def list_notes(q: str | None = None, tag: str | None = None, db: Session = Depen
         like = f"%{q}%"
         stmt = stmt.where(or_(Note.title.ilike(like), Note.content.ilike(like)))
     if tag:
-        # tags are stored as "a,b,c"; match whole tags only
-        stmt = stmt.where(
-            or_(
-                Note.tags == tag.lower(),
-                Note.tags.like(f"{tag.lower()},%"),
-                Note.tags.like(f"%,{tag.lower()},%"),
-                Note.tags.like(f"%,{tag.lower()}"),
-            )
-        )
-    return [_out(n) for n in db.scalars(stmt).all()]
+        stmt = stmt.where(links.tag_filter("notes", Note.id, tag))
+    return _outs(db, list(db.scalars(stmt).all()))
 
 
 def _title(body: NoteIn) -> str:
@@ -75,10 +83,16 @@ def _title(body: NoteIn) -> str:
 
 
 def _create(db: Session, body: NoteIn) -> dict:
-    note = Note(title=_title(body), content=body.content, tags=_clean_tags(body.tags), pinned=body.pinned)
+    note = Note(title=_title(body), content=body.content, pinned=body.pinned)
     db.add(note)
+    db.flush()
+    try:
+        _sync(db, note, body.tags)
+    except links.LinkError as exc:
+        db.rollback()
+        raise HTTPException(422, str(exc)) from None
     db.commit()
-    return _out(note)
+    return _outs(db, [note])[0]
 
 
 @router.post("", status_code=201)
@@ -88,21 +102,27 @@ def create_note(body: NoteIn, db: Session = Depends(get_db)):
 
 @router.get("/{note_id}")
 def read_note(note_id: int, db: Session = Depends(get_db)):
-    return _out(_get(db, note_id))
+    return _outs(db, [_get(db, note_id)])[0]
 
 
 @router.put("/{note_id}")
 def update_note(note_id: int, body: NoteIn, db: Session = Depends(get_db)):
     note = _get(db, note_id)
     note.title, note.content = _title(body), body.content
-    note.tags, note.pinned = _clean_tags(body.tags), body.pinned
+    note.pinned = body.pinned
+    try:
+        _sync(db, note, body.tags)
+    except links.LinkError as exc:
+        db.rollback()
+        raise HTTPException(422, str(exc)) from None
     db.commit()
-    return _out(note)
+    return _outs(db, [note])[0]
 
 
 @router.delete("/{note_id}", status_code=204)
 def delete_note(note_id: int, db: Session = Depends(get_db)):
     db.delete(_get(db, note_id))
+    links.forget(db, "notes", note_id)
     db.commit()
 
 
@@ -121,7 +141,7 @@ def action_search(ctx: Ctx, data: SearchIn):
     if data.q:
         like = f"%{data.q}%"
         stmt = stmt.where(or_(Note.title.ilike(like), Note.content.ilike(like)))
-    return [_out(n) for n in ctx.db.scalars(stmt).all()]
+    return _outs(ctx.db, list(ctx.db.scalars(stmt).all()))
 
 
 NEW_NOTE = ButtonsBlock(buttons=[ButtonSpec(label="Nowa notatka", quick="notes.new", primary=True)])
@@ -145,7 +165,15 @@ def widget_recent(ctx: Ctx, opts: WidgetOpts):
 
 @module.search
 def search(ctx: Ctx, q: str, limit: int) -> list[ListItem]:
-    cond = text_match(q, Note.title, Note.content, Note.tags)
+    cond = text_match(q, Note.title, Note.content, tags=("notes", Note.id))
     rows = ctx.db.scalars(select(Note).where(cond).order_by(Note.pinned.desc(), Note.updated_at.desc()).limit(limit)).all()
-    return [ListItem(title=n.title or "(bez tytułu)", subtitle=", ".join(t for t in n.tags.split(",") if t) or None,
+    tags = links.tags_for(ctx.db, "notes", [n.id for n in rows])
+    return [ListItem(title=n.title or "(bez tytułu)", subtitle=", ".join(tags.get(n.id, [])) or None,
                      time=iso_z(n.updated_at), href=f"#/notes?id={n.id}") for n in rows]
+
+
+@module.resolve
+def resolve(ctx: Ctx, ids: list[int]) -> dict[int, ListItem]:
+    return {n.id: ListItem(title=n.title or "(bez tytułu)", subtitle=snippet(n.content, 80) or None, time=iso_z(n.updated_at),
+                           href=f"#/notes?id={n.id}", ref=f"notes:{n.id}")
+            for n in ctx.db.scalars(select(Note).where(Note.id.in_(ids))).all()}
